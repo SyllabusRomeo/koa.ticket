@@ -61,7 +61,8 @@ Seed example: `reset-password-m365`.
 
 1. Open **Catalog**.
 2. Read available services (code, name, description).
-3. Raise the matching request ticket type/category.
+3. Click **Request this service** (optional notes) — creates the matching ticket in one step (`POST /api/v1/catalog/:id/request`).
+4. Service/access requests that require approval appear in Approvals.
 
 ### For admins (`settings:manage`)
 

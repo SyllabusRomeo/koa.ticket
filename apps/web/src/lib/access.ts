@@ -85,6 +85,9 @@ export function workspaceNextActions(user: AuthUser): WorkspaceAction[] {
     }
     push({ href: '/app/admin/integrations', label: 'Integrations' });
     push({ href: '/app/admin/branding', label: 'Branding' });
+    if (can(user, 'settings:manage') || can(user, 'org:manage')) {
+      push({ href: '/app/admin/routing', label: 'Routing & SLA' });
+    }
     if (can(user, 'tickets:read_all') || can(user, 'tickets:read_queue')) {
       push({ href: '/app/tickets', label: 'Open ticket queue' });
     }
@@ -249,6 +252,9 @@ export function navForUser(user: AuthUser): NavItem[] {
   }
   if (can(user, 'org:manage')) {
     items.push({ href: '/app/admin/teams', label: 'Teams' });
+  }
+  if (can(user, 'settings:manage') || can(user, 'org:manage')) {
+    items.push({ href: '/app/admin/routing', label: 'Routing & SLA' });
   }
   if (hasRole(user, 'sysadmin')) {
     items.push({ href: '/app/admin/integrations', label: 'Integrations' });

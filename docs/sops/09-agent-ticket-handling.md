@@ -26,11 +26,12 @@ For each new ticket:
 5. **Assign team/agent** in the Assignment panel if not auto-routed (needs `tickets:assign`)
 6. Use **Ticket actions** buttons for allowed status moves (e.g. Open → Assigned → In Progress → Resolve → Close). Reopen from Resolved/Closed when allowed. Soft-delete is for sysadmin / IT manager only.
 7. Move status: New → Open/Assigned → In Progress
+8. For major incidents, use **Related tickets** to link children (`POST /tickets/:id/children`). Review **Stage duration** to see where time was spent.
 
 ## Auto-routing
 
 Assignment rules can send tickets to teams (seed example: Network category → Service Desk).  
-Rules are listed on the ticket detail page for agents with org read.  
+Configure rules in **Routing & SLA** (`/app/admin/routing`) or see the summary on ticket detail.  
 If wrong queue, reassign and notify.
 
 ## Working the ticket

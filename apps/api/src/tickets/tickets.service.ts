@@ -131,6 +131,19 @@ export class TicketsService {
       locationId: user.locationId,
     });
 
+    let parentId: string | undefined;
+    if (dto.parentNumber) {
+      const parent = await this.prisma.ticket.findFirst({
+        where: {
+          deletedAt: null,
+          OR: [{ id: dto.parentNumber }, { number: dto.parentNumber }],
+        },
+        select: { id: true, number: true },
+      });
+      if (!parent) throw new BadRequestException('Parent ticket not found');
+      parentId = parent.id;
+    }
+
     const ticket = await this.prisma.ticket.create({
       data: {
         number,
@@ -147,12 +160,24 @@ export class TicketsService {
         departmentId: user.departmentId,
         locationId: user.locationId,
         teamId: teamId ?? undefined,
+        parentId,
         history: {
-          create: {
-            actorId: user.id,
-            field: 'created',
-            newValue: number,
-          },
+          create: [
+            {
+              actorId: user.id,
+              field: 'created',
+              newValue: number,
+            },
+            ...(parentId
+              ? [
+                  {
+                    actorId: user.id,
+                    field: 'parent',
+                    newValue: dto.parentNumber!.trim(),
+                  },
+                ]
+              : []),
+          ],
         },
       },
       include: this.defaultInclude(false),
@@ -583,6 +608,145 @@ export class TicketsService {
     return comment;
   }
 
+  async linkChild(
+    user: AuthUserView,
+    parentIdOrNumber: string,
+    childNumber: string,
+  ) {
+    if (!user.permissions.includes(PERMISSIONS.TICKETS_WRITE)) {
+      throw new ForbiddenException('Cannot link tickets');
+    }
+    if (!this.canStaffTickets(user)) {
+      throw new ForbiddenException('Only agents can link parent/child tickets');
+    }
+
+    const parent = await this.findAccessible(user, parentIdOrNumber, false);
+    const child = await this.prisma.ticket.findFirst({
+      where: {
+        deletedAt: null,
+        OR: [{ id: childNumber.trim() }, { number: childNumber.trim() }],
+      },
+    });
+    if (!child) throw new NotFoundException('Child ticket not found');
+    if (child.id === parent.id) {
+      throw new BadRequestException('Ticket cannot be its own parent');
+    }
+    if (child.parentId === parent.id) {
+      return this.get(user, parent.id);
+    }
+
+    // Prevent cycles: walk from parent upward; child must not be an ancestor.
+    let cursor: string | null = parent.parentId;
+    const seen = new Set<string>([parent.id]);
+    while (cursor) {
+      if (cursor === child.id) {
+        throw new BadRequestException(
+          'Link would create a cycle in the ticket hierarchy',
+        );
+      }
+      if (seen.has(cursor)) break;
+      seen.add(cursor);
+      const up = await this.prisma.ticket.findFirst({
+        where: { id: cursor },
+        select: { parentId: true },
+      });
+      cursor = up?.parentId ?? null;
+    }
+
+    await this.prisma.ticket.update({
+      where: { id: child.id },
+      data: {
+        parentId: parent.id,
+        history: {
+          create: {
+            actorId: user.id,
+            field: 'parent',
+            oldValue: child.parentId,
+            newValue: parent.number,
+          },
+        },
+      },
+    });
+
+    await this.prisma.ticketHistory.create({
+      data: {
+        ticketId: parent.id,
+        actorId: user.id,
+        field: 'child_linked',
+        newValue: child.number,
+      },
+    });
+
+    await this.audit.log({
+      actorId: user.id,
+      action: 'ticket.link_child',
+      entityType: 'ticket',
+      entityId: parent.id,
+      after: { parent: parent.number, child: child.number },
+    });
+
+    return this.get(user, parent.id);
+  }
+
+  async unlinkChild(
+    user: AuthUserView,
+    parentIdOrNumber: string,
+    childIdOrNumber: string,
+  ) {
+    if (!user.permissions.includes(PERMISSIONS.TICKETS_WRITE)) {
+      throw new ForbiddenException('Cannot unlink tickets');
+    }
+    if (!this.canStaffTickets(user)) {
+      throw new ForbiddenException('Only agents can unlink parent/child tickets');
+    }
+
+    const parent = await this.findAccessible(user, parentIdOrNumber, false);
+    const child = await this.prisma.ticket.findFirst({
+      where: {
+        deletedAt: null,
+        OR: [{ id: childIdOrNumber }, { number: childIdOrNumber }],
+      },
+    });
+    if (!child) throw new NotFoundException('Child ticket not found');
+    if (child.parentId !== parent.id) {
+      throw new BadRequestException('Ticket is not a child of this parent');
+    }
+
+    await this.prisma.ticket.update({
+      where: { id: child.id },
+      data: {
+        parentId: null,
+        history: {
+          create: {
+            actorId: user.id,
+            field: 'parent',
+            oldValue: parent.number,
+            newValue: null,
+          },
+        },
+      },
+    });
+
+    await this.prisma.ticketHistory.create({
+      data: {
+        ticketId: parent.id,
+        actorId: user.id,
+        field: 'child_unlinked',
+        newValue: child.number,
+      },
+    });
+
+    await this.audit.log({
+      actorId: user.id,
+      action: 'ticket.unlink_child',
+      entityType: 'ticket',
+      entityId: parent.id,
+      after: { parent: parent.number, child: child.number },
+    });
+
+    return this.get(user, parent.id);
+  }
+
   async meta() {
     const [types, statuses, categories, priorities, matrix] = await Promise.all(
       [
@@ -647,6 +811,29 @@ export class TicketsService {
         select: { id: true, firstName: true, lastName: true, email: true },
       },
       team: { select: { id: true, code: true, name: true } },
+      parent: withComments
+        ? {
+            select: {
+              id: true,
+              number: true,
+              title: true,
+              status: { select: { code: true, name: true } },
+            },
+          }
+        : false,
+      children: withComments
+        ? {
+            where: { deletedAt: null },
+            orderBy: { createdAt: 'asc' as const },
+            select: {
+              id: true,
+              number: true,
+              title: true,
+              status: { select: { code: true, name: true } },
+              priority: { select: { code: true, name: true } },
+            },
+          }
+        : false,
       slaInstances: {
         orderBy: { createdAt: 'asc' as const },
         select: {
@@ -676,7 +863,7 @@ export class TicketsService {
           }
         : false,
       history: withComments
-        ? { orderBy: { createdAt: 'desc' as const }, take: 50 }
+        ? { orderBy: { createdAt: 'asc' as const }, take: 200 }
         : false,
     };
   }
@@ -742,6 +929,116 @@ export class TicketsService {
     };
   }
 
+  private computeStageDurations(
+    ticket: {
+      createdAt?: Date;
+      status?: { code?: string; name?: string } | null;
+      history?: Array<{
+        field: string;
+        oldValue: string | null;
+        newValue: string | null;
+        createdAt: Date;
+      }>;
+    },
+    now = new Date(),
+  ) {
+    const history = ticket.history ?? [];
+    const statusChanges = history
+      .filter((h) => h.field === 'status' && h.newValue)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+    type Stage = {
+      statusCode: string;
+      enteredAt: string;
+      exitedAt: string | null;
+      durationMs: number;
+      current: boolean;
+    };
+
+    const stages: Stage[] = [];
+    const createdAt = ticket.createdAt ?? now;
+
+    if (statusChanges.length === 0) {
+      const code = ticket.status?.code ?? 'new';
+      return {
+        stages: [
+          {
+            statusCode: code,
+            enteredAt: createdAt.toISOString(),
+            exitedAt: null,
+            durationMs: Math.max(0, now.getTime() - createdAt.getTime()),
+            current: true,
+          },
+        ],
+        totalsByStatus: [
+          {
+            statusCode: code,
+            durationMs: Math.max(0, now.getTime() - createdAt.getTime()),
+            label: this.formatDurationLabel(
+              Math.max(0, now.getTime() - createdAt.getTime()),
+            ),
+          },
+        ],
+        ticketAgeMs: Math.max(0, now.getTime() - createdAt.getTime()),
+      };
+    }
+
+    let cursorCode = statusChanges[0].oldValue ?? 'new';
+    let cursorAt = createdAt;
+
+    for (const change of statusChanges) {
+      const exitedAt = change.createdAt;
+      const durationMs = Math.max(0, exitedAt.getTime() - cursorAt.getTime());
+      stages.push({
+        statusCode: cursorCode,
+        enteredAt: cursorAt.toISOString(),
+        exitedAt: exitedAt.toISOString(),
+        durationMs,
+        current: false,
+      });
+      cursorCode = change.newValue!;
+      cursorAt = exitedAt;
+    }
+
+    stages.push({
+      statusCode: ticket.status?.code ?? cursorCode,
+      enteredAt: cursorAt.toISOString(),
+      exitedAt: null,
+      durationMs: Math.max(0, now.getTime() - cursorAt.getTime()),
+      current: true,
+    });
+
+    // Collapse consecutive identical codes (defensive).
+    const collapsed: Stage[] = [];
+    for (const s of stages) {
+      const prev = collapsed[collapsed.length - 1];
+      if (prev && prev.statusCode === s.statusCode && !prev.current) {
+        prev.durationMs += s.durationMs;
+        prev.exitedAt = s.exitedAt;
+        prev.current = s.current;
+      } else {
+        collapsed.push({ ...s });
+      }
+    }
+
+    const byStatus = new Map<string, number>();
+    for (const s of collapsed) {
+      byStatus.set(s.statusCode, (byStatus.get(s.statusCode) ?? 0) + s.durationMs);
+    }
+
+    return {
+      stages: collapsed,
+      totalsByStatus: [...byStatus.entries()].map(([statusCode, durationMs]) => ({
+        statusCode,
+        durationMs,
+        label: this.formatDurationLabel(durationMs),
+      })),
+      ticketAgeMs: ticket.createdAt
+        ? Math.max(0, now.getTime() - ticket.createdAt.getTime())
+        : null,
+    };
+  }
+
   private formatDurationLabel(ms: number): string {
     const sign = ms < 0 ? '-' : '';
     const abs = Math.abs(ms);
@@ -762,8 +1059,18 @@ export class TicketsService {
   private serialize(
     ticket: {
       comments?: Array<{ isInternal: boolean; [k: string]: unknown }>;
-      status?: { isTerminal?: boolean; [k: string]: unknown };
+      status?: { isTerminal?: boolean; code?: string; [k: string]: unknown };
       dueAt?: Date | null;
+      createdAt?: Date;
+      history?: Array<{
+        field: string;
+        oldValue: string | null;
+        newValue: string | null;
+        createdAt: Date;
+        [k: string]: unknown;
+      }>;
+      parent?: unknown;
+      children?: unknown;
       slaInstances?: Array<{
         metric: string;
         dueAt: Date;
@@ -784,10 +1091,20 @@ export class TicketsService {
       : undefined;
 
     const timer = this.resolveSlaTimer(ticket);
+    const stageDurations = Array.isArray(ticket.history)
+      ? this.computeStageDurations(ticket)
+      : undefined;
+
+    // Newest-first for UI timeline (we store ascending for stage calc).
+    const history = Array.isArray(ticket.history)
+      ? [...ticket.history].reverse()
+      : undefined;
 
     return {
       ...ticket,
       comments,
+      history,
+      stageDurations,
       dueAt: timer.dueAt,
       slaDueAt: timer.slaDueAt,
       slaRemainingMs: timer.slaRemainingMs,

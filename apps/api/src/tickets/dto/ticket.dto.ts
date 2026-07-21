@@ -41,6 +41,17 @@ export class CreateTicketDto {
   @IsOptional()
   @IsIn(URGENCY)
   urgency?: string;
+
+  /** Optional parent ticket number or id (child of major / parent incident). */
+  @IsOptional()
+  @IsString()
+  parentNumber?: string;
+}
+
+export class LinkChildDto {
+  @IsString()
+  @MinLength(3)
+  childNumber!: string;
 }
 
 export class UpdateTicketDto {

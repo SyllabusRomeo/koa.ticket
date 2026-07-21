@@ -19,6 +19,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import {
   AddCommentDto,
   CreateTicketDto,
+  LinkChildDto,
   UpdateTicketDto,
 } from './dto/ticket.dto';
 import { TicketsService } from './tickets.service';
@@ -84,5 +85,23 @@ export class TicketsController {
     @Body() dto: AddCommentDto,
   ) {
     return this.tickets.addComment(user, id, dto);
+  }
+
+  @Post(':id/children')
+  linkChild(
+    @CurrentUser() user: AuthUserView,
+    @Param('id') id: string,
+    @Body() dto: LinkChildDto,
+  ) {
+    return this.tickets.linkChild(user, id, dto.childNumber);
+  }
+
+  @Delete(':id/children/:childId')
+  unlinkChild(
+    @CurrentUser() user: AuthUserView,
+    @Param('id') id: string,
+    @Param('childId') childId: string,
+  ) {
+    return this.tickets.unlinkChild(user, id, childId);
   }
 }

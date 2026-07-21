@@ -13,13 +13,13 @@ Inspired by common service-desk product pillars (omnichannel, ticket management,
 | Pillar | Now (shipped / shipping) | Next (Phase 2) | Later (Phase 3–4) |
 | --- | --- | --- | --- |
 | **Omnichannel intake** | Web tickets + **Slack/Teams chat → ticket** (+ simulate) | Email inbound | Voice/portal widgets, full Bot Framework JWT |
-| **Ticket management** | Lifecycle, assign, comments, **attachments UI**, soft-delete, **SLA time-to-resolution timers** | Rich filters, bulk actions | Problem/Change dedicated workflows |
+| **Ticket management** | Lifecycle, assign, comments, **attachments UI**, soft-delete, **SLA TTR timers**, **parent/child**, **stage duration** | Rich filters, bulk actions, **ticket merge** | Problem/Change dedicated workflows |
 | **Agent workspace** | **Home KPI dashboard** (overdue / due today / open / on hold / unassigned / assigned to me) + bar breakdowns + **queue TTR badges** | Queue boards, workload views | Personalized dashboards, saved widgets |
-| **Automation / workflows** | Assignment rules on create, SLA worker | Rules admin UI, email notifications | Visual workflow designer |
-| **Routing / tagging** | Category + rules → team | Skills-based / load-balance UI | Dynamic forms, auto-tagging |
+| **Automation / workflows** | Assignment rules on create, SLA worker, **Routing & SLA admin UI** | Email notifications | Visual workflow designer |
+| **Routing / tagging** | Category + rules → team + **admin UI** | Skills-based / load-balance UI | Dynamic forms, auto-tagging |
 | **Reporting / analytics** | Summary + CSV + **workspace metrics API** | Scheduled exports, SLA heatmaps | Custom dashboards, marketplace analytics |
 | **Integrations** | Integrations admin hub, Slack/Teams first cut | More chat channels, webhooks out | Marketplace / plugin packs |
-| **Self-service** | Catalog browse, knowledge, employee tickets | One-click catalog request | Guided resolution, portal themes |
+| **Self-service** | Catalog browse, knowledge, employee tickets, **one-click catalog request** | Guided resolution | Portal themes |
 | **Asset / CMDB** | **Asset register MVP+** (filters, CRUD, retire, CSV, ticket link API) | Discovery / auto-import, richer CI classes | Full CMDB relationships & impact |
 | **AI assists** | — | Suggest similar KB (light) | Draft replies, auto-categorize |
 | **Identity / trust** | Session RBAC, sysadmin full perms | MFA UX | SSO / Entra / SAML |
@@ -67,11 +67,11 @@ LogIT styling uses forest primary + lime/warm cream — never purple AI-generic 
 
 ### Phase 2 — Operations depth
 
-Email I/O · SLA admin UI · Assignment rules UI · Agent queue boards · richer notifications · catalog → request · time-spent worklogs (Later vs display timers)
+Email I/O · Agent queue boards · richer notifications · time-spent worklogs (deeper) · **ticket merge** · ~~SLA admin UI~~ · ~~Assignment rules UI~~ · ~~catalog → request~~ (shipped)
 
 ### Phase 3 — Enterprise control plane
 
-Problem/Change · **CMDB depth** (discovery, CI relationships, impact) · SSO/MFA · workflow designer · polished org admin
+Problem/Change · **CMDB depth** (discovery, CI relationships, impact) · SSO/MFA · workflow designer · polished org admin · parent-resolve child actions / major incident dashboard
 
 > **Asset register (shipped now vs later):** Now = tagged inventory with status lifecycle (`in_stock` / `in_service` / `in_repair` / `retired` / `disposed`), assignment, location, notes, purchase/warranty dates, list filters + search, soft-retire, CSV export, ticket–asset link API. Later = network discovery, CI class hierarchy, relationship graph, change impact analysis.
 

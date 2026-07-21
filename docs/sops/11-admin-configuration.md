@@ -50,7 +50,9 @@ Admins should extend categories via DB/admin APIs as the catalog grows — avoid
 
 ## Assignment rules
 
-`GET/POST /api/v1/assignment-rules` (`org:manage`)
+**Admin UI (preferred):** `/app/admin/routing` — create/list assignment rules (`org:manage`) and SLA policies (`settings:manage`).
+
+API: `GET/POST /api/v1/assignment-rules` (`org:manage`)
 
 Rule matching order: lowest `priority` number first. Match optional filters:
 
@@ -63,9 +65,9 @@ Seed example: Network → Service Desk.
 
 ## SLA policies
 
-`GET/POST /api/v1/sla/policies` (`settings:manage`)
+**Admin UI:** `/app/admin/routing` · API: `GET/POST /api/v1/sla/policies` (`settings:manage`)
 
-Include first response minutes, resolve minutes, escalation thresholds (75/90/100/120).
+Include first response minutes, resolve minutes, escalation thresholds (75/90/100).
 
 Business hours seed: Mon–Fri 08:00–17:00 `Africa/Accra`.
 

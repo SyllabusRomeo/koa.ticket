@@ -6,7 +6,7 @@ import { api, type AuthUser } from '@/lib/api';
 import { can } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import styles from '../app.module.css';
-import { LayoutGrid, Plus, Ticket } from 'lucide-react';
+import { LayoutGrid, Plus, Send, Ticket } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 import { Icon } from '@/components/Icon';
 
@@ -29,7 +29,10 @@ export default function CatalogPage() {
   const [description, setDescription] = useState('');
   const [ticketTypeCode, setTicketTypeCode] = useState('service_request');
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [requestingId, setRequestingId] = useState<string | null>(null);
+  const [notesById, setNotesById] = useState<Record<string, string>>({});
 
   async function load() {
     setItems(await api.catalog());
@@ -86,6 +89,28 @@ export default function CatalogPage() {
     }
   }
 
+  async function onRequest(item: CatalogItem) {
+    if (!can(user, 'tickets:write')) {
+      setError('You do not have permission to create tickets.');
+      return;
+    }
+    setRequestingId(item.id);
+    setError(null);
+    setMessage(null);
+    try {
+      const { ticket } = await api.requestCatalogItem(
+        item.id,
+        notesById[item.id],
+      );
+      setMessage(`Created ${ticket.number} from ${item.code}.`);
+      router.push(`/app/tickets/${encodeURIComponent(ticket.number)}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed');
+    } finally {
+      setRequestingId(null);
+    }
+  }
+
   if (!user) {
     return (
       <main className={styles.page}>
@@ -95,13 +120,14 @@ export default function CatalogPage() {
   }
 
   const canManage = can(user, 'settings:manage');
+  const canRequest = can(user, 'tickets:write');
 
   return (
     <AppShell user={user} onLogout={logout} title="Service catalog">
       <section className={styles.panel}>
         <p className={styles.mission}>
-          Browse requestable services. To order one, open Tickets and create a
-          Service Request or Access Request (goes to Approvals).
+          Browse requestable services and submit one-click requests. Service and
+          access requests go to Approvals when required.
           {canManage
             ? ' As sysadmin you can also add catalog items below.'
             : ''}
@@ -109,7 +135,7 @@ export default function CatalogPage() {
         <div className={styles.ctaRow} style={{ marginBottom: '1rem' }}>
           <a href="/app/tickets" className={styles.btn}>
             <Icon icon={Ticket} size="sm" />
-            Create a request
+            Open tickets
           </a>
           {canManage ? (
             <button
@@ -124,6 +150,13 @@ export default function CatalogPage() {
             Back to Home
           </a>
         </div>
+
+        {error ? (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        ) : null}
+        {message ? <p className={styles.ok}>{message}</p> : null}
 
         {canManage && showCreate ? (
           <form
@@ -181,11 +214,6 @@ export default function CatalogPage() {
                 ))}
               </select>
             </label>
-            {error ? (
-              <p className={styles.error} role="alert">
-                {error}
-              </p>
-            ) : null}
             <button type="submit" className={styles.btn} disabled={saving}>
               {saving ? 'Saving…' : 'Create catalog item'}
             </button>
@@ -196,7 +224,11 @@ export default function CatalogPage() {
           <EmptyState icon={LayoutGrid}>
             No catalog items yet.{' '}
             {canManage ? (
-              <button type="button" className={styles.btn} onClick={() => setShowCreate(true)}>
+              <button
+                type="button"
+                className={styles.btn}
+                onClick={() => setShowCreate(true)}
+              >
                 <Icon icon={Plus} size="sm" />
                 Add the first item
               </button>
@@ -210,7 +242,7 @@ export default function CatalogPage() {
           <ul className={styles.ticketList}>
             {items.map((i) => (
               <li key={i.id}>
-                <a className={styles.rowLink} href="/app/tickets">
+                <div className={styles.rowLink} style={{ display: 'block' }}>
                   <strong>
                     {i.name} ({i.code})
                   </strong>
@@ -218,7 +250,47 @@ export default function CatalogPage() {
                     {i.description}
                     {i.ticketTypeCode ? ` · ${i.ticketTypeCode}` : ''}
                   </em>
-                </a>
+                  {canRequest ? (
+                    <div
+                      style={{
+                        marginTop: '0.75rem',
+                        display: 'grid',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <label>
+                        Optional notes
+                        <textarea
+                          rows={2}
+                          value={notesById[i.id] ?? ''}
+                          onChange={(e) =>
+                            setNotesById((prev) => ({
+                              ...prev,
+                              [i.id]: e.target.value,
+                            }))
+                          }
+                          placeholder="Add context for IT (optional)"
+                          style={{
+                            display: 'block',
+                            width: '100%',
+                            marginTop: 4,
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className={styles.btn}
+                        disabled={requestingId === i.id}
+                        onClick={() => onRequest(i)}
+                      >
+                        <Icon icon={Send} size="sm" />
+                        {requestingId === i.id
+                          ? 'Submitting…'
+                          : 'Request this service'}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>

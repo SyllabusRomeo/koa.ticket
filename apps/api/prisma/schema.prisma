@@ -376,6 +376,7 @@ model Ticket {
   teamId          String?   @map("team_id")
   departmentId    String?   @map("department_id")
   locationId      String?   @map("location_id")
+  parentId        String?   @map("parent_id")
   version         Int       @default(1)
   firstResponseAt DateTime? @map("first_response_at")
   resolvedAt      DateTime? @map("resolved_at")
@@ -395,6 +396,8 @@ model Ticket {
   team        Team?          @relation(fields: [teamId], references: [id])
   department  Department?    @relation(fields: [departmentId], references: [id])
   location    Location?      @relation(fields: [locationId], references: [id])
+  parent      Ticket?        @relation("TicketHierarchy", fields: [parentId], references: [id])
+  children    Ticket[]       @relation("TicketHierarchy")
   comments    TicketComment[]
   history     TicketHistory[]
   attachments TicketAttachment[]
@@ -406,6 +409,7 @@ model Ticket {
   @@index([assigneeId])
   @@index([statusId])
   @@index([teamId])
+  @@index([parentId])
   @@index([createdAt])
   @@map("tickets")
 }

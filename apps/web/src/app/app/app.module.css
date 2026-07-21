@@ -235,6 +235,11 @@
   font-weight: 600;
 }
 
+.ok {
+  color: var(--color-secondary, #456433);
+  font-weight: 600;
+}
+
 .actions,
 .btnRow {
   display: flex;

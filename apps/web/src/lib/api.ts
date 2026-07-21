@@ -94,6 +94,34 @@ export type TicketSummary = {
 export type TicketDetail = TicketSummary & {
   description: string;
   category?: { code: string; name: string } | null;
+  parent?: {
+    id: string;
+    number: string;
+    title: string;
+    status: { code: string; name: string };
+  } | null;
+  children?: Array<{
+    id: string;
+    number: string;
+    title: string;
+    status: { code: string; name: string };
+    priority?: { code: string; name: string } | null;
+  }>;
+  stageDurations?: {
+    stages: Array<{
+      statusCode: string;
+      enteredAt: string;
+      exitedAt: string | null;
+      durationMs: number;
+      current: boolean;
+    }>;
+    totalsByStatus: Array<{
+      statusCode: string;
+      durationMs: number;
+      label: string;
+    }>;
+    ticketAgeMs: number | null;
+  };
   allowedTransitions?: Array<{
     code: string;
     name: string;
@@ -288,11 +316,27 @@ export const api = {
     categoryCode?: string;
     impact?: string;
     urgency?: string;
+    parentNumber?: string;
   }) {
     return request<TicketSummary>('/tickets', {
       method: 'POST',
       body: JSON.stringify(body),
     });
+  },
+  linkChildTicket(parentIdOrNumber: string, childNumber: string) {
+    return request<TicketDetail>(
+      `/tickets/${encodeURIComponent(parentIdOrNumber)}/children`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ childNumber }),
+      },
+    );
+  },
+  unlinkChildTicket(parentIdOrNumber: string, childIdOrNumber: string) {
+    return request<TicketDetail>(
+      `/tickets/${encodeURIComponent(parentIdOrNumber)}/children/${encodeURIComponent(childIdOrNumber)}`,
+      { method: 'DELETE' },
+    );
   },
   updateTicket(
     idOrNumber: string,
@@ -330,9 +374,10 @@ export const api = {
   },
   ticketMeta() {
     return request<{
-      types: Array<{ code: string; name: string }>;
-      categories: Array<{ code: string; name: string }>;
+      types: Array<{ id: string; code: string; name: string }>;
+      categories: Array<{ id: string; code: string; name: string }>;
       statuses: Array<{ code: string; name: string }>;
+      priorities?: Array<{ id: string; code: string; name: string }>;
     }>('/tickets/meta');
   },
   listTeams() {
@@ -403,6 +448,47 @@ export const api = {
   },
   assignmentRules() {
     return request<AssignmentRule[]>('/assignment-rules');
+  },
+  createAssignmentRule(body: {
+    name: string;
+    teamId: string;
+    categoryId?: string;
+    ticketTypeId?: string;
+    locationId?: string;
+    priority?: number;
+  }) {
+    return request('/assignment-rules', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  slaPolicies() {
+    return request<
+      Array<{
+        id: string;
+        name: string;
+        priorityId: string | null;
+        firstResponseMinutes: number;
+        resolveMinutes: number;
+        isActive: boolean;
+        escalations?: Array<{
+          id: string;
+          thresholdPercent: number;
+          notifyRoleCodes: string;
+        }>;
+      }>
+    >('/sla/policies');
+  },
+  createSlaPolicy(body: {
+    name: string;
+    priorityId?: string;
+    firstResponseMinutes: number;
+    resolveMinutes: number;
+  }) {
+    return request('/sla/policies', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
   },
   reportSummary(params: { from?: string; to?: string } = {}) {
     const qs = new URLSearchParams();
@@ -666,6 +752,20 @@ export const api = {
     return request('/catalog', {
       method: 'POST',
       body: JSON.stringify(body),
+    });
+  },
+  requestCatalogItem(idOrCode: string, notes?: string) {
+    return request<{
+      ticket: TicketDetail;
+      catalogItem: {
+        id: string;
+        code: string;
+        name: string;
+        ticketTypeCode: string;
+      };
+    }>(`/catalog/${encodeURIComponent(idOrCode)}/request`, {
+      method: 'POST',
+      body: JSON.stringify({ notes: notes || undefined }),
     });
   },
   assets(params: {

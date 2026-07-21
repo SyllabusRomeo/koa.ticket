@@ -9,6 +9,7 @@ import {
   Monitor,
   Paintbrush,
   Plug,
+  Route,
   ScrollText,
   Ticket,
   Users,
@@ -30,6 +31,7 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   '/app/audit': ScrollText,
   '/app/admin/roles': KeyRound,
   '/app/admin/teams': Users,
+  '/app/admin/routing': Route,
   '/app/admin/integrations': Plug,
   '/app/admin/branding': Paintbrush,
 };

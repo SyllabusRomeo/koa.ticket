@@ -69,6 +69,7 @@ export default function TicketDetailPage() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [attachments, setAttachments] = useState<TicketAttachment[]>([]);
+  const [childNumber, setChildNumber] = useState('');
 
   const load = useCallback(async () => {
     const t = await api.getTicket(idOrNumber);
@@ -249,6 +250,43 @@ export default function TicketDetailPage() {
     }
   }
 
+  async function onLinkChild(e: FormEvent) {
+    e.preventDefault();
+    if (!ticket || !childNumber.trim()) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const updated = await api.linkChildTicket(ticket.number, childNumber.trim());
+      setTicket(updated);
+      setChildNumber('');
+      setMessage(`Linked child ticket.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Link failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onUnlinkChild(childIdOrNumber: string) {
+    if (!ticket) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const updated = await api.unlinkChildTicket(
+        ticket.number,
+        childIdOrNumber,
+      );
+      setTicket(updated);
+      setMessage('Unlinked child ticket.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unlink failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function logout() {
     try {
       await api.logout();
@@ -325,6 +363,88 @@ export default function TicketDetailPage() {
             <h3>Description</h3>
             <p>{ticket.description}</p>
           </div>
+
+          <section className={styles.actionsPanel} aria-labelledby="related-tickets">
+            <h3 id="related-tickets">Related tickets</h3>
+            {ticket.parent ? (
+              <p className={styles.hint}>
+                Parent:{' '}
+                <a href={`/app/tickets/${encodeURIComponent(ticket.parent.number)}`}>
+                  {ticket.parent.number}
+                </a>{' '}
+                — {ticket.parent.title} ({ticket.parent.status.name})
+              </p>
+            ) : (
+              <p className={styles.hint}>No parent ticket linked.</p>
+            )}
+            <ul className={styles.commentList}>
+              {(ticket.children ?? []).length === 0 ? (
+                <li className={styles.hint}>No child tickets.</li>
+              ) : (
+                (ticket.children ?? []).map((c) => (
+                  <li key={c.id}>
+                    <a href={`/app/tickets/${encodeURIComponent(c.number)}`}>
+                      <strong>{c.number}</strong>
+                    </a>{' '}
+                    — {c.title} ({c.status.name})
+                    {can(user, 'tickets:read_queue') ||
+                    can(user, 'tickets:read_all') ? (
+                      <button
+                        type="button"
+                        className={styles.btnSecondary}
+                        style={{ marginLeft: '0.5rem' }}
+                        disabled={busy}
+                        onClick={() => onUnlinkChild(c.number)}
+                      >
+                        Unlink
+                      </button>
+                    ) : null}
+                  </li>
+                ))
+              )}
+            </ul>
+            {(can(user, 'tickets:read_queue') ||
+              can(user, 'tickets:read_all')) &&
+            can(user, 'tickets:write') ? (
+              <form className={styles.commentForm} onSubmit={onLinkChild}>
+                <label>
+                  Link existing ticket as child
+                  <input
+                    value={childNumber}
+                    onChange={(e) => setChildNumber(e.target.value)}
+                    placeholder="e.g. INC-2026-000123"
+                    required
+                    minLength={3}
+                  />
+                </label>
+                <button type="submit" className={styles.btn} disabled={busy}>
+                  Link child
+                </button>
+              </form>
+            ) : null}
+          </section>
+
+          {ticket.stageDurations ? (
+            <section className={styles.actionsPanel} aria-labelledby="stage-time">
+              <h3 id="stage-time">Stage duration</h3>
+              <p className={styles.hint}>
+                Time spent in each status (from ticket history). Current stage
+                is still counting.
+              </p>
+              <ul className={styles.commentList}>
+                {ticket.stageDurations.totalsByStatus.map((s) => (
+                  <li key={s.statusCode}>
+                    <strong>{s.statusCode}</strong> — {s.label}
+                    {ticket.stageDurations?.stages.find(
+                      (st) => st.current && st.statusCode === s.statusCode,
+                    )
+                      ? ' (current)'
+                      : ''}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           <TicketAttachments
             ticketIdOrNumber={ticket.number}
