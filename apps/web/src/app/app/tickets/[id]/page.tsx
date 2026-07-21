@@ -70,6 +70,7 @@ export default function TicketDetailPage() {
   const [loading, setLoading] = useState(true);
   const [attachments, setAttachments] = useState<TicketAttachment[]>([]);
   const [childNumber, setChildNumber] = useState('');
+  const [mergeSources, setMergeSources] = useState('');
 
   const load = useCallback(async () => {
     const t = await api.getTicket(idOrNumber);
@@ -287,6 +288,43 @@ export default function TicketDetailPage() {
     }
   }
 
+  async function onMerge(e: FormEvent) {
+    e.preventDefault();
+    if (!ticket || !mergeSources.trim()) return;
+    const sourceTicketIds = mergeSources
+      .split(/[\s,;]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (sourceTicketIds.length === 0) return;
+    const ok = window.confirm(
+      `Merge ${sourceTicketIds.join(', ')} into ${ticket.number}?\n\n` +
+        `Source tickets will be closed as Merged. Comments and attachments ` +
+        `are copied onto this ticket with attribution.`,
+    );
+    if (!ok) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const updated = await api.mergeTickets(ticket.number, sourceTicketIds);
+      setTicket(updated);
+      setMergeSources('');
+      try {
+        const files = await api.listAttachments(updated.number);
+        setAttachments(files);
+      } catch {
+        /* keep existing */
+      }
+      setMessage(
+        `Merged ${sourceTicketIds.length} ticket(s) into ${ticket.number}.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Merge failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function logout() {
     try {
       await api.logout();
@@ -366,6 +404,32 @@ export default function TicketDetailPage() {
 
           <section className={styles.actionsPanel} aria-labelledby="related-tickets">
             <h3 id="related-tickets">Related tickets</h3>
+            {ticket.mergedInto ? (
+              <p className={styles.hint}>
+                Merged into{' '}
+                <a
+                  href={`/app/tickets/${encodeURIComponent(ticket.mergedInto.number)}`}
+                >
+                  {ticket.mergedInto.number}
+                </a>{' '}
+                — {ticket.mergedInto.title}
+              </p>
+            ) : null}
+            {(ticket.mergedFrom ?? []).length > 0 ? (
+              <div>
+                <p className={styles.hint}>Merged from:</p>
+                <ul className={styles.commentList}>
+                  {(ticket.mergedFrom ?? []).map((m) => (
+                    <li key={m.id}>
+                      <a href={`/app/tickets/${encodeURIComponent(m.number)}`}>
+                        <strong>{m.number}</strong>
+                      </a>{' '}
+                      — {m.title} ({m.status.name})
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             {ticket.parent ? (
               <p className={styles.hint}>
                 Parent:{' '}
@@ -419,6 +483,34 @@ export default function TicketDetailPage() {
                 </label>
                 <button type="submit" className={styles.btn} disabled={busy}>
                   Link child
+                </button>
+              </form>
+            ) : null}
+            {!ticket.mergedInto &&
+            (can(user, 'tickets:read_queue') ||
+              can(user, 'tickets:read_all')) &&
+            (can(user, 'tickets:write') || can(user, 'tickets:assign')) ? (
+              <form className={styles.commentForm} onSubmit={onMerge}>
+                <label>
+                  Merge other tickets into this one
+                  <input
+                    value={mergeSources}
+                    onChange={(e) => setMergeSources(e.target.value)}
+                    placeholder="e.g. INC-2026-000124, INC-2026-000125"
+                    required
+                    minLength={3}
+                  />
+                </label>
+                <p className={styles.hint}>
+                  Sources keep their numbers, close as Merged, and comments /
+                  attachments are copied here with attribution.
+                </p>
+                <button
+                  type="submit"
+                  className={styles.btnSecondary}
+                  disabled={busy || ticket.status.code === 'merged'}
+                >
+                  Merge into this ticket
                 </button>
               </form>
             ) : null}

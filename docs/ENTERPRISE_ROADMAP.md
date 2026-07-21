@@ -13,7 +13,7 @@ Inspired by common service-desk product pillars (omnichannel, ticket management,
 | Pillar | Now (shipped / shipping) | Next (Phase 2) | Later (Phase 3–4) |
 | --- | --- | --- | --- |
 | **Omnichannel intake** | Web tickets + **Slack/Teams chat → ticket** (+ simulate) | Email inbound | Voice/portal widgets, full Bot Framework JWT |
-| **Ticket management** | Lifecycle, assign, comments, **attachments UI**, soft-delete, **SLA TTR timers**, **parent/child**, **stage duration** | Rich filters, bulk actions, **ticket merge** | Problem/Change dedicated workflows |
+| **Ticket management** | Lifecycle, assign, comments, **attachments UI**, soft-delete, **SLA TTR timers**, **parent/child**, **merge**, **stage duration** | Rich filters, bulk actions | Problem/Change dedicated workflows |
 | **Agent workspace** | **Home KPI dashboard** (overdue / due today / open / on hold / unassigned / assigned to me) + bar breakdowns + **queue TTR badges** | Queue boards, workload views | Personalized dashboards, saved widgets |
 | **Automation / workflows** | Assignment rules on create, SLA worker, **Routing & SLA admin UI** | Email notifications | Visual workflow designer |
 | **Routing / tagging** | Category + rules → team + **admin UI** | Skills-based / load-balance UI | Dynamic forms, auto-tagging |
@@ -67,7 +67,7 @@ LogIT styling uses forest primary + lime/warm cream — never purple AI-generic 
 
 ### Phase 2 — Operations depth
 
-Email I/O · Agent queue boards · richer notifications · time-spent worklogs (deeper) · **ticket merge** · ~~SLA admin UI~~ · ~~Assignment rules UI~~ · ~~catalog → request~~ (shipped)
+Email I/O · Agent queue boards · richer notifications · time-spent worklogs (deeper) · ~~ticket merge~~ · ~~SLA admin UI~~ · ~~Assignment rules UI~~ · ~~catalog → request~~ (shipped)
 
 ### Phase 3 — Enterprise control plane
 

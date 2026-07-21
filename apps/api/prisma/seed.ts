@@ -403,6 +403,7 @@ async function main() {
     { code: 'resolved', name: 'Resolved', sortOrder: 90 },
     { code: 'closed', name: 'Closed', sortOrder: 100, isTerminal: true },
     { code: 'cancelled', name: 'Cancelled', sortOrder: 110, isTerminal: true },
+    { code: 'merged', name: 'Merged', sortOrder: 120, isTerminal: true },
   ];
   for (const s of statusDefs) {
     await prisma.ticketStatus.upsert({

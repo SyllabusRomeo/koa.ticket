@@ -747,6 +747,240 @@ export class TicketsService {
     return this.get(user, parent.id);
   }
 
+  /**
+   * Merge source tickets into a primary (target). Sources keep their numbers,
+   * gain status `merged` + mergedIntoId, and comments/attachments are copied
+   * onto the primary with attribution. Children of sources are reparented.
+   */
+  async merge(
+    user: AuthUserView,
+    targetIdOrNumber: string,
+    sourceTicketIds: string[],
+  ) {
+    const canMerge =
+      user.permissions.includes(PERMISSIONS.TICKETS_WRITE) ||
+      user.permissions.includes(PERMISSIONS.TICKETS_ASSIGN);
+    if (!canMerge) {
+      throw new ForbiddenException('Cannot merge tickets');
+    }
+    if (!this.canStaffTickets(user)) {
+      throw new ForbiddenException('Only agents can merge tickets');
+    }
+
+    const refs = [
+      ...new Set(
+        sourceTicketIds
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0),
+      ),
+    ];
+    if (refs.length === 0) {
+      throw new BadRequestException('Provide at least one source ticket');
+    }
+
+    const primary = await this.findAccessible(user, targetIdOrNumber, false);
+    if (primary.mergedIntoId) {
+      throw new BadRequestException(
+        'Cannot merge into a ticket that was already merged elsewhere',
+      );
+    }
+    if (primary.status.code === 'merged') {
+      throw new BadRequestException('Primary ticket is already marked merged');
+    }
+
+    const mergedStatus = await this.prisma.ticketStatus.findUnique({
+      where: { code: 'merged' },
+    });
+    if (!mergedStatus) {
+      throw new BadRequestException(
+        'Merged status is not configured; run migrations/seed',
+      );
+    }
+
+    const sources = await this.prisma.ticket.findMany({
+      where: {
+        deletedAt: null,
+        OR: refs.flatMap((r) => [{ id: r }, { number: r }]),
+      },
+      include: {
+        status: true,
+        comments: {
+          orderBy: { createdAt: 'asc' },
+        },
+        attachments: true,
+        children: {
+          where: { deletedAt: null },
+          select: { id: true, number: true },
+        },
+      },
+    });
+
+    if (sources.length === 0) {
+      throw new NotFoundException('No source tickets found');
+    }
+
+    const foundKeys = new Set<string>();
+    for (const s of sources) {
+      foundKeys.add(s.id);
+      foundKeys.add(s.number);
+    }
+    const missing = refs.filter((r) => !foundKeys.has(r));
+    if (missing.length > 0) {
+      throw new NotFoundException(
+        `Source ticket(s) not found: ${missing.join(', ')}`,
+      );
+    }
+
+    for (const source of sources) {
+      if (source.id === primary.id) {
+        throw new BadRequestException('Cannot merge a ticket into itself');
+      }
+      if (source.mergedIntoId || source.status.code === 'merged') {
+        throw new BadRequestException(
+          `Ticket ${source.number} is already merged`,
+        );
+      }
+    }
+
+    const now = new Date();
+    const mergedNumbers: string[] = [];
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const source of sources) {
+        mergedNumbers.push(source.number);
+
+        // Reparent children of the source onto the primary.
+        if (source.children.length > 0) {
+          await tx.ticket.updateMany({
+            where: { id: { in: source.children.map((c) => c.id) } },
+            data: { parentId: primary.id },
+          });
+          for (const child of source.children) {
+            await tx.ticketHistory.create({
+              data: {
+                ticketId: child.id,
+                actorId: user.id,
+                field: 'parent',
+                oldValue: source.number,
+                newValue: primary.number,
+              },
+            });
+          }
+        }
+
+        await tx.ticket.update({
+          where: { id: source.id },
+          data: {
+            mergedIntoId: primary.id,
+            parentId: null,
+            statusId: mergedStatus.id,
+            closedAt: now,
+            version: { increment: 1 },
+            history: {
+              create: [
+                {
+                  actorId: user.id,
+                  field: 'status',
+                  oldValue: source.status.code,
+                  newValue: 'merged',
+                },
+                {
+                  actorId: user.id,
+                  field: 'merged_into',
+                  oldValue: null,
+                  newValue: primary.number,
+                },
+              ],
+            },
+          },
+        });
+
+        await tx.slaInstance.updateMany({
+          where: { ticketId: source.id, completedAt: null },
+          data: { completedAt: now, percentConsumed: 100 },
+        });
+
+        // Copy comments onto primary with attribution (retain visibility).
+        for (const c of source.comments) {
+          await tx.ticketComment.create({
+            data: {
+              ticketId: primary.id,
+              authorId: c.authorId,
+              isInternal: c.isInternal,
+              body: `[Merged from ${source.number}] ${c.body}`,
+              createdAt: c.createdAt,
+            },
+          });
+        }
+
+        // Link attachments onto primary (same stored files).
+        for (const a of source.attachments) {
+          await tx.ticketAttachment.create({
+            data: {
+              ticketId: primary.id,
+              uploadedById: a.uploadedById,
+              originalName: a.originalName,
+              storedName: a.storedName,
+              mimeType: a.mimeType,
+              sizeBytes: a.sizeBytes,
+              createdAt: a.createdAt,
+            },
+          });
+        }
+
+        await tx.ticketHistory.create({
+          data: {
+            ticketId: primary.id,
+            actorId: user.id,
+            field: 'merged_from',
+            newValue: source.number,
+          },
+        });
+      }
+
+      const summary =
+        `Merged ${mergedNumbers.join(', ')} into this ticket. ` +
+        `Comments and attachments were copied with attribution; ` +
+        `source tickets are closed as Merged and retain their numbers.`;
+
+      await tx.ticketComment.create({
+        data: {
+          ticketId: primary.id,
+          authorId: user.id,
+          isInternal: true,
+          body: summary,
+        },
+      });
+
+      await tx.ticketHistory.create({
+        data: {
+          ticketId: primary.id,
+          actorId: user.id,
+          field: 'merge',
+          newValue: mergedNumbers.join(','),
+        },
+      });
+
+      await tx.ticket.update({
+        where: { id: primary.id },
+        data: { version: { increment: 1 } },
+      });
+    });
+
+    await this.audit.log({
+      actorId: user.id,
+      action: 'ticket.merge',
+      entityType: 'ticket',
+      entityId: primary.id,
+      after: {
+        primary: primary.number,
+        sources: mergedNumbers,
+      },
+    });
+
+    return this.get(user, primary.id);
+  }
+
   async meta() {
     const [types, statuses, categories, priorities, matrix] = await Promise.all(
       [
@@ -831,6 +1065,28 @@ export class TicketsService {
               title: true,
               status: { select: { code: true, name: true } },
               priority: { select: { code: true, name: true } },
+            },
+          }
+        : false,
+      mergedInto: withComments
+        ? {
+            select: {
+              id: true,
+              number: true,
+              title: true,
+              status: { select: { code: true, name: true } },
+            },
+          }
+        : false,
+      mergedFrom: withComments
+        ? {
+            where: { deletedAt: null },
+            orderBy: { createdAt: 'asc' as const },
+            select: {
+              id: true,
+              number: true,
+              title: true,
+              status: { select: { code: true, name: true } },
             },
           }
         : false,
@@ -1071,6 +1327,8 @@ export class TicketsService {
       }>;
       parent?: unknown;
       children?: unknown;
+      mergedInto?: unknown;
+      mergedFrom?: unknown;
       slaInstances?: Array<{
         metric: string;
         dueAt: Date;

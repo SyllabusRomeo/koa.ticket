@@ -1,4 +1,6 @@
 import {
+  IsArray,
+  ArrayMinSize,
   IsBoolean,
   IsIn,
   IsInt,
@@ -52,6 +54,14 @@ export class LinkChildDto {
   @IsString()
   @MinLength(3)
   childNumber!: string;
+}
+
+export class MergeTicketsDto {
+  /** Ticket ids or numbers to merge into the target (:id). */
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  sourceTicketIds!: string[];
 }
 
 export class UpdateTicketDto {

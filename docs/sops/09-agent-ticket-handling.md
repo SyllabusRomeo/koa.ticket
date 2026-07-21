@@ -27,6 +27,7 @@ For each new ticket:
 6. Use **Ticket actions** buttons for allowed status moves (e.g. Open → Assigned → In Progress → Resolve → Close). Reopen from Resolved/Closed when allowed. Soft-delete is for sysadmin / IT manager only.
 7. Move status: New → Open/Assigned → In Progress
 8. For major incidents, use **Related tickets** to link children (`POST /tickets/:id/children`). Review **Stage duration** to see where time was spent.
+9. For duplicates, use **Merge into this ticket** on the primary (`POST /tickets/:id/merge` with source numbers). Sources close as **Merged**, keep their numbers, and comments/attachments are copied onto the primary with attribution.
 
 ## Auto-routing
 

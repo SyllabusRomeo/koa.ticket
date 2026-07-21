@@ -43,6 +43,9 @@ Give developers/integrators a map of MVP HTTP APIs.
 | GET/POST | `/tickets` | List/create |
 | GET/PATCH | `/tickets/:id` | Get/update (`version` required on PATCH) |
 | POST | `/tickets/:id/comments` | `isInternal` optional |
+| POST | `/tickets/:id/children` | Link child `{ childNumber }` (staff + `tickets:write`) |
+| DELETE | `/tickets/:id/children/:childId` | Unlink child |
+| POST | `/tickets/:id/merge` | Merge sources into primary `{ sourceTicketIds: string[] }` (staff + write/assign) |
 
 ## Attachments / Audit
 

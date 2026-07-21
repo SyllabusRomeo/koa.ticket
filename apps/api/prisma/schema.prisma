@@ -377,6 +377,8 @@ model Ticket {
   departmentId    String?   @map("department_id")
   locationId      String?   @map("location_id")
   parentId        String?   @map("parent_id")
+  /** When set, this ticket was merged into another (duplicate closed as merged). */
+  mergedIntoId    String?   @map("merged_into_id")
   version         Int       @default(1)
   firstResponseAt DateTime? @map("first_response_at")
   resolvedAt      DateTime? @map("resolved_at")
@@ -398,6 +400,8 @@ model Ticket {
   location    Location?      @relation(fields: [locationId], references: [id])
   parent      Ticket?        @relation("TicketHierarchy", fields: [parentId], references: [id])
   children    Ticket[]       @relation("TicketHierarchy")
+  mergedInto  Ticket?        @relation("TicketMerge", fields: [mergedIntoId], references: [id])
+  mergedFrom  Ticket[]       @relation("TicketMerge")
   comments    TicketComment[]
   history     TicketHistory[]
   attachments TicketAttachment[]
@@ -410,6 +414,7 @@ model Ticket {
   @@index([statusId])
   @@index([teamId])
   @@index([parentId])
+  @@index([mergedIntoId])
   @@index([createdAt])
   @@map("tickets")
 }

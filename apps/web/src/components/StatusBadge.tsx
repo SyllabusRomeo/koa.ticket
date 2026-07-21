@@ -30,6 +30,7 @@ const TONE_BY_CODE: Record<string, StatusTone> = {
   resolved: 'resolved',
   closed: 'closed',
   cancelled: 'cancelled',
+  merged: 'cancelled',
   // Asset register lifecycle
   in_stock: 'open',
   in_service: 'progress',

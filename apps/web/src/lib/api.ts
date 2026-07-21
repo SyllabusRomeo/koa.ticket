@@ -107,6 +107,18 @@ export type TicketDetail = TicketSummary & {
     status: { code: string; name: string };
     priority?: { code: string; name: string } | null;
   }>;
+  mergedInto?: {
+    id: string;
+    number: string;
+    title: string;
+    status: { code: string; name: string };
+  } | null;
+  mergedFrom?: Array<{
+    id: string;
+    number: string;
+    title: string;
+    status: { code: string; name: string };
+  }>;
   stageDurations?: {
     stages: Array<{
       statusCode: string;
@@ -336,6 +348,15 @@ export const api = {
     return request<TicketDetail>(
       `/tickets/${encodeURIComponent(parentIdOrNumber)}/children/${encodeURIComponent(childIdOrNumber)}`,
       { method: 'DELETE' },
+    );
+  },
+  mergeTickets(targetIdOrNumber: string, sourceTicketIds: string[]) {
+    return request<TicketDetail>(
+      `/tickets/${encodeURIComponent(targetIdOrNumber)}/merge`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ sourceTicketIds }),
+      },
     );
   },
   updateTicket(

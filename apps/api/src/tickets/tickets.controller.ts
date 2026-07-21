@@ -20,6 +20,7 @@ import {
   AddCommentDto,
   CreateTicketDto,
   LinkChildDto,
+  MergeTicketsDto,
   UpdateTicketDto,
 } from './dto/ticket.dto';
 import { TicketsService } from './tickets.service';
@@ -85,6 +86,15 @@ export class TicketsController {
     @Body() dto: AddCommentDto,
   ) {
     return this.tickets.addComment(user, id, dto);
+  }
+
+  @Post(':id/merge')
+  merge(
+    @CurrentUser() user: AuthUserView,
+    @Param('id') id: string,
+    @Body() dto: MergeTicketsDto,
+  ) {
+    return this.tickets.merge(user, id, dto.sourceTicketIds);
   }
 
   @Post(':id/children')
