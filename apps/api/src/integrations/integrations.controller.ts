@@ -191,4 +191,18 @@ export class IntegrationsController {
       url: result.url,
     };
   }
+
+  /**
+   * Inbound email webhook (SendGrid Inbound Parse / Mailgun Routes style).
+   * Accepts JSON or form-urlencoded: from, subject, text|html.
+   */
+  @Public()
+  @Post('email/inbound')
+  async emailInbound(
+    @Body() body: Record<string, unknown>,
+    @Headers('authorization') authorization?: string,
+  ) {
+    this.integrations.verifyEmailInboundSecret(authorization);
+    return this.integrations.handleInboundEmail(body ?? {});
+  }
 }

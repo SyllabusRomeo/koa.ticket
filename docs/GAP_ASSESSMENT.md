@@ -4,7 +4,7 @@ Honest status after competitive PRD V.20 (Notion), **Product Requirements Docume
 
 **Sources:** [Notion New PRD V.20](https://cliff-seeker-02f.notion.site/New-PRD-V-20-39c9521ce1f480469374dfe64329a26c) · local PDFs · [ENTERPRISE_ROADMAP.md](./ENTERPRISE_ROADMAP.md) · [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)
 
-**Verdict:** LogIT is a **strong modular-monolith ITSM MVP** (tickets, RBAC, SLA worker, assignment, knowledge, catalog, assets, approvals, audit, chat intake). It is **not** yet ServiceNow/Jira SM complete — missing dedicated Problem/Change, email inbound, stage-duration analytics depth, collision detection, and AI.
+**Verdict:** LogIT is a **strong modular-monolith ITSM MVP** (tickets, RBAC, SLA worker, assignment, knowledge, catalog, assets, approvals, audit, chat intake, email I/O). It is **not** yet ServiceNow/Jira SM complete — missing dedicated Problem/Change, stage-duration analytics depth, collision detection, and AI.
 
 ---
 
@@ -30,10 +30,10 @@ Honest status after competitive PRD V.20 (Notion), **Product Requirements Docume
 | Problem management | Type `problem` seeded | Dedicated Problem workflow / records | High (PRD) |
 | Change management | Type `change` seeded | Change enablement workflow / CAB | High (PRD) |
 | Major incident | — | MI dashboard, related grouping | High |
-| Email-to-ticket / outbound | Prefs flag only | Inbound mailbox + SMTP delivery | High (Phase 2 omnichannel) |
+| Email-to-ticket / outbound | **Done MVP** (SMTP nodemailer + inbound webhook) | IMAP poller, richer threading | High → Done MVP |
 | Slack / Teams | First-cut webhooks + simulate + admin hub | Full Bot Framework JWT | Medium |
-| Omnichannel source model | Web + chat channel | Unified channel metadata on tickets | Medium |
-| Notifications | In-app + preferences | Email delivery | High |
+| Omnichannel source model | Web + chat + email intake | Unified channel metadata on tickets | Medium |
+| Notifications | In-app + preferences + **email delivery** | Digest / digests schedules | High → Done MVP |
 | Reporting | Summary, CSV, workspace KPIs | Stage/bottleneck/SLA heatmaps, scheduled | Medium |
 | RBAC / Roles & Access | Full matrix + extras; sysadmin = all | Fine-grained custom roles UX polish | Low |
 | Org / teams / locations | API + Teams admin UI | Richer location tree UI | Low |
@@ -65,9 +65,9 @@ Honest status after competitive PRD V.20 (Notion), **Product Requirements Docume
 | Reports | Summary + CSV + workspace | Home + Reports | Limited polish | Medium |
 | SLA admin | Policies API | **Admin Routing & SLA** | Create policy | Low |
 | Assignment admin | Rules API | **Admin Routing & SLA** | Create rule | Low |
-| Integrations | Slack/Teams first cut | Hub | Env secrets | Medium |
+| Integrations | Slack/Teams + **email SMTP/inbound** | Hub (status + inbound URL) | Env secrets | Low |
 | Branding | Done | Admin | Logo / banner | Low |
-| Email / SSO / Problem / Change / AI | Partial or none | — | — | High |
+| Email / SSO / Problem / Change / AI | Email MVP done; rest partial/none | Email on Integrations | — | Medium (SSO/Problem/Change/AI) |
 
 ---
 
@@ -98,4 +98,4 @@ Principle: **Capture data → workflows → real-time → analytics → automati
 ## What improved recently
 
 - Asset register, roles radio + extra permissions, reports export, SLA TTR timers, branding, knowledge rich text, lucide icons, audit filters, teams admin, Slack/Teams intake.  
-- **This pass:** Ticket merge (sources → primary, status `merged`, comments/attachments copied with attribution, audit). Prior: parent/child, catalog request, Routing & SLA admin, stage duration.
+- **This pass:** Email inbound webhook + SMTP outbound (nodemailer), Integrations email status. Prior: ticket merge, parent/child, catalog request, Routing & SLA admin, stage duration.

@@ -196,6 +196,7 @@ export class TicketsService {
       await this.approvals.createForTicket(ticket.id, ticket.title, number);
     }
 
+    const notified = new Set<string>();
     if (teamId) {
       const members = await this.prisma.teamMember.findMany({
         where: { teamId },
@@ -209,8 +210,21 @@ export class TicketsService {
           title: `New ticket ${number}`,
           body: ticket.title,
           link: `/app/tickets/${ticket.number}`,
+          email: { ticketNumber: number, eventLabel: 'New ticket' },
         });
+        notified.add(m.userId);
       }
+    }
+
+    if (!notified.has(ticket.requesterId)) {
+      await this.notifications.notify({
+        userId: ticket.requesterId,
+        eventType: 'ticket.created',
+        title: `Ticket created ${number}`,
+        body: ticket.title,
+        link: `/app/tickets/${ticket.number}`,
+        email: { ticketNumber: number, eventLabel: 'Ticket created' },
+      });
     }
 
     const withSla = await this.prisma.ticket.findFirstOrThrow({
@@ -545,7 +559,27 @@ export class TicketsService {
         title: `Assigned ${ticket.number}`,
         body: ticket.title,
         link: `/app/tickets/${ticket.number}`,
+        email: { ticketNumber: ticket.number, eventLabel: 'Assigned to you' },
       });
+    }
+
+    if (dto.statusCode && dto.statusCode !== existing.status.code) {
+      const statusRecipients = new Set<string>([ticket.requesterId]);
+      if (ticket.assigneeId) statusRecipients.add(ticket.assigneeId);
+      statusRecipients.delete(user.id);
+      for (const userId of statusRecipients) {
+        await this.notifications.notify({
+          userId,
+          eventType: 'ticket.status',
+          title: `${ticket.number} status → ${dto.statusCode}`,
+          body: `${ticket.title} (${existing.status.code} → ${dto.statusCode})`,
+          link: `/app/tickets/${ticket.number}`,
+          email: {
+            ticketNumber: ticket.number,
+            eventLabel: `Status: ${dto.statusCode}`,
+          },
+        });
+      }
     }
 
     const allowedTransitions = await this.listAllowedTransitions(user, ticket);
@@ -604,6 +638,31 @@ export class TicketsService {
         newValue: comment.id,
       },
     });
+
+    if (!isInternal) {
+      const recipients = new Set<string>();
+      if (ticket.requesterId !== user.id) recipients.add(ticket.requesterId);
+      if (ticket.assigneeId && ticket.assigneeId !== user.id) {
+        recipients.add(ticket.assigneeId);
+      }
+      const preview =
+        dto.body.trim().length > 280
+          ? `${dto.body.trim().slice(0, 277)}…`
+          : dto.body.trim();
+      for (const userId of recipients) {
+        await this.notifications.notify({
+          userId,
+          eventType: 'ticket.comment',
+          title: `Comment on ${ticket.number}`,
+          body: preview,
+          link: `/app/tickets/${ticket.number}`,
+          email: {
+            ticketNumber: ticket.number,
+            eventLabel: 'New comment',
+          },
+        });
+      }
+    }
 
     return comment;
   }

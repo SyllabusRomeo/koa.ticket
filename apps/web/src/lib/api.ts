@@ -1058,6 +1058,26 @@ export const api = {
         webhookSecret: boolean;
         messagesUrl: string;
       };
+      email: {
+        configured: boolean;
+        outbound: {
+          configured: boolean;
+          host: boolean;
+          hostValue: string | null;
+          user: boolean;
+          from: string | null;
+        };
+        inbound: {
+          webhookUrl: string;
+          secretConfigured: boolean;
+          note: string;
+        };
+        imap: {
+          implemented: boolean;
+          note: string;
+        };
+        appPublicUrl: string;
+      };
       serviceUserEmail: string;
       appPublicUrl: string;
       examples: string[];

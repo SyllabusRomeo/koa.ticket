@@ -3,7 +3,8 @@
 LogIT Phase-1 integrations: a user messages the bot (slash command or @mention) → LogIT creates a ticket → reply includes ticket number and deep link.
 
 **Admin UI:** `/app/admin/integrations` (sysadmin only)  
-**Roadmap:** [ENTERPRISE_ROADMAP.md](./ENTERPRISE_ROADMAP.md)
+**Roadmap:** [ENTERPRISE_ROADMAP.md](./ENTERPRISE_ROADMAP.md)  
+**Email:** [INTEGRATIONS_EMAIL.md](./INTEGRATIONS_EMAIL.md)
 
 ---
 

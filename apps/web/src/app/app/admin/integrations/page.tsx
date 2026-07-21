@@ -7,8 +7,6 @@ import { hasRole } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import appStyles from '../../app.module.css';
 import styles from './integrations.module.css';
-import { Link2, Plug, Play } from 'lucide-react';
-import { Icon } from '@/components/Icon';
 
 type Status = Awaited<ReturnType<typeof api.integrationsStatus>>;
 
@@ -96,9 +94,9 @@ export default function IntegrationsAdminPage() {
         <header className={styles.hero}>
           <p className={styles.eyebrow}>Administration · Sysadmin</p>
           <p className={styles.lede}>
-            Connect Slack and Microsoft Teams so people can create LogIT tickets
-            with a slash command or @mention. Secrets live in environment
-            variables — never in the database.
+            Connect Slack, Microsoft Teams, and email so people can create and
+            update LogIT tickets from chat or mailbox. Secrets live in
+            environment variables — never in the database.
           </p>
         </header>
 
@@ -146,6 +144,23 @@ export default function IntegrationsAdminPage() {
                 {status?.teams.webhookSecret ? 'yes' : 'no'}
               </em>
             </div>
+            <div
+              className={`${styles.statusCard} ${
+                status?.email?.configured ? styles.ready : styles.pending
+              }`}
+            >
+              <strong>Email (SMTP)</strong>
+              <span>
+                {status?.email?.configured
+                  ? 'Outbound SMTP configured'
+                  : 'Not configured — outbound emails are logged and skipped'}
+              </span>
+              <em>
+                Host: {status?.email?.outbound.hostValue ?? '—'} · From:{' '}
+                {status?.email?.outbound.from ?? '—'} · Inbound secret:{' '}
+                {status?.email?.inbound.secretConfigured ? 'yes' : 'no'}
+              </em>
+            </div>
           </div>
           <p className={styles.meta}>
             Service account:{' '}
@@ -161,14 +176,15 @@ export default function IntegrationsAdminPage() {
             Webhook URLs
           </h2>
           <p className={styles.hint}>
-            Paste these into the Slack app or Teams bot messaging endpoint.
-            Full setup: docs/INTEGRATIONS_SLACK_TEAMS.md
+            Paste these into Slack, Teams, or your email inbound parse provider.
+            Docs: INTEGRATIONS_SLACK_TEAMS.md · INTEGRATIONS_EMAIL.md
           </p>
           <ul className={styles.urlList}>
             {[
               ['Slack Events', status?.slack.eventsUrl],
               ['Slack Slash /logit', status?.slack.slashUrl],
               ['Teams messages', status?.teams.messagesUrl],
+              ['Email inbound', status?.email?.inbound.webhookUrl],
             ].map(([label, url]) =>
               url ? (
                 <li key={label}>
@@ -187,6 +203,31 @@ export default function IntegrationsAdminPage() {
               ) : null,
             )}
           </ul>
+        </section>
+
+        <section className={styles.panel}>
+          <h2>Email setup</h2>
+          <p className={styles.hint}>
+            Outbound uses nodemailer + SMTP env vars. Inbound accepts a
+            SendGrid/Mailgun-style webhook; subject token{' '}
+            <code>[INC-2026-…]</code> comments on that ticket, otherwise a new
+            incident is created. IMAP polling is stubbed for a later phase.
+          </p>
+          <ol className={styles.steps}>
+            <li>
+              Set <code>SMTP_HOST</code>, <code>SMTP_PORT</code>,{' '}
+              <code>SMTP_USER</code>, <code>SMTP_PASS</code>,{' '}
+              <code>EMAIL_FROM</code>, and <code>APP_PUBLIC_URL</code>.
+            </li>
+            <li>
+              Point your inbound parse webhook at the Email inbound URL. Optional:{' '}
+              <code>EMAIL_INBOUND_SECRET</code> as Bearer auth.
+            </li>
+            <li>
+              Reply emails should keep the ticket number in the subject (LogIT
+              outbound already includes <code>[TICKET-…]</code>).
+            </li>
+          </ol>
         </section>
 
         <section className={styles.panel}>
@@ -209,7 +250,8 @@ export default function IntegrationsAdminPage() {
               set <code>TEAMS_WEBHOOK_SECRET</code>.
             </li>
             <li>
-              Set <code>APP_PUBLIC_URL</code> so chat replies include deep links.
+              Set <code>APP_PUBLIC_URL</code> so chat/email replies include deep
+              links.
             </li>
           </ol>
         </section>

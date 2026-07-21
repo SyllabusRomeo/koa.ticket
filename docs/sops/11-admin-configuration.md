@@ -88,12 +88,14 @@ Admin UI: `/app/admin/branding` — upload organization logo and login page back
 
 Logo: png/jpg/webp/svg (2 MB). Banner: jpg/png/webp (5 MB). When unset, `/login` keeps the default CSS mark and body gradient.
 
-Expand further over time for SMTP, attachment limits, password policy.
+Expand further over time for attachment limits, password policy.
 
-## Integrations (Slack / Teams)
+## Integrations (Slack / Teams / Email)
 
-Sysadmin UI: `/app/admin/integrations` — webhook URLs, env status, chat ticket simulate.  
-Docs: [INTEGRATIONS_SLACK_TEAMS.md](../INTEGRATIONS_SLACK_TEAMS.md) · Roadmap: [ENTERPRISE_ROADMAP.md](../ENTERPRISE_ROADMAP.md).
+Sysadmin UI: `/app/admin/integrations` — webhook URLs, env status (Slack, Teams, SMTP), chat ticket simulate, email inbound URL.  
+Docs: [INTEGRATIONS_SLACK_TEAMS.md](../INTEGRATIONS_SLACK_TEAMS.md) · [INTEGRATIONS_EMAIL.md](../INTEGRATIONS_EMAIL.md) · Roadmap: [ENTERPRISE_ROADMAP.md](../ENTERPRISE_ROADMAP.md).
+
+Outbound email uses `SMTP_*` / `EMAIL_FROM` (skipped gracefully when unset). Inbound: `POST /api/v1/integrations/email/inbound` with optional `EMAIL_INBOUND_SECRET`.
 
 ## Seed vs production
 

@@ -8,6 +8,7 @@ import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { BrandingModule } from './branding/branding.module';
 import { CatalogModule } from './catalog/catalog.module';
+import { EmailModule } from './email/email.module';
 import { HealthModule } from './health/health.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
@@ -33,6 +34,7 @@ import { UsersModule } from './users/users.module';
     TicketsModule,
     AuditModule,
     AttachmentsModule,
+    EmailModule,
     NotificationsModule,
     SlaModule,
     AssignmentModule,

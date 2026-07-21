@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -9,6 +10,11 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { ROLES } from '@logit/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService, type AuthUserView } from '../auth/auth.service';
+import { EmailService } from '../email/email.service';
+import {
+  cleanEmailSubjectTitle,
+  extractTicketNumberFromSubject,
+} from '../email/email-subject.parser';
 import { TicketsService } from '../tickets/tickets.service';
 import { parseChatTicketMessage } from './chat-message.parser';
 
@@ -22,6 +28,14 @@ export type ChatTicketResult = {
   confirmation: string;
 };
 
+export type EmailInboundResult = {
+  ok: true;
+  action: 'comment' | 'create';
+  ticketNumber: string;
+  ticketId: string;
+  url: string;
+};
+
 @Injectable()
 export class IntegrationsService {
   constructor(
@@ -29,6 +43,7 @@ export class IntegrationsService {
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
     private readonly tickets: TicketsService,
+    private readonly email: EmailService,
   ) {}
 
   status() {
@@ -41,6 +56,7 @@ export class IntegrationsService {
     );
     const publicUrl = this.publicAppUrl();
     const apiBase = this.publicApiUrl();
+    const emailStatus = this.email.status();
 
     return {
       slack: {
@@ -56,6 +72,7 @@ export class IntegrationsService {
         webhookSecret: teamsSecret,
         messagesUrl: `${apiBase}/integrations/teams/messages`,
       },
+      email: emailStatus,
       serviceUserEmail:
         this.config.get('INTEGRATION_SERVICE_USER_EMAIL') ??
         this.config.get('SEED_ADMIN_EMAIL') ??
@@ -232,4 +249,130 @@ export class IntegrationsService {
       throw new ForbiddenException('Sysadmin only');
     }
   }
+
+  verifyEmailInboundSecret(authHeader: string | undefined) {
+    const secret = this.config.get<string>('EMAIL_INBOUND_SECRET')?.trim();
+    if (!secret) return;
+    if (!authHeader) {
+      throw new UnauthorizedException('Missing email inbound authorization');
+    }
+    const token = authHeader.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : authHeader;
+    const a = Buffer.from(token);
+    const b = Buffer.from(secret);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      throw new UnauthorizedException('Invalid email inbound secret');
+    }
+  }
+
+  /**
+   * Accept SendGrid/Mailgun-style inbound parse payloads (JSON or form fields).
+   * Subject containing [INC-2026-…] → public comment; otherwise create incident.
+   */
+  async handleInboundEmail(raw: Record<string, unknown>): Promise<EmailInboundResult> {
+    const from = pickString(raw, [
+      'from',
+      'sender',
+      'From',
+      'envelope_from',
+    ]);
+    const subject = pickString(raw, ['subject', 'Subject']) ?? '';
+    const text =
+      pickString(raw, ['text', 'plain', 'body-plain', 'stripped-text']) ??
+      stripHtml(
+        pickString(raw, ['html', 'body-html', 'stripped-html']) ?? '',
+      );
+    const body = (text || '(empty email body)').trim();
+
+    const fromEmail = extractEmailAddress(from);
+    const actor = await this.resolveActor({
+      email: fromEmail,
+      displayName: from,
+    });
+
+    const ticketNumber = extractTicketNumberFromSubject(subject);
+    if (ticketNumber) {
+      const existing = await this.prisma.ticket.findFirst({
+        where: { number: ticketNumber, deletedAt: null },
+        select: { id: true, number: true },
+      });
+      if (!existing) {
+        throw new NotFoundException(`Ticket ${ticketNumber} not found`);
+      }
+
+      const sourceNote = [
+        `Source: email`,
+        from ? `From: ${from}` : null,
+        subject ? `Subject: ${subject}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      await this.tickets.addComment(actor, existing.id, {
+        body: `${body}\n\n---\n${sourceNote}`,
+        isInternal: false,
+      });
+
+      return {
+        ok: true,
+        action: 'comment',
+        ticketNumber: existing.number,
+        ticketId: existing.id,
+        url: this.ticketUrl(existing.number),
+      };
+    }
+
+    const title = cleanEmailSubjectTitle(subject);
+    const sourceNote = [
+      `Source: email`,
+      from ? `From: ${from}` : null,
+      subject ? `Subject: ${subject}` : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    const ticket = (await this.tickets.create(actor, {
+      title,
+      description: `${body}\n\n---\n${sourceNote}`,
+      typeCode: 'incident',
+    })) as unknown as { id: string; number: string };
+
+    return {
+      ok: true,
+      action: 'create',
+      ticketNumber: ticket.number,
+      ticketId: ticket.id,
+      url: this.ticketUrl(ticket.number),
+    };
+  }
+}
+
+function pickString(
+  raw: Record<string, unknown>,
+  keys: string[],
+): string | null {
+  for (const key of keys) {
+    const v = raw[key];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return null;
+}
+
+function extractEmailAddress(from: string | null): string | null {
+  if (!from) return null;
+  const angle = from.match(/<([^>]+)>/);
+  if (angle?.[1]) return angle[1].trim().toLowerCase();
+  if (from.includes('@')) return from.trim().toLowerCase();
+  return null;
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
