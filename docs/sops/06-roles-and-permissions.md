@@ -20,6 +20,24 @@ Explain RBAC so admins assign the right access and users understand limits.
 | `sysadmin` | System Administrator | All permissions |
 | `auditor` | Auditor | Audit/reports/assets/tickets read-only style access |
 
+## Demo accounts (development only)
+
+Use these after `npm run db:seed`. Passwords follow `LogIT-<Role>-2026!` (except admin/employee naming).
+
+| Email | Role | Access summary |
+| --- | --- | --- |
+| `admin@logit.local` | `sysadmin` | **Superuser of this same app** — all permissions; configure users/org/SLA/routing |
+| `employee@logit.local` | `employee` | Self-service only: own tickets, KB, catalog |
+| `agent@logit.local` | `agent` | IT Service Desk: queue tickets, assign, internal notes, assets read |
+| `senior@logit.local` | `senior_agent` | Tier 2/3: agent capabilities + knowledge/asset write |
+| `manager@logit.local` | `it_manager` | Operational oversight: all tickets, reports, audit, org manage |
+| `approver@logit.local` | `approver` | Line/department approver (approval UI expands later) |
+| `auditor@logit.local` | `auditor` | Compliance/read: audit trails, reports, historical tickets/assets |
+
+There is **no separate admin application** — elevated access is role-based inside LogIT.
+
+Credentials table (with passwords): [SOP-03 Seed accounts](./03-technical-setup-local.md#seed-accounts-development-only).
+
 ## Key permissions
 
 Examples from `@logit/shared`:

@@ -162,7 +162,7 @@ async function main() {
     },
   });
 
-  await prisma.department.upsert({
+  const opsDept = await prisma.department.upsert({
     where: { code: 'OPS' },
     update: {},
     create: {
@@ -260,6 +260,113 @@ async function main() {
     },
     update: {},
     create: { userId: employee.id, roleId: employeeRole.id },
+  });
+
+  // Demo users for every role (dev / staging only)
+  const roleByCode = async (code: string) =>
+    prisma.role.findUniqueOrThrow({ where: { code } });
+
+  const upsertDemoUser = async (opts: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    roleCode: string;
+    departmentId?: string | null;
+    joinServiceDesk?: boolean;
+    isLead?: boolean;
+  }) => {
+    const role = await roleByCode(opts.roleCode);
+    const hash = await argon2.hash(opts.password, { type: argon2.argon2id });
+    const user = await prisma.user.upsert({
+      where: { email: opts.email.toLowerCase() },
+      update: {
+        passwordHash: hash,
+        firstName: opts.firstName,
+        lastName: opts.lastName,
+        isActive: true,
+        deletedAt: null,
+        mustChangePassword: false,
+        passwordChangedAt: new Date(),
+        departmentId: opts.departmentId ?? null,
+        locationId: hq.id,
+      },
+      create: {
+        email: opts.email.toLowerCase(),
+        firstName: opts.firstName,
+        lastName: opts.lastName,
+        passwordHash: hash,
+        mustChangePassword: false,
+        passwordChangedAt: new Date(),
+        departmentId: opts.departmentId ?? null,
+        locationId: hq.id,
+        roles: { create: [{ roleId: role.id }] },
+      },
+    });
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: user.id, roleId: role.id } },
+      update: {},
+      create: { userId: user.id, roleId: role.id },
+    });
+    if (opts.joinServiceDesk) {
+      await prisma.teamMember.upsert({
+        where: {
+          teamId_userId: { teamId: serviceDesk.id, userId: user.id },
+        },
+        update: { isLead: opts.isLead ?? false },
+        create: {
+          teamId: serviceDesk.id,
+          userId: user.id,
+          isLead: opts.isLead ?? false,
+        },
+      });
+    }
+    return user;
+  };
+
+  await upsertDemoUser({
+    email: 'agent@logit.local',
+    password: 'LogIT-Agent-2026!',
+    firstName: 'Kojo',
+    lastName: 'Asante',
+    roleCode: ROLES.AGENT,
+    departmentId: itDept.id,
+    joinServiceDesk: true,
+  });
+  await upsertDemoUser({
+    email: 'senior@logit.local',
+    password: 'LogIT-Senior-2026!',
+    firstName: 'Efua',
+    lastName: 'Boateng',
+    roleCode: ROLES.SENIOR_AGENT,
+    departmentId: itDept.id,
+    joinServiceDesk: true,
+  });
+  await upsertDemoUser({
+    email: 'manager@logit.local',
+    password: 'LogIT-Manager-2026!',
+    firstName: 'Yaw',
+    lastName: 'Osei',
+    roleCode: ROLES.IT_MANAGER,
+    departmentId: itDept.id,
+    joinServiceDesk: true,
+    isLead: true,
+  });
+  await upsertDemoUser({
+    email: 'approver@logit.local',
+    password: 'LogIT-Approver-2026!',
+    firstName: 'Akosua',
+    lastName: 'Addo',
+    roleCode: ROLES.APPROVER,
+    departmentId: opsDept.id,
+  });
+  await upsertDemoUser({
+    email: 'auditor@logit.local',
+    password: 'LogIT-Auditor-2026!',
+    firstName: 'Nana',
+    lastName: 'Owusu',
+    roleCode: ROLES.AUDITOR,
+    departmentId: itDept.id,
   });
 
   // Phase 3 — ticket metadata
@@ -576,8 +683,14 @@ async function main() {
   });
 
   console.log('LogIT seed complete (Phase 1–11 MVP).');
-  console.log(`Admin: ${adminEmail} / ${adminPassword}`);
-  console.log('Employee: employee@logit.local / LogIT-Employee-2026!');
+  console.log('Demo accounts (development only — never use in production):');
+  console.log(`  sysadmin     ${adminEmail} / ${adminPassword}`);
+  console.log('  employee     employee@logit.local / LogIT-Employee-2026!');
+  console.log('  agent        agent@logit.local / LogIT-Agent-2026!');
+  console.log('  senior_agent senior@logit.local / LogIT-Senior-2026!');
+  console.log('  it_manager   manager@logit.local / LogIT-Manager-2026!');
+  console.log('  approver     approver@logit.local / LogIT-Approver-2026!');
+  console.log('  auditor      auditor@logit.local / LogIT-Auditor-2026!');
 }
 
 main()

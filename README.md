@@ -36,8 +36,17 @@ Open http://localhost:3100/login
 
 ### Dev accounts (seed)
 
-- Admin: `admin@logit.local` / `LogIT-Admin-2026!`
-- Employee: `employee@logit.local` / `LogIT-Employee-2026!`
+Full table: [docs/sops/03-technical-setup-local.md](docs/sops/03-technical-setup-local.md#seed-accounts-development-only)
+
+| Role | Email | Password |
+| --- | --- | --- |
+| sysadmin | `admin@logit.local` | `LogIT-Admin-2026!` |
+| employee | `employee@logit.local` | `LogIT-Employee-2026!` |
+| agent | `agent@logit.local` | `LogIT-Agent-2026!` |
+| senior_agent | `senior@logit.local` | `LogIT-Senior-2026!` |
+| it_manager | `manager@logit.local` | `LogIT-Manager-2026!` |
+| approver | `approver@logit.local` | `LogIT-Approver-2026!` |
+| auditor | `auditor@logit.local` | `LogIT-Auditor-2026!` |
 
 ## Docker full stack
 

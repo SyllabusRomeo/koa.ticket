@@ -18,7 +18,7 @@ Use this index to find the right procedure. Each SOP is written so a new user ca
 | [03](./03-technical-setup-local.md) | Local technical setup | Developers, admins |
 | [04](./04-docker-deployment.md) | Docker Compose deployment | Admins, DevOps |
 | [05](./05-hetzner-production.md) | Hetzner production setup | Admins, DevOps |
-| [06](./06-roles-and-permissions.md) | Roles & permissions | Admins, managers |
+| [06](./06-roles-and-permissions.md) | Roles & permissions (+ demo accounts) | Admins, managers |
 | [07](./07-sign-in-and-security.md) | Sign-in, passwords, sessions | Everyone |
 | [08](./08-employee-self-service.md) | Employee self-service how-to | Employees / requesters |
 | [09](./09-agent-ticket-handling.md) | Agent ticket handling | IT agents |
@@ -45,6 +45,7 @@ Use this index to find the right procedure. Each SOP is written so a new user ca
 | API | http://localhost:4100 |
 | Health | http://localhost:4100/health/ready |
 | Compose UI (Nginx) | http://localhost:8180 |
+| Demo users | [SOP-03](./03-technical-setup-local.md#seed-accounts-development-only) / [SOP-06](./06-roles-and-permissions.md#demo-accounts-development-only) |
 
 ---
 

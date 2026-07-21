@@ -87,12 +87,19 @@ npm run dev:worker   # SLA background tick (recommended)
 
 ## Seed accounts (development only)
 
-| User | Email | Password | Role |
-| --- | --- | --- | --- |
-| Admin | `admin@logit.local` | `LogIT-Admin-2026!` | sysadmin |
-| Employee | `employee@logit.local` | `LogIT-Employee-2026!` | employee |
+| Name | Email | Password | Role | What they can access |
+| --- | --- | --- | --- | --- |
+| System Administrator | `admin@logit.local` | `LogIT-Admin-2026!` | `sysadmin` | Full platform (users, org, SLA, settings, all tickets) |
+| Ama Mensah | `employee@logit.local` | `LogIT-Employee-2026!` | `employee` | Own tickets, create tickets, knowledge, catalog |
+| Kojo Asante | `agent@logit.local` | `LogIT-Agent-2026!` | `agent` | Queue tickets, assign, internal notes, assets read, Service Desk |
+| Efua Boateng | `senior@logit.local` | `LogIT-Senior-2026!` | `senior_agent` | Agent + knowledge/asset write, escalations |
+| Yaw Osei | `manager@logit.local` | `LogIT-Manager-2026!` | `it_manager` | All tickets, reports, audit read, org manage, Service Desk lead |
+| Akosua Addo | `approver@logit.local` | `LogIT-Approver-2026!` | `approver` | Own tickets + knowledge (approvals expand later); OPS dept |
+| Nana Owusu | `auditor@logit.local` | `LogIT-Auditor-2026!` | `auditor` | Audit, reports, tickets/assets read-focused |
 
-**Never use these credentials in production.**
+Re-seed anytime with `npm run db:seed` (idempotent upserts).
+
+**Never use these credentials in production.** Full capability map: [SOP-06](./06-roles-and-permissions.md).
 
 ## Common local failures
 
