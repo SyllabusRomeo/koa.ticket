@@ -94,7 +94,7 @@ npm run dev:worker   # SLA background tick (recommended)
 | Kojo Asante | `agent@logit.local` | `LogIT-Agent-2026!` | `agent` | Queue tickets, assign, internal notes, assets read, Service Desk |
 | Efua Boateng | `senior@logit.local` | `LogIT-Senior-2026!` | `senior_agent` | Agent + knowledge/asset write, escalations |
 | Yaw Osei | `manager@logit.local` | `LogIT-Manager-2026!` | `it_manager` | All tickets, reports, audit read, org manage, Service Desk lead |
-| Akosua Addo | `approver@logit.local` | `LogIT-Approver-2026!` | `approver` | Own tickets + knowledge (approvals expand later); OPS dept |
+| Akosua Addo | `approver@logit.local` | `LogIT-Approver-2026!` | `approver` | Approvals page — approve/reject pending service/access requests |
 | Nana Owusu | `auditor@logit.local` | `LogIT-Auditor-2026!` | `auditor` | Audit, reports, tickets/assets read-focused |
 
 Re-seed anytime with `npm run db:seed` (idempotent upserts).

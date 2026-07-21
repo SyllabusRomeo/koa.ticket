@@ -46,6 +46,8 @@ export const PERMISSIONS = {
   KNOWLEDGE_WRITE: 'knowledge:write',
   ASSETS_READ: 'assets:read',
   ASSETS_WRITE: 'assets:write',
+  APPROVALS_READ: 'approvals:read',
+  APPROVALS_DECIDE: 'approvals:decide',
 } as const;
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

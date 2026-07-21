@@ -110,4 +110,45 @@ export class UsersService {
       temporaryPassword: dto.password ? undefined : plain,
     };
   }
+
+  async setRoles(userId: string, roleCodes: string[]) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    const roles = await this.prisma.role.findMany({
+      where: { code: { in: roleCodes } },
+    });
+    if (roles.length !== roleCodes.length) {
+      throw new BadRequestException('One or more roles are invalid');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.userRole.deleteMany({ where: { userId } }),
+      this.prisma.userRole.createMany({
+        data: roles.map((r) => ({ userId, roleId: r.id })),
+      }),
+    ]);
+
+    return this.getById(userId);
+  }
+
+  async rolesMatrix() {
+    const roles = await this.prisma.role.findMany({
+      include: {
+        permissions: { include: { permission: true } },
+        _count: { select: { users: true } },
+      },
+      orderBy: { name: 'asc' },
+    });
+    return roles.map((r) => ({
+      id: r.id,
+      code: r.code,
+      name: r.name,
+      description: r.description,
+      userCount: r._count.users,
+      permissions: r.permissions.map((p) => p.permission.code),
+    }));
+  }
 }

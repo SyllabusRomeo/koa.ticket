@@ -2,11 +2,14 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, type TicketSummary } from '@/lib/api';
+import { api, type AuthUser, type TicketSummary } from '@/lib/api';
+import { can } from '@/lib/access';
+import { AppShell } from '@/components/AppShell';
 import styles from './tickets.module.css';
 
 export default function TicketsPage() {
   const router = useRouter();
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [tickets, setTickets] = useState<TicketSummary[]>([]);
   const [types, setTypes] = useState<Array<{ code: string; name: string }>>([]);
   const [categories, setCategories] = useState<
@@ -37,7 +40,9 @@ export default function TicketsPage() {
     let cancelled = false;
     (async () => {
       try {
-        await api.me();
+        const { user } = await api.me();
+        if (cancelled) return;
+        setUser(user);
         await load();
       } catch {
         if (!cancelled) router.replace('/login');
@@ -74,7 +79,16 @@ export default function TicketsPage() {
     }
   }
 
-  if (loading) {
+  async function logout() {
+    try {
+      await api.logout();
+    } catch {
+      /* ignore */
+    }
+    router.replace('/login');
+  }
+
+  if (loading || !user) {
     return (
       <main className={styles.page}>
         <p>Loading tickets…</p>
@@ -82,76 +96,81 @@ export default function TicketsPage() {
     );
   }
 
-  return (
-    <main className={styles.page}>
-      <header className={styles.top}>
-        <div>
-          <p className={styles.eyebrow}>LogIT</p>
-          <h1>My tickets</h1>
-        </div>
-        <a href="/app">Back to workspace</a>
-      </header>
+  const canWrite = can(user, 'tickets:write');
 
+  return (
+    <AppShell user={user} onLogout={logout} title="Tickets">
       <section className={styles.grid}>
-        <form className={styles.form} onSubmit={onCreate}>
-          <h2>Report an issue</h2>
-          <label>
-            Title
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              minLength={3}
-            />
-          </label>
-          <label>
-            Type
-            <select
-              value={typeCode}
-              onChange={(e) => setTypeCode(e.target.value)}
-            >
-              {types.map((t) => (
-                <option key={t.code} value={t.code}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Category
-            <select
-              value={categoryCode}
-              onChange={(e) => setCategoryCode(e.target.value)}
-            >
-              {categories.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Description
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              required
-              minLength={3}
-              rows={5}
-            />
-          </label>
-          {error ? (
-            <p className={styles.error} role="alert">
-              {error}
+        {canWrite ? (
+          <form className={styles.form} onSubmit={onCreate}>
+            <h2>Create ticket</h2>
+            <p className={styles.hint}>
+              Service and access requests go to <strong>Pending Approval</strong>{' '}
+              for approvers.
             </p>
-          ) : null}
-          <button type="submit" disabled={saving}>
-            {saving ? 'Submitting…' : 'Submit ticket'}
-          </button>
-        </form>
+            <label>
+              Title
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                minLength={3}
+              />
+            </label>
+            <label>
+              Type
+              <select
+                value={typeCode}
+                onChange={(e) => setTypeCode(e.target.value)}
+              >
+                {types.map((t) => (
+                  <option key={t.code} value={t.code}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Category
+              <select
+                value={categoryCode}
+                onChange={(e) => setCategoryCode(e.target.value)}
+              >
+                {categories.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Description
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                required
+                minLength={3}
+                rows={5}
+              />
+            </label>
+            {error ? (
+              <p className={styles.error} role="alert">
+                {error}
+              </p>
+            ) : null}
+            <button type="submit" disabled={saving}>
+              {saving ? 'Submitting…' : 'Submit ticket'}
+            </button>
+          </form>
+        ) : (
+          <div className={styles.form}>
+            <h2>View only</h2>
+            <p>Your role can view tickets but cannot create them.</p>
+          </div>
+        )}
 
         <div className={styles.list}>
-          <h2>Open work</h2>
+          <h2>Your ticket view</h2>
           {tickets.length === 0 ? (
             <p className={styles.empty}>No tickets yet.</p>
           ) : (
@@ -162,7 +181,7 @@ export default function TicketsPage() {
                   <span>{t.title}</span>
                   <em>
                     {t.status.name}
-                    {t.priority ? ` · ${t.priority.name}` : ''}
+                    {t.priority ? ` · ${t.priority.name}` : ''} · {t.type.name}
                   </em>
                 </li>
               ))}
@@ -170,6 +189,6 @@ export default function TicketsPage() {
           )}
         </div>
       </section>
-    </main>
+    </AppShell>
   );
 }

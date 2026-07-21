@@ -24,6 +24,25 @@ export type TicketSummary = {
   createdAt: string;
 };
 
+export type ApprovalItem = {
+  id: string;
+  status: string;
+  comment: string | null;
+  createdAt: string;
+  ticket: {
+    id: string;
+    number: string;
+    title: string;
+    status: { code: string; name: string };
+    type: { code: string; name: string };
+    requester: {
+      email: string;
+      firstName: string;
+      lastName: string;
+    };
+  };
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -110,5 +129,65 @@ export const api = {
         type: { name: string };
       }>
     >('/assets');
+  },
+  approvals(status?: string) {
+    const q = status ? `?status=${encodeURIComponent(status)}` : '';
+    return request<ApprovalItem[]>(`/approvals${q}`);
+  },
+  decideApproval(
+    id: string,
+    decision: 'approved' | 'rejected',
+    comment?: string,
+  ) {
+    return request<ApprovalItem>(`/approvals/${id}/decide`, {
+      method: 'POST',
+      body: JSON.stringify({ decision, comment }),
+    });
+  },
+  listUsers() {
+    return request<
+      Array<{
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        isActive: boolean;
+        roles: Array<{ code: string; name: string }>;
+      }>
+    >('/users');
+  },
+  rolesMatrix() {
+    return request<
+      Array<{
+        id: string;
+        code: string;
+        name: string;
+        description: string | null;
+        userCount: number;
+        permissions: string[];
+      }>
+    >('/users/roles/matrix');
+  },
+  setUserRoles(userId: string, roleCodes: string[]) {
+    return request(`/users/${userId}/roles`, {
+      method: 'PATCH',
+      body: JSON.stringify({ roleCodes }),
+    });
+  },
+  audit(limit = 50) {
+    return request<
+      Array<{
+        id: string;
+        action: string;
+        entityType: string;
+        entityId: string | null;
+        createdAt: string;
+        actor: {
+          email: string;
+          firstName: string;
+          lastName: string;
+        } | null;
+      }>
+    >(`/audit?limit=${limit}`);
   },
 };

@@ -70,6 +70,8 @@ const ROLE_DEFS: Array<{
       PERMISSIONS.KNOWLEDGE_WRITE,
       PERMISSIONS.ASSETS_READ,
       PERMISSIONS.ASSETS_WRITE,
+      PERMISSIONS.APPROVALS_READ,
+      PERMISSIONS.APPROVALS_DECIDE,
     ],
   },
   {
@@ -79,6 +81,8 @@ const ROLE_DEFS: Array<{
     permissions: [
       PERMISSIONS.TICKETS_READ_OWN,
       PERMISSIONS.KNOWLEDGE_READ,
+      PERMISSIONS.APPROVALS_READ,
+      PERMISSIONS.APPROVALS_DECIDE,
     ],
   },
   {
@@ -424,6 +428,7 @@ async function main() {
   const transitions: Array<[string, string]> = [
     ['new', 'open'],
     ['new', 'assigned'],
+    ['new', 'pending_approval'],
     ['new', 'cancelled'],
     ['open', 'assigned'],
     ['open', 'in_progress'],
@@ -437,6 +442,7 @@ async function main() {
     ['in_progress', 'resolved'],
     ['pending_user', 'in_progress'],
     ['pending_vendor', 'in_progress'],
+    ['pending_approval', 'open'],
     ['pending_approval', 'in_progress'],
     ['pending_approval', 'cancelled'],
     ['on_hold', 'in_progress'],

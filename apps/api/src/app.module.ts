@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ApprovalsModule } from './approvals/approvals.module';
 import { AssignmentModule } from './assignment/assignment.module';
 import { AssetsModule } from './assets/assets.module';
 import { AttachmentsModule } from './attachments/attachments.module';
@@ -37,6 +38,7 @@ import { UsersModule } from './users/users.module';
     CatalogModule,
     AssetsModule,
     ReportsModule,
+    ApprovalsModule,
   ],
 })
 export class AppModule {}

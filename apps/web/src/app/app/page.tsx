@@ -3,12 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, type AuthUser, type TicketSummary } from '@/lib/api';
+import { workspaceMission } from '@/lib/access';
+import { AppShell } from '@/components/AppShell';
 import styles from './app.module.css';
 
 export default function AppHomePage() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [tickets, setTickets] = useState<TicketSummary[]>([]);
+  const [pendingApprovals, setPendingApprovals] = useState(0);
   const [summary, setSummary] = useState<{
     openTickets: number;
     createdToday: number;
@@ -28,8 +31,14 @@ export default function AppHomePage() {
         const { user } = await api.me();
         if (cancelled) return;
         setUser(user);
-        const list = await api.listTickets();
-        if (!cancelled) setTickets(list.slice(0, 8));
+
+        try {
+          const list = await api.listTickets();
+          if (!cancelled) setTickets(list.slice(0, 8));
+        } catch {
+          /* no ticket access */
+        }
+
         if (user.permissions.includes('reports:read')) {
           try {
             const s = await api.reportSummary();
@@ -38,6 +47,16 @@ export default function AppHomePage() {
             /* optional */
           }
         }
+
+        if (user.permissions.includes('approvals:read')) {
+          try {
+            const a = await api.approvals('pending');
+            if (!cancelled) setPendingApprovals(a.length);
+          } catch {
+            /* optional */
+          }
+        }
+
         try {
           const n = await api.notifications();
           if (!cancelled) setNotes(n.filter((x) => !x.readAt).slice(0, 5));
@@ -73,48 +92,24 @@ export default function AppHomePage() {
   }
   if (!user) return null;
 
-  const isAgent =
-    user.roles.includes('agent') ||
-    user.roles.includes('senior_agent') ||
-    user.roles.includes('it_manager') ||
-    user.roles.includes('sysadmin');
-
   return (
-    <main className={styles.page}>
-      <header className={styles.top}>
-        <div className={styles.brand}>
-          <span className={styles.mark} aria-hidden />
-          <div>
-            <strong className={styles.brandName}>LogIT</strong>
-            <p className={styles.muted}>
-              {isAgent ? 'IT workspace' : 'Self-service'}
-            </p>
-          </div>
-        </div>
-        <button type="button" className={styles.ghost} onClick={logout}>
-          Sign out
-        </button>
-      </header>
-
+    <AppShell user={user} onLogout={logout}>
       <section className={styles.panel}>
         <h1>
           Welcome, {user.firstName} {user.lastName}
         </h1>
         <p className={styles.lede}>
-          Signed in as <strong>{user.email}</strong> · {user.roles.join(', ')}
+          Signed in as <strong>{user.email}</strong>
         </p>
+        <p className={styles.mission}>{workspaceMission(user)}</p>
 
-        <nav className={styles.navRow}>
-          <a href="/app/tickets">Tickets</a>
-          <a href="/app/knowledge">Knowledge</a>
-          <a href="/app/catalog">Catalog</a>
-          {user.permissions.includes('assets:read') ? (
-            <a href="/app/assets">Assets</a>
-          ) : null}
-          {user.permissions.includes('reports:read') ? (
-            <a href="/app/reports">Reports</a>
-          ) : null}
-        </nav>
+        {pendingApprovals > 0 ? (
+          <p>
+            You have <strong>{pendingApprovals}</strong> pending approval
+            {pendingApprovals === 1 ? '' : 's'}.{' '}
+            <a href="/app/approvals">Review approvals</a>
+          </p>
+        ) : null}
 
         {summary ? (
           <div className={styles.stats}>
@@ -143,7 +138,7 @@ export default function AppHomePage() {
 
         <h2 className={styles.sectionTitle}>Recent tickets</h2>
         {tickets.length === 0 ? (
-          <p className={styles.muted}>No tickets yet.</p>
+          <p className={styles.muted}>No tickets in your view yet.</p>
         ) : (
           <ul className={styles.ticketList}>
             {tickets.map((t) => (
@@ -171,6 +166,6 @@ export default function AppHomePage() {
           </>
         ) : null}
       </section>
-    </main>
+    </AppShell>
   );
 }

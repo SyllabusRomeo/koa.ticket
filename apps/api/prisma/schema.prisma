@@ -54,6 +54,7 @@ model User {
   notificationPreferences NotificationPreference[]
   knowledgeArticles KnowledgeArticle[]
   assignedAssets   Asset[] @relation("AssetAssignee")
+  approvals        Approval[] @relation("ApprovalApprover")
 
   @@index([email])
   @@index([deletedAt])
@@ -381,6 +382,7 @@ model Ticket {
   attachments TicketAttachment[]
   slaInstances SlaInstance[]
   assets      TicketAsset[]
+  approvals   Approval[]
 
   @@index([requesterId])
   @@index([assigneeId])
@@ -661,4 +663,22 @@ model TicketAsset {
 
   @@id([ticketId, assetId])
   @@map("ticket_assets")
+}
+
+model Approval {
+  id         String    @id @default(cuid())
+  ticketId   String    @map("ticket_id")
+  approverId String    @map("approver_id")
+  status     String    @default("pending")
+  comment    String?
+  decidedAt  DateTime? @map("decided_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  approver User   @relation("ApprovalApprover", fields: [approverId], references: [id])
+
+  @@index([approverId, status])
+  @@index([ticketId])
+  @@map("approvals")
 }

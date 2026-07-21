@@ -10,6 +10,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUserView } from '../auth/auth.service';
 import { AssignmentService } from '../assignment/assignment.service';
+import { ApprovalsService } from '../approvals/approvals.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SlaService } from '../sla/sla.service';
@@ -24,6 +25,7 @@ export class TicketsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly assignment: AssignmentService,
+    private readonly approvals: ApprovalsService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly sla: SlaService,
@@ -72,8 +74,11 @@ export class TicketsService {
     });
     if (!type) throw new BadRequestException('Invalid ticket type');
 
+    const needsApproval =
+      type.code === 'service_request' || type.code === 'access_request';
+    const initialStatusCode = needsApproval ? 'pending_approval' : 'new';
     const status = await this.prisma.ticketStatus.findUniqueOrThrow({
-      where: { code: 'new' },
+      where: { code: initialStatusCode },
     });
 
     let categoryId: string | undefined;
@@ -145,6 +150,10 @@ export class TicketsService {
       entityId: ticket.id,
       after: { number, title: ticket.title },
     });
+
+    if (needsApproval) {
+      await this.approvals.createForTicket(ticket.id, ticket.title, number);
+    }
 
     if (teamId) {
       const members = await this.prisma.teamMember.findMany({

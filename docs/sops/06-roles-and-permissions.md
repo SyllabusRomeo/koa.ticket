@@ -31,7 +31,7 @@ Use these after `npm run db:seed`. Passwords follow `LogIT-<Role>-2026!` (except
 | `agent@logit.local` | `agent` | IT Service Desk: queue tickets, assign, internal notes, assets read |
 | `senior@logit.local` | `senior_agent` | Tier 2/3: agent capabilities + knowledge/asset write |
 | `manager@logit.local` | `it_manager` | Operational oversight: all tickets, reports, audit, org manage |
-| `approver@logit.local` | `approver` | Line/department approver (approval UI expands later) |
+| `approver@logit.local` | `approver` | **Approvals** queue: approve/reject service & access requests |
 | `auditor@logit.local` | `auditor` | Compliance/read: audit trails, reports, historical tickets/assets |
 
 There is **no separate admin application** — elevated access is role-based inside LogIT.
