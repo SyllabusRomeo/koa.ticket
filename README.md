@@ -55,6 +55,15 @@ docker compose up --build
 # http://localhost:8180
 ```
 
+## Status docs
+
+| Doc | Purpose |
+| --- | --- |
+| [docs/GAP_ASSESSMENT.md](docs/GAP_ASSESSMENT.md) | **Shipped vs pending** vs PRD / tech roadmap |
+| [docs/ENTERPRISE_ROADMAP.md](docs/ENTERPRISE_ROADMAP.md) | Now / Next / Later product phases |
+| [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) | Build phases 0–11 checklist |
+| [docs/sops/README.md](docs/sops/README.md) | Operator & user SOPs |
+
 ## Phases
 
 See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).  

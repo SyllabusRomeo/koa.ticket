@@ -90,12 +90,11 @@ SELECT md5(random()::text || clock_timestamp()::text), 'implementing', 'Implemen
 WHERE NOT EXISTS (SELECT 1 FROM "ticket_statuses" WHERE "code" = 'implementing');
 
 -- Transitions into new statuses from common open states (idempotent)
-INSERT INTO "ticket_status_transitions" ("id", "from_status_id", "to_status_id", "created_at")
+INSERT INTO "ticket_status_transitions" ("id", "from_status_id", "to_status_id")
 SELECT
   md5(random()::text || clock_timestamp()::text || f.code || t.code),
   f.id,
-  t.id,
-  CURRENT_TIMESTAMP
+  t.id
 FROM "ticket_statuses" f
 CROSS JOIN "ticket_statuses" t
 WHERE f.code IN ('new', 'open', 'assigned', 'in_progress', 'under_investigation', 'known_error', 'pending_approval', 'scheduled', 'implementing', 'on_hold')

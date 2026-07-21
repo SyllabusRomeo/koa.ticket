@@ -43,9 +43,11 @@ Employee
 
 ## What is in MVP vs later
 
-**In MVP today:** auth/RBAC, org structure, core tickets, attachments, audit, SLA worker, assignment rules, notifications (in-app), dashboards, knowledge, catalog, assets, reports, Docker/Hetzner scaffolding.
+**In MVP today:** auth/RBAC, org structure (**Locations** + Teams admin), core tickets (parent/child, merge, origin location), watchers/worklogs/major-incident **APIs**, attachments, audit, SLA worker + admin UI, assignment rules + admin UI, notifications (in-app + email SMTP), dashboards, knowledge, catalog (one-click request), assets, reports, Slack/Teams + email intake, Docker/Hetzner scaffolding.
 
-**Later (planned):** advanced dynamic forms, full approval engines, problem/change depth, email-to-ticket, Microsoft Entra SSO, Teams, CMDB, AI assists.
+**Pending next:** watchers/worklogs **UI**, major-incident ops UX, queue boards, collision/presence, stage analytics depth.
+
+**Later (planned):** advanced dynamic forms, full approval engines, problem/change depth, IMAP email polish, Microsoft Entra SSO / MFA, full CMDB, AI assists.
 
 ## Brand
 

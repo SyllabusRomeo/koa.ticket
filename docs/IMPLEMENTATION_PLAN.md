@@ -37,14 +37,16 @@ Enterprise ITSM platform per PRD v1.0. Modular monolith, Docker-first, Hetzner-r
 - [x] Server-side RBAC guards
 - [x] Roles: Employee, Agent, Tier2/3, IT Manager, Approver, SysAdmin, Auditor
 
-## Phase 2 — Organization (done — API)
+## Phase 2 — Organization (done — MVP)
 
 - [x] Company → Country → Site → Department → Team → User (location/dept/team models)
 - [x] Dynamic locations (no hard-coding)
 - [x] Support group membership
-- [ ] Richer org admin UI (Phase 7)
+- [x] Locations admin UI + ticket origin site + user home location
+- [x] Teams admin UI
+- [ ] Soft-deactivate UX polish / full org tree designer (later)
 
-## Phase 3 — Core ticketing (done)
+## Phase 3 — Core ticketing (done — MVP+)
 
 - [x] Human IDs: `INC-YYYY-######`, `REQ-…`, etc.
 - [x] Types, categories/subcategories, impact×urgency priority matrix
@@ -52,6 +54,9 @@ Enterprise ITSM platform per PRD v1.0. Modular monolith, Docker-first, Hetzner-r
 - [x] Public comments vs internal notes
 - [x] Optimistic locking (`version`)
 - [x] Soft delete / archive flags
+- [x] Parent/child link + merge
+- [x] Watchers API + work-log API + major-incident flag
+- [ ] Watchers / work-log / major-incident **UI** (pending)
 
 ## Phase 4 — Attachments & audit (done)
 
@@ -68,12 +73,13 @@ Enterprise ITSM platform per PRD v1.0. Modular monolith, Docker-first, Hetzner-r
 
 ## Phase 6 — Assignment & notifications (done — MVP)
 
-- [x] Auto-routing rules (category → team)
+- [x] Auto-routing rules (category / type / location → team)
 - [x] In-app notifications + preferences API
+- [x] Email delivery (SMTP nodemailer) + inbound webhook
 - [x] Ticket detail: visible assign/reassign (team + assignee) + auto-rule explanation
 - [x] Ticket lifecycle action buttons (workflow transitions + soft-delete for elevated roles)
-- [ ] Email delivery (SMTP wiring later)
-- [ ] Assignment-rule admin UI (API exists)
+- [x] Assignment-rule + SLA policy admin UI (`/app/admin/routing`)
+- [ ] Watcher fan-out + digest schedules (pending)
 
 See also [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md) for module matrix and honest PRD gaps.
 
@@ -118,6 +124,8 @@ Notifications | Reporting | Audit | Admin | Integrations
 
 Functional + server authz + validation + migration + audit (if needed) + errors + tests + responsive UI + security review.
 
-## Out of MVP (Phase 2+ product)
+## Out of MVP / still pending
 
-Dynamic forms, advanced approvals, problems/changes, email-to-ticket, Entra SSO, Teams, CMDB, AI assists.
+See **[GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md)** for the live shipped-vs-pending matrix.
+
+Notable remaining: watchers/worklogs UI, major-incident ops dashboard, collision/presence, queue boards, Problem/Change workflows, IMAP polish, Entra SSO/MFA, CMDB depth, AI assists, signed outbound webhooks, prod TLS/CI automation.

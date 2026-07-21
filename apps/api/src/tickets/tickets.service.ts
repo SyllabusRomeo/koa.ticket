@@ -778,6 +778,82 @@ export class TicketsService {
     return comment;
   }
 
+  async watch(user: AuthUserView, idOrNumber: string) {
+    const ticket = await this.findAccessible(user, idOrNumber, false);
+    await this.prisma.ticketWatcher.upsert({
+      where: {
+        ticketId_userId: { ticketId: ticket.id, userId: user.id },
+      },
+      create: { ticketId: ticket.id, userId: user.id },
+      update: {},
+    });
+    return { watching: true };
+  }
+
+  async unwatch(user: AuthUserView, idOrNumber: string) {
+    const ticket = await this.findAccessible(user, idOrNumber, false);
+    await this.prisma.ticketWatcher.deleteMany({
+      where: { ticketId: ticket.id, userId: user.id },
+    });
+    return { watching: false };
+  }
+
+  async addWorkLog(
+    user: AuthUserView,
+    idOrNumber: string,
+    dto: AddWorkLogDto,
+  ) {
+    if (!user.permissions.includes(PERMISSIONS.TICKETS_WRITE)) {
+      throw new ForbiddenException('Cannot log work on this ticket');
+    }
+    if (!this.canStaffTickets(user)) {
+      throw new ForbiddenException('Only agents can log work');
+    }
+
+    const ticket = await this.findAccessible(user, idOrNumber, false);
+    const log = await this.prisma.ticketWorkLog.create({
+      data: {
+        ticketId: ticket.id,
+        authorId: user.id,
+        minutes: dto.minutes,
+        note: dto.note?.trim() || null,
+      },
+      include: {
+        author: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+      },
+    });
+
+    await this.prisma.ticketHistory.create({
+      data: {
+        ticketId: ticket.id,
+        actorId: user.id,
+        field: 'work_log',
+        newValue: `${dto.minutes}m`,
+      },
+    });
+
+    return log;
+  }
+
+  async listWorkLogs(user: AuthUserView, idOrNumber: string) {
+    const ticket = await this.findAccessible(user, idOrNumber, false);
+    if (!this.canStaffTickets(user) && ticket.requesterId !== user.id) {
+      throw new ForbiddenException('Cannot view work logs');
+    }
+
+    return this.prisma.ticketWorkLog.findMany({
+      where: { ticketId: ticket.id },
+      orderBy: { workedAt: 'desc' },
+      include: {
+        author: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+      },
+    });
+  }
+
   async linkChild(
     user: AuthUserView,
     parentIdOrNumber: string,

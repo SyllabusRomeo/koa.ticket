@@ -6,15 +6,17 @@ Explain how users are notified and how preferences work.
 
 ## Channels (MVP)
 
-- **In-app notifications** (primary today)
-- **Email** — architecture ready; SMTP wiring is a later completion item
-- Future: Microsoft Teams, SMS, push
+- **In-app notifications** (primary)
+- **Email** — SMTP outbound via nodemailer for key ticket events (see [INTEGRATIONS_EMAIL.md](../INTEGRATIONS_EMAIL.md))
+- Future: digests, watcher fan-out polish, Microsoft Teams bot replies, SMS, push
 
 ## Common events
 
 - Ticket created (to team members when routed)
+- Assignment / status changes (where wired)
 - SLA warning / breach thresholds
-- (Expand) assignment, approval required, resolved, etc.
+- Public comments (requester / assignee)
+- (Pending) fan-out to **ticket watchers**
 
 ## How to view
 

@@ -42,9 +42,12 @@ Give developers/integrators a map of MVP HTTP APIs.
 | Method | Path | Notes |
 | --- | --- | --- |
 | GET | `/tickets/meta` | Types, statuses, categories, matrix |
-| GET/POST | `/tickets` | List/create (`locationId` query filter for staff; create accepts `locationId` origin) |
-| GET/PATCH | `/tickets/:id` | Get/update (`version` required on PATCH; `locationId` for origin site) |
+| GET/POST | `/tickets` | List/create (`locationId` / `majorIncident` query filters for staff; create accepts `locationId`, `majorIncident`) |
+| GET/PATCH | `/tickets/:id` | Get/update (`version` required on PATCH; `locationId`, `majorIncident`) |
 | POST | `/tickets/:id/comments` | `isInternal` optional |
+| POST | `/tickets/:id/watch` | Subscribe current user as watcher |
+| DELETE | `/tickets/:id/watch` | Unsubscribe |
+| GET/POST | `/tickets/:id/work-logs` | List / add time (`{ minutes, note? }`; staff write) |
 | POST | `/tickets/:id/children` | Link child `{ childNumber }` (staff + `tickets:write`) |
 | DELETE | `/tickets/:id/children/:childId` | Unlink child |
 | POST | `/tickets/:id/merge` | Merge sources into primary `{ sourceTicketIds: string[] }` (staff + write/assign) |

@@ -22,16 +22,18 @@ For each new ticket:
 1. Open the ticket from **Tickets** (click the number) — detail page shows ownership and actions
 2. **Confirm type** (incident vs request vs access vs security)
 3. **Confirm category/subcategory**
-4. **Validate priority** (impact × urgency). Override only with justification (logged)
-5. **Assign team/agent** in the Assignment panel if not auto-routed (needs `tickets:assign`)
-6. Use **Ticket actions** buttons for allowed status moves (e.g. Open → Assigned → In Progress → Resolve → Close). Reopen from Resolved/Closed when allowed. Soft-delete is for sysadmin / IT manager only.
-7. Move status: New → Open/Assigned → In Progress
-8. For major incidents, use **Related tickets** to link children (`POST /tickets/:id/children`). Review **Stage duration** to see where time was spent.
-9. For duplicates, use **Merge into this ticket** on the primary (`POST /tickets/:id/merge` with source numbers). Sources close as **Merged**, keep their numbers, and comments/attachments are copied onto the primary with attribution.
+4. **Confirm ticket origin site** (location) — correct if the requester picked the wrong site
+5. **Validate priority** (impact × urgency). Override only with justification (logged)
+6. **Assign team/agent** in the Assignment panel if not auto-routed (needs `tickets:assign`)
+7. Use **Ticket actions** buttons for allowed status moves (e.g. Open → Assigned → In Progress → Resolve → Close). Reopen from Resolved/Closed when allowed. Soft-delete is for sysadmin / IT manager only.
+8. Move status: New → Open/Assigned → In Progress
+9. For **major incidents**, set `majorIncident` via API/PATCH (UI badge/filter pending). Link related work with **Related tickets** (`POST /tickets/:id/children`). Review **Stage duration** to see where time was spent. Problem/change-friendly statuses include Under investigation, Known error, Scheduled, Implementing.
+10. For duplicates, use **Merge into this ticket** on the primary (`POST /tickets/:id/merge` with source numbers). Sources close as **Merged**, keep their numbers, and comments/attachments are copied onto the primary with attribution.
 
 ## Auto-routing
 
 Assignment rules can send tickets to teams (seed example: Network category → Service Desk).  
+Rules may also match **ticket origin location**.  
 Configure rules in **Routing & SLA** (`/app/admin/routing`) or see the summary on ticket detail.  
 If wrong queue, reassign and notify.
 
@@ -40,8 +42,10 @@ If wrong queue, reassign and notify.
 1. Investigate; document steps.
 2. Use **public replies** for requester-visible updates.
 3. Use **internal notes** for passwords, hypotheses, vendor threads — never in public replies.
-4. Link related **assets** when hardware is involved.
-5. Set pending statuses when waiting:
+4. **Watch** tickets you need updates on (`POST /tickets/:id/watch` — UI pending).
+5. Log time with **work logs** (`POST /tickets/:id/work-logs` with `minutes` + optional `note` — UI pending).
+6. Link related **assets** when hardware is involved.
+7. Set pending statuses when waiting:
    - Pending User
    - Pending Vendor
    - Pending Approval
