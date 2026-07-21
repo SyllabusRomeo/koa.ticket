@@ -1,0 +1,91 @@
+# SOP-05 — Hetzner Production Setup
+
+## Purpose
+
+Deploy LogIT to Hetzner infrastructure safely.
+
+## Recommended topology
+
+```
+Internet → DNS → Firewall → Nginx (TLS) → api / web / worker
+                              ↓
+                         Postgres + Redis (private)
+                              ↓
+                         Persistent volumes + backups
+```
+
+## Preconditions
+
+- Hetzner Cloud/server with Docker + Docker Compose
+- Domain name pointed at server
+- Strong secrets generated (DB password, `SESSION_SECRET`, SMTP later)
+- SSH key auth; password root login disabled
+
+## Procedure (high level)
+
+### 1. Server hardening
+
+- Update OS packages
+- Configure firewall: allow **22** (admin IPs), **80**, **443** only
+- Deny public access to Postgres (`5432`) and Redis (`6379`)
+
+### 2. Place application code
+
+Clone repo to server (or pull release artifact). Create production `.env` **on the server only** (never commit).
+
+Critical production settings:
+
+```env
+NODE_ENV=production
+COOKIE_SECURE=true
+SESSION_SECRET=<long-random>
+POSTGRES_PASSWORD=<strong>
+WEB_ORIGIN=https://your-domain.example
+```
+
+### 3. Start with production overrides
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+Prod overlay typically:
+
+- Restarts `unless-stopped`
+- Removes public DB/Redis port publishing
+- Publishes Nginx on 80/443
+
+### 4. TLS
+
+- Issue certificate (Let's Encrypt recommended)
+- Configure Nginx for HTTPS + HTTP redirect
+- Automate renewal
+
+### 5. Post-deploy verification
+
+- [ ] `https://your-domain/health/ready` returns ok
+- [ ] Login works over HTTPS; cookie Secure flag set
+- [ ] Create a test ticket as employee
+- [ ] Agent can see queue ticket
+- [ ] Worker logs show SLA ticks
+- [ ] Backup script runs successfully
+
+### 6. Production gate (must pass)
+
+Before go-live:
+
+- No debug mode / default seed passwords
+- No secrets in Git
+- HTTPS enforced
+- Firewall correct
+- DB/Redis not public
+- Backups scheduled + restore tested
+- Monitoring/health checks watched
+- Admin accounts secured (MFA when available)
+
+Details: `infra/hetzner/README.md`
+
+## Related SOPs
+
+- [17 Backup and recovery](./17-backup-and-recovery.md)
+- [18 Troubleshooting](./18-troubleshooting.md)

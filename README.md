@@ -51,6 +51,10 @@ docker compose up --build
 See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).  
 Hetzner production: [infra/hetzner/README.md](infra/hetzner/README.md).
 
+## SOPs (user & operator guides)
+
+Start at **[docs/sops/README.md](docs/sops/README.md)** — architecture, setup, employee/agent/admin how-tos, SLA, backups, troubleshooting, API map.
+
 ## Brand
 
 LogIT — primary `#0F4A40`, light `#EDF4AC`, secondary `#456433`, warm `#FBF1DA`.
