@@ -38,7 +38,7 @@ After login (`/app`):
 ### Writing a good ticket
 
 - One issue per ticket
-- Include screenshots via attachment API/UI when available
+- Include screenshots via **Attach files** on ticket create or ticket detail (see [SOP-15](./15-attachments-and-audit.md))
 - Impact/urgency affect priority — be honest
 
 ## Request a standard service

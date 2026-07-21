@@ -42,7 +42,6 @@ export default function HomePage() {
 
       <footer className={styles.footer} id="status">
         <span>LogIT · Phase 0</span>
-        <span className={styles.dot} aria-hidden />
         <span>API health: /health</span>
       </footer>
     </main>

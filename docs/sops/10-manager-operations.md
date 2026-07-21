@@ -22,7 +22,7 @@ From workspace / reports (requires `reports:read`):
 2. Check unassigned older than triage SLA.
 3. Spot category hotspots (recurring issues → problem candidates).
 4. Review agent workload distribution.
-5. Export CSV for leadership packs when needed (`/api/v1/reports/export.csv`) — export is audited.
+5. Export CSV or PDF for leadership packs from **Reports** (`Download CSV` / `Download PDF`, or `GET /api/v1/reports/export.csv` · `export.pdf`). Exports are audited.
 
 ## Escalation handling
 

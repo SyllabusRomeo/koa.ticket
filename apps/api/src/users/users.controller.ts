@@ -7,7 +7,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { IsArray, IsString } from 'class-validator';
+import { IsArray, IsOptional, IsString } from 'class-validator';
 import { PERMISSIONS } from '@logit/shared';
 import { RequirePermissions } from '../auth/decorators';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
@@ -15,10 +15,23 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UsersService } from './users.service';
 
-class SetRolesDto {
+class SetAccessDto {
+  /** Preferred: single primary role. */
+  @IsOptional()
+  @IsString()
+  roleCode?: string;
+
+  /** Legacy: must be empty or a single code when roleCode is omitted. */
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  roleCodes!: string[];
+  roleCodes?: string[];
+
+  /** Additive extras — unioned with role permissions at session resolve time. */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  extraPermissionCodes?: string[];
 }
 
 @Controller('users')
@@ -52,7 +65,7 @@ export class UsersController {
 
   @Patch(':id/roles')
   @RequirePermissions(PERMISSIONS.USERS_MANAGE)
-  setRoles(@Param('id') id: string, @Body() dto: SetRolesDto) {
-    return this.users.setRoles(id, dto.roleCodes);
+  setAccess(@Param('id') id: string, @Body() dto: SetAccessDto) {
+    return this.users.setAccess(id, dto);
   }
 }

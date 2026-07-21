@@ -49,15 +49,17 @@ export class AuthService {
         permissions: Array<{ permission: { code: string } }>;
       };
     }>;
+    extraPermissions?: Array<{ permission: { code: string } }>;
   }): AuthUserView {
     const roles = user.roles.map((r) => r.role.code);
-    const permissions = [
-      ...new Set(
-        user.roles.flatMap((r) =>
-          r.role.permissions.map((p) => p.permission.code),
-        ),
-      ),
-    ];
+    const rolePerms = user.roles.flatMap((r) =>
+      r.role.permissions.map((p) => p.permission.code),
+    );
+    const extras = (user.extraPermissions ?? []).map(
+      (p) => p.permission.code,
+    );
+    /** Effective = primary role permissions ∪ additive extras. */
+    const permissions = [...new Set([...rolePerms, ...extras])];
 
     return {
       id: user.id,
@@ -89,6 +91,7 @@ export class AuthService {
             },
           },
         },
+        extraPermissions: { include: { permission: true } },
       },
     });
 

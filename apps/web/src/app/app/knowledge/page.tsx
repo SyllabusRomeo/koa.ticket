@@ -2,25 +2,32 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, type AuthUser } from '@/lib/api';
+import { api, type AuthUser, type KnowledgeArticle } from '@/lib/api';
 import { can } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import styles from '../app.module.css';
+import { BookOpen, Plus, Send } from 'lucide-react';
+import { EmptyState } from '@/components/EmptyState';
+import { Icon } from '@/components/Icon';
 
 export default function KnowledgePage() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [items, setItems] = useState<
-    Array<{ id: string; slug: string; title: string; category: string | null }>
-  >([]);
+  const [items, setItems] = useState<KnowledgeArticle[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
         const { user } = await api.me();
+        if (!can(user, 'knowledge:read') && !can(user, 'knowledge:write')) {
+          router.replace('/app');
+          return;
+        }
         setUser(user);
         setItems(await api.knowledge());
-      } catch {
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed');
         router.replace('/login');
       }
     })();
@@ -35,6 +42,16 @@ export default function KnowledgePage() {
     router.replace('/login');
   }
 
+  async function publish(id: string) {
+    setError(null);
+    try {
+      await api.publishKnowledge(id);
+      setItems(await api.knowledge());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Publish failed');
+    }
+  }
+
   if (!user) {
     return (
       <main className={styles.page}>
@@ -43,19 +60,64 @@ export default function KnowledgePage() {
     );
   }
 
+  const canWrite = can(user, 'knowledge:write');
+
   return (
     <AppShell user={user} onLogout={logout} title="Knowledge base">
       <section className={styles.panel}>
-        {!can(user, 'knowledge:read') ? (
-          <p className={styles.error}>No knowledge access.</p>
-        ) : items.length === 0 ? (
-          <p className={styles.muted}>No published articles.</p>
+        <p className={styles.mission}>
+          {canWrite
+            ? 'Browse published and draft articles. Create and publish how-to content for the service desk and employees.'
+            : 'Browse published help articles. Authors with knowledge write access create and publish content.'}
+        </p>
+        <div className={styles.ctaRow} style={{ marginBottom: '1rem' }}>
+          {canWrite ? (
+            <a href="/app/knowledge/new" className={styles.btn}>
+              <Icon icon={Plus} size="sm" />
+              Create article
+            </a>
+          ) : null}
+          <a href="/app" className={styles.btnSecondary}>
+            Back to Home
+          </a>
+        </div>
+        {error ? (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        ) : null}
+        {items.length === 0 ? (
+          <EmptyState icon={BookOpen}>
+            No articles yet.{' '}
+            {canWrite ? (
+              <a href="/app/knowledge/new">Create the first article</a>
+            ) : (
+              <a href="/app">Back to Home</a>
+            )}
+          </EmptyState>
         ) : (
           <ul className={styles.ticketList}>
             {items.map((a) => (
               <li key={a.id}>
-                <strong>{a.title}</strong>
-                <em>{a.category ?? 'General'}</em>
+                <a className={styles.rowLink} href={`/app/knowledge/${a.slug}`}>
+                  <strong>{a.title}</strong>
+                  <em>
+                    {a.category ?? 'General'}
+                    {a.status ? ` · ${a.status}` : ''}
+                  </em>
+                </a>
+                {canWrite && a.status === 'draft' ? (
+                  <div className={styles.actions}>
+                    <button
+                      type="button"
+                      className={styles.btn}
+                      onClick={() => publish(a.id)}
+                    >
+                      <Icon icon={Send} size="sm" />
+                      Publish
+                    </button>
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>

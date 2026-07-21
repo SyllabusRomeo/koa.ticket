@@ -1,12 +1,17 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  Header,
   Param,
   Patch,
   Post,
+  Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { CurrentUser } from '../auth/decorators';
 import type { AuthUserView } from '../auth/auth.service';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
@@ -26,6 +31,21 @@ export class TicketsController {
   @Get('meta')
   meta() {
     return this.tickets.meta();
+  }
+
+  @Get('export.csv')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  async exportCsv(
+    @CurrentUser() user: AuthUserView,
+    @Req() req: { ip?: string },
+    @Res() res: Response,
+  ) {
+    const csv = await this.tickets.exportCsv(user, req.ip);
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="logit-tickets.csv"',
+    );
+    res.send(csv);
   }
 
   @Get()
@@ -50,6 +70,11 @@ export class TicketsController {
     @Body() dto: UpdateTicketDto,
   ) {
     return this.tickets.update(user, id, dto);
+  }
+
+  @Delete(':id')
+  softDelete(@CurrentUser() user: AuthUserView, @Param('id') id: string) {
+    return this.tickets.softDelete(user, id);
   }
 
   @Post(':id/comments')

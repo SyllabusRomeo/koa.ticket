@@ -26,10 +26,14 @@ Give developers/integrators a map of MVP HTTP APIs.
 | Method | Path | Permission |
 | --- | --- | --- |
 | GET/POST | `/users` | users:read / users:manage |
+| GET | `/users/roles/matrix` | roles:manage — roles + allPermissions |
+| PATCH | `/users/:id/roles` | users:manage — `{ roleCode, extraPermissionCodes? }` |
 | GET/POST | `/org/locations` | org:read / org:manage |
 | GET/POST | `/org/departments` | org:read / org:manage |
 | GET/POST | `/org/teams` | org:read / org:manage |
+| PATCH | `/org/teams/:id` | org:manage |
 | POST | `/org/teams/:id/members` | org:manage |
+| DELETE | `/org/teams/:id/members/:userId` | org:manage |
 
 ## Tickets
 
@@ -44,9 +48,15 @@ Give developers/integrators a map of MVP HTTP APIs.
 
 | Method | Path |
 | --- | --- |
-| POST/GET | `/tickets/:id/attachments` |
+| POST/GET | `/tickets/:idOrNumber/attachments` |
 | GET | `/attachments/:id/download` |
-| GET | `/audit` |
+| GET | `/attachments/limits` |
+| GET | `/integrations/status` (sysadmin) |
+| POST | `/integrations/chat/simulate` (sysadmin) |
+| POST | `/integrations/slack/events` · `/slack/commands` |
+| POST | `/integrations/teams/messages` |
+| GET | `/audit` | Query: limit, action, actor, entityType, from, to, q |
+| GET | `/audit/facets` | Distinct actions + entity types |
 
 ## SLA / Assignment / Notifications
 
@@ -65,13 +75,19 @@ Give developers/integrators a map of MVP HTTP APIs.
 | --- | --- |
 | GET/POST | `/knowledge` |
 | GET | `/knowledge/:slug` |
+| PATCH | `/knowledge/:id` |
 | POST | `/knowledge/:id/publish` |
+| POST | `/knowledge/media` (inline image, `knowledge:write`) |
+| GET/POST | `/knowledge/:id/attachments` |
+| GET | `/knowledge/attachments/:id/content` · `…/download` |
 | GET/POST | `/catalog` |
 | GET/POST | `/assets` |
 | GET | `/assets/types` |
 | POST | `/assets/tickets/:ticketId/link` |
-| GET | `/reports/summary` |
-| GET | `/reports/export.csv` |
+| GET | `/reports/summary?from=&to=` · `/reports/workspace` (agent KPIs) |
+| GET | `/reports/export.csv?from=&to=` · `/reports/export.pdf?from=&to=` (`reports:read`) |
+| GET | `/tickets/export.csv` (same visibility as ticket list) |
+| GET | `/audit/export.csv?…` (same filters as `/audit`, `audit:read`) |
 
 ## Health (no `/api/v1` prefix)
 

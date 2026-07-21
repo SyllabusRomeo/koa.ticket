@@ -6,8 +6,10 @@ import { AssetsModule } from './assets/assets.module';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { BrandingModule } from './branding/branding.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { HealthModule } from './health/health.module';
+import { IntegrationsModule } from './integrations/integrations.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { OrgModule } from './org/org.module';
@@ -39,6 +41,8 @@ import { UsersModule } from './users/users.module';
     AssetsModule,
     ReportsModule,
     ApprovalsModule,
+    IntegrationsModule,
+    BrandingModule,
   ],
 })
 export class AppModule {}

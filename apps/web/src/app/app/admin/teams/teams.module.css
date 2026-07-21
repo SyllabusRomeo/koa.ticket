@@ -1,0 +1,288 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 1080px;
+}
+
+.hero {
+  padding: 1.1rem 1.2rem;
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(135deg, rgba(15, 74, 64, 0.94), rgba(69, 100, 51, 0.88));
+  color: #fff;
+}
+
+.eyebrow {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.lede {
+  margin: 0;
+  max-width: 40rem;
+  line-height: 1.45;
+  font-size: 1.05rem;
+}
+
+.bannerOk {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  background: rgba(237, 244, 172, 0.55);
+  border-left: 3px solid var(--color-secondary);
+  font-weight: 600;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) 1fr;
+  gap: 1.15rem;
+  align-items: start;
+}
+
+.panel {
+  padding: 1.15rem 1.25rem 1.35rem;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(15, 74, 64, 0.1);
+  box-shadow: var(--shadow-soft);
+}
+
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(15, 74, 64, 0.1);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+}
+
+.sectionHint {
+  margin: 0.3rem 0 0;
+  font-size: 0.88rem;
+  opacity: 0.78;
+}
+
+.sectionHint code {
+  font-size: 0.85em;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  background: rgba(237, 244, 172, 0.55);
+}
+
+.teamList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.teamItem {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid transparent;
+  background: rgba(251, 241, 218, 0.35);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.teamItem strong {
+  color: var(--color-primary);
+}
+
+.teamItem span {
+  font-size: 0.82rem;
+  opacity: 0.75;
+}
+
+.teamItem:hover {
+  border-color: rgba(15, 74, 64, 0.2);
+}
+
+.teamItemActive {
+  background: rgba(237, 244, 172, 0.55);
+  border-color: rgba(69, 100, 51, 0.45);
+}
+
+.createForm,
+.editForm {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem;
+  border-radius: var(--radius-sm);
+  background: rgba(251, 241, 218, 0.45);
+  border: 1px solid rgba(15, 74, 64, 0.1);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.fieldFull {
+  grid-column: 1 / -1;
+}
+
+.field input,
+.field select,
+.field textarea {
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(15, 74, 64, 0.18);
+  background: #fff;
+  color: inherit;
+  resize: vertical;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: 2px solid rgba(237, 244, 172, 0.9);
+  outline-offset: 1px;
+  border-color: var(--color-primary);
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.desc {
+  margin: 0 0 1rem;
+  line-height: 1.45;
+  opacity: 0.9;
+}
+
+.subhead {
+  margin: 0.5rem 0 0.65rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.memberList {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.memberRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(15, 74, 64, 0.1);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.memberRow strong {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.memberRow span {
+  display: block;
+  font-size: 0.82rem;
+  opacity: 0.75;
+  font-weight: 400;
+}
+
+.leadBadge {
+  display: inline-block !important;
+  font-size: 0.68rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.12rem 0.35rem;
+  border-radius: 3px;
+  background: rgba(15, 74, 64, 0.9);
+  color: #edf4ac;
+  opacity: 1 !important;
+}
+
+.memberForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(15, 74, 64, 0.1);
+}
+
+.memberForm .field {
+  flex: 1 1 220px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding-bottom: 0.45rem;
+}
+
+.empty,
+.emptySmall {
+  margin: 0;
+  line-height: 1.45;
+  opacity: 0.8;
+}
+
+.emptySmall {
+  margin-bottom: 0.85rem;
+  font-size: 0.92rem;
+}
+
+@media (max-width: 800px) {
+  .split {
+    grid-template-columns: 1fr;
+  }
+
+  .createForm,
+  .editForm {
+    grid-template-columns: 1fr;
+  }
+}

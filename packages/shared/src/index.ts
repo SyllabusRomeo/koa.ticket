@@ -78,6 +78,28 @@ export const PRIORITIES = [
 
 export type PriorityCode = (typeof PRIORITIES)[number];
 
+/** Canonical IT asset lifecycle statuses (CMDB-lite register). */
+export const ASSET_STATUSES = [
+  'in_stock',
+  'in_service',
+  'in_repair',
+  'retired',
+  'disposed',
+] as const;
+
+export type AssetStatusCode = (typeof ASSET_STATUSES)[number];
+
+/** Legacy aliases accepted on write; normalized to ASSET_STATUSES. */
+export const ASSET_STATUS_ALIASES: Record<string, AssetStatusCode> = {
+  in_use: 'in_service',
+  under_repair: 'in_repair',
+  in_stock: 'in_stock',
+  in_service: 'in_service',
+  in_repair: 'in_repair',
+  retired: 'retired',
+  disposed: 'disposed',
+};
+
 /** LogIT brand tokens — keep in sync with apps/web CSS variables. */
 export const BRAND = {
   primary: '#0F4A40',

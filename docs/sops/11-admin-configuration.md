@@ -24,15 +24,22 @@ Optional `locationId`.
 
 ### Teams (support groups)
 
-`GET/POST /api/v1/org/teams`  
-Add members: `POST /api/v1/org/teams/:id/members` with `{ userId, isLead? }`.
+**Admin UI (preferred):** `/app/admin/teams` — create/edit service teams, assign members (requires `org:manage`; sysadmin and IT manager).
 
-Examples: Service Desk, Infrastructure, Applications, Security.
+API:
+
+`GET/POST /api/v1/org/teams`  
+`PATCH /api/v1/org/teams/:id`  
+Add members: `POST /api/v1/org/teams/:id/members` with `{ userId, isLead? }`  
+Remove members: `DELETE /api/v1/org/teams/:id/members/:userId`
+
+Examples: Service Desk, Infrastructure, Applications, Security. Seed creates **Service Desk** (`SD`); production admins should create additional teams in the UI rather than editing seed.
 
 ## Users
 
 - List: `GET /api/v1/users` (`users:read`)
-- Create: `POST /api/v1/users` (`users:manage`) with `roleCodes`, optional temp password
+- Create: `POST /api/v1/users` (`users:manage`) with a single primary role via `roleCodes` (length 0–1), optional temp password
+- Assign access: **Roles & Access** UI or `PATCH /api/v1/users/:id/roles` with `roleCode` + optional `extraPermissionCodes` (additive). See [SOP-06](./06-roles-and-permissions.md).
 
 Disable users by setting inactive / soft-delete practices (expand UI later). Prefer deactivation over hard delete.
 
@@ -64,7 +71,27 @@ Business hours seed: Mon–Fri 08:00–17:00 `Africa/Accra`.
 
 ## System settings
 
-`system_settings` table holds keys such as `app.name`. Expand admin UI over time for logo, SMTP, attachment limits, password policy.
+`system_settings` table holds keys such as `app.name` and branding file references (`branding.logoStoredName`, `branding.bannerStoredName`).
+
+### Login branding (sysadmin)
+
+Admin UI: `/app/admin/branding` — upload organization logo and login page background banner, preview, Save, or Reset to LogIT defaults.
+
+| Endpoint | Auth | Notes |
+|----------|------|--------|
+| `GET /api/v1/branding` | Public | `logoUrl`, `loginBannerUrl`, limits |
+| `GET /api/v1/branding/assets/logo` · `/banner` | Public | Inline image stream |
+| `POST /api/v1/branding/logo` · `/banner` | Sysadmin | Multipart `file` |
+| `POST /api/v1/branding/reset` | Sysadmin | Clears custom assets |
+
+Logo: png/jpg/webp/svg (2 MB). Banner: jpg/png/webp (5 MB). When unset, `/login` keeps the default CSS mark and body gradient.
+
+Expand further over time for SMTP, attachment limits, password policy.
+
+## Integrations (Slack / Teams)
+
+Sysadmin UI: `/app/admin/integrations` — webhook URLs, env status, chat ticket simulate.  
+Docs: [INTEGRATIONS_SLACK_TEAMS.md](../INTEGRATIONS_SLACK_TEAMS.md) · Roadmap: [ENTERPRISE_ROADMAP.md](../ENTERPRISE_ROADMAP.md).
 
 ## Seed vs production
 

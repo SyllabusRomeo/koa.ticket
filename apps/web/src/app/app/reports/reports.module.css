@@ -1,0 +1,156 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 1120px;
+}
+
+.hero {
+  padding: 1.1rem 1.2rem;
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    135deg,
+    rgba(15, 74, 64, 0.94),
+    rgba(69, 100, 51, 0.88)
+  );
+  color: #fff;
+}
+
+.eyebrow {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.lede {
+  margin: 0;
+  max-width: 42rem;
+  line-height: 1.45;
+  font-size: 1.05rem;
+}
+
+.filters {
+  padding: 1rem 1.15rem 1.1rem;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(15, 74, 64, 0.1);
+  box-shadow: var(--shadow-soft);
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: flex-end;
+  margin-bottom: 0.85rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.field input {
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(15, 74, 64, 0.18);
+  background: #fff;
+  color: inherit;
+}
+
+.filterActions,
+.exportRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.meta {
+  margin: 0;
+  font-size: 0.88rem;
+  opacity: 0.75;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.breakdown {
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(15, 74, 64, 0.08);
+  box-shadow: var(--shadow-soft);
+}
+
+.breakdownTitle {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--color-primary);
+}
+
+.barList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.barMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  margin-bottom: 0.2rem;
+}
+
+.barMeta strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.barTrack {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(15, 74, 64, 0.08);
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+  min-width: 2px;
+}
+
+.muted {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+@media (max-width: 640px) {
+  .filterRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

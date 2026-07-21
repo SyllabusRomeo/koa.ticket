@@ -1,0 +1,68 @@
+.body {
+  line-height: 1.6;
+  max-width: 48rem;
+}
+
+.body :global(h1),
+.body :global(h2),
+.body :global(h3) {
+  font-family: var(--font-display);
+  margin: 1.1rem 0 0.5rem;
+  line-height: 1.25;
+  color: var(--color-primary);
+}
+
+.body :global(h2) {
+  font-size: 1.35rem;
+}
+
+.body :global(h3) {
+  font-size: 1.15rem;
+}
+
+.body :global(p) {
+  margin: 0.55rem 0;
+}
+
+.body :global(ul),
+.body :global(ol) {
+  margin: 0.55rem 0;
+  padding-left: 1.4rem;
+}
+
+.body :global(li) {
+  margin: 0.25rem 0;
+}
+
+.body :global(img) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.85rem 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(15, 74, 64, 0.12);
+}
+
+.body :global(a) {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.body :global(blockquote) {
+  margin: 0.75rem 0;
+  padding: 0.4rem 0 0.4rem 0.9rem;
+  border-left: 3px solid rgba(15, 74, 64, 0.35);
+  opacity: 0.92;
+}
+
+.body :global(pre) {
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius-sm);
+  background: rgba(15, 74, 64, 0.06);
+  overflow-x: auto;
+}
+
+.body :global(code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}

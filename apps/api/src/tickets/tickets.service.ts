@@ -31,6 +31,22 @@ export class TicketsService {
     private readonly sla: SlaService,
   ) {}
 
+  private canStaffTickets(user: AuthUserView) {
+    return (
+      user.permissions.includes(PERMISSIONS.TICKETS_READ_ALL) ||
+      user.permissions.includes(PERMISSIONS.TICKETS_READ_QUEUE) ||
+      user.permissions.includes(PERMISSIONS.SETTINGS_MANAGE)
+    );
+  }
+
+  private canSoftDelete(user: AuthUserView) {
+    return (
+      user.permissions.includes(PERMISSIONS.SETTINGS_MANAGE) ||
+      (user.permissions.includes(PERMISSIONS.TICKETS_READ_ALL) &&
+        user.permissions.includes(PERMISSIONS.TICKETS_WRITE))
+    );
+  }
+
   private canReadAll(user: AuthUserView) {
     return (
       user.permissions.includes(PERMISSIONS.TICKETS_READ_ALL) ||
@@ -167,12 +183,16 @@ export class TicketsService {
           eventType: 'ticket.created',
           title: `New ticket ${number}`,
           body: ticket.title,
-          link: '/app/tickets',
+          link: `/app/tickets/${ticket.number}`,
         });
       }
     }
 
-    return this.serialize(ticket, user);
+    const withSla = await this.prisma.ticket.findFirstOrThrow({
+      where: { id: ticket.id },
+      include: this.defaultInclude(false),
+    });
+    return this.serialize(withSla, user);
   }
 
   async list(user: AuthUserView) {
@@ -191,9 +211,132 @@ export class TicketsService {
     return tickets.map((t) => this.serialize(t, user));
   }
 
+  /** CSV of the same ticket visibility as list (scoped for employees). */
+  async exportCsv(user: AuthUserView, ipAddress?: string | null) {
+    const where: Prisma.TicketWhereInput = { deletedAt: null };
+    if (!this.canReadAll(user)) {
+      where.requesterId = user.id;
+    }
+
+    const tickets = await this.prisma.ticket.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: 5000,
+      include: this.defaultInclude(false),
+    });
+
+    await this.audit.log({
+      actorId: user.id,
+      action: 'tickets.export',
+      entityType: 'tickets',
+      after: { count: tickets.length, format: 'csv' },
+      ipAddress,
+    });
+
+    const escape = (value: string | number | null | undefined) => {
+      const s = value == null ? '' : String(value);
+      if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+    const person = (
+      p?: {
+        email: string;
+        firstName: string;
+        lastName: string;
+      } | null,
+    ) => {
+      if (!p) return '';
+      const name = `${p.firstName} ${p.lastName}`.trim();
+      return name ? `${name} <${p.email}>` : p.email;
+    };
+
+    const header = [
+      'number',
+      'title',
+      'status',
+      'priority',
+      'type',
+      'requester',
+      'assignee',
+      'team',
+      'createdAt',
+      'resolvedAt',
+    ].join(',');
+
+    const rows = tickets.map((t) =>
+      [
+        escape(t.number),
+        escape(t.title),
+        escape(t.status.code),
+        escape(t.priority?.code ?? ''),
+        escape(t.type.code),
+        escape(person(t.requester)),
+        escape(person(t.assignee)),
+        escape(t.team?.name ?? ''),
+        escape(t.createdAt.toISOString()),
+        escape(t.resolvedAt?.toISOString() ?? ''),
+      ].join(','),
+    );
+
+    return `${header}\n${rows.join('\n')}`;
+  }
+
   async get(user: AuthUserView, idOrNumber: string) {
     const ticket = await this.findAccessible(user, idOrNumber, true);
-    return this.serialize(ticket, user);
+    const allowedTransitions = await this.listAllowedTransitions(user, ticket);
+    return {
+      ...this.serialize(ticket, user),
+      allowedTransitions,
+      canSoftDelete: this.canSoftDelete(user),
+    };
+  }
+
+  async softDelete(user: AuthUserView, idOrNumber: string) {
+    if (!this.canSoftDelete(user)) {
+      throw new ForbiddenException('Cannot delete tickets');
+    }
+    const ticket = await this.findAccessible(user, idOrNumber, false);
+    await this.prisma.ticket.update({
+      where: { id: ticket.id },
+      data: { deletedAt: new Date() },
+    });
+    await this.audit.log({
+      actorId: user.id,
+      action: 'ticket.soft_delete',
+      entityType: 'ticket',
+      entityId: ticket.id,
+      after: { number: ticket.number },
+    });
+    return { ok: true, number: ticket.number };
+  }
+
+  private async listAllowedTransitions(
+    user: AuthUserView,
+    ticket: { statusId: string; status: { code: string }; requesterId: string },
+  ) {
+    const rows = await this.prisma.ticketStatusTransition.findMany({
+      where: { fromStatusId: ticket.statusId },
+      include: { toStatus: true },
+      orderBy: { toStatus: { sortOrder: 'asc' } },
+    });
+
+    const isStaff = this.canStaffTickets(user);
+    const isRequester = ticket.requesterId === user.id;
+
+    return rows
+      .filter((r) => {
+        if (isStaff) return true;
+        if (!isRequester) return false;
+        return (
+          r.toStatus.code === 'cancelled' ||
+          (ticket.status.code === 'resolved' && r.toStatus.code === 'closed')
+        );
+      })
+      .map((r) => ({
+        code: r.toStatus.code,
+        name: r.toStatus.name,
+        isTerminal: r.toStatus.isTerminal,
+      }));
   }
 
   async update(user: AuthUserView, idOrNumber: string, dto: UpdateTicketDto) {
@@ -257,6 +400,17 @@ export class TicketsService {
         );
       }
 
+      const isStaff = this.canStaffTickets(user);
+      const isRequester = existing.requesterId === user.id;
+      const requesterAllowed =
+        isRequester &&
+        (next.code === 'cancelled' ||
+          (existing.status.code === 'resolved' && next.code === 'closed'));
+
+      if (!isStaff && !requesterAllowed) {
+        throw new ForbiddenException('Cannot change ticket status');
+      }
+
       data.status = { connect: { id: next.id } };
       history.push({
         actorId: user.id,
@@ -267,6 +421,10 @@ export class TicketsService {
 
       if (next.code === 'resolved') data.resolvedAt = new Date();
       if (next.code === 'closed') data.closedAt = new Date();
+      if (next.code === 'open' && existing.status.code !== 'open') {
+        data.resolvedAt = null;
+        data.closedAt = null;
+      }
     }
 
     if (dto.impact || dto.urgency) {
@@ -355,7 +513,22 @@ export class TicketsService {
       include: this.defaultInclude(true),
     });
 
-    return this.serialize(ticket, user);
+    if (dto.assigneeId && dto.assigneeId !== existing.assigneeId) {
+      await this.notifications.notify({
+        userId: dto.assigneeId,
+        eventType: 'ticket.assigned',
+        title: `Assigned ${ticket.number}`,
+        body: ticket.title,
+        link: `/app/tickets/${ticket.number}`,
+      });
+    }
+
+    const allowedTransitions = await this.listAllowedTransitions(user, ticket);
+    return {
+      ...this.serialize(ticket, user),
+      allowedTransitions,
+      canSoftDelete: this.canSoftDelete(user),
+    };
   }
 
   async addComment(
@@ -474,6 +647,19 @@ export class TicketsService {
         select: { id: true, firstName: true, lastName: true, email: true },
       },
       team: { select: { id: true, code: true, name: true } },
+      slaInstances: {
+        orderBy: { createdAt: 'asc' as const },
+        select: {
+          id: true,
+          metric: true,
+          startedAt: true,
+          dueAt: true,
+          pausedAt: true,
+          completedAt: true,
+          breachedAt: true,
+          percentConsumed: true,
+        },
+      },
       comments: withComments
         ? {
             orderBy: { createdAt: 'asc' as const },
@@ -495,9 +681,98 @@ export class TicketsService {
     };
   }
 
+  /**
+   * Time-to-resolution from active resolution SLA dueAt (fallback: ticket.dueAt).
+   * Remaining is positive; overdue is negative. Paused clocks freeze at pause time.
+   */
+  private resolveSlaTimer(
+    ticket: {
+      dueAt?: Date | null;
+      status?: { isTerminal?: boolean } | null;
+      slaInstances?: Array<{
+        metric: string;
+        dueAt: Date;
+        pausedAt: Date | null;
+        completedAt: Date | null;
+        breachedAt: Date | null;
+        percentConsumed: number;
+      }>;
+    },
+    nowMs = Date.now(),
+  ) {
+    const instances = ticket.slaInstances ?? [];
+    const resolution =
+      instances.find((i) => i.metric === 'resolution' && !i.completedAt) ??
+      instances.find((i) => i.metric === 'resolution') ??
+      null;
+
+    const dueAt = resolution?.dueAt ?? ticket.dueAt ?? null;
+    const completed = Boolean(resolution?.completedAt) || Boolean(ticket.status?.isTerminal);
+    const paused = Boolean(resolution?.pausedAt) && !completed;
+    const breached = Boolean(resolution?.breachedAt);
+
+    if (!dueAt || completed) {
+      return {
+        dueAt: ticket.dueAt ?? dueAt,
+        slaDueAt: dueAt,
+        slaRemainingMs: null as number | null,
+        slaBreached: breached,
+        slaPaused: paused,
+        slaCompleted: completed,
+        slaPercentConsumed: resolution?.percentConsumed ?? null,
+        timeToResolution: null as string | null,
+      };
+    }
+
+    const refMs = paused && resolution?.pausedAt
+      ? resolution.pausedAt.getTime()
+      : nowMs;
+    const remainingMs = dueAt.getTime() - refMs;
+    const overdue = remainingMs < 0;
+
+    return {
+      dueAt: ticket.dueAt ?? dueAt,
+      slaDueAt: dueAt,
+      slaRemainingMs: remainingMs,
+      slaBreached: breached || overdue,
+      slaPaused: paused,
+      slaCompleted: false,
+      slaPercentConsumed: resolution?.percentConsumed ?? null,
+      timeToResolution: this.formatDurationLabel(remainingMs),
+    };
+  }
+
+  private formatDurationLabel(ms: number): string {
+    const sign = ms < 0 ? '-' : '';
+    const abs = Math.abs(ms);
+    const totalMinutes = Math.floor(abs / 60_000);
+    const days = Math.floor(totalMinutes / (60 * 24));
+    const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+    const minutes = totalMinutes % 60;
+
+    if (days > 0) {
+      return `${sign}${days}d ${hours}h`;
+    }
+    if (hours >= 1 || totalMinutes >= 60) {
+      return `${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    }
+    return `${sign}00:${String(minutes).padStart(2, '0')}`;
+  }
+
   private serialize(
     ticket: {
       comments?: Array<{ isInternal: boolean; [k: string]: unknown }>;
+      status?: { isTerminal?: boolean; [k: string]: unknown };
+      dueAt?: Date | null;
+      slaInstances?: Array<{
+        metric: string;
+        dueAt: Date;
+        pausedAt: Date | null;
+        completedAt: Date | null;
+        breachedAt: Date | null;
+        percentConsumed: number;
+        [k: string]: unknown;
+      }>;
       [k: string]: unknown;
     },
     user: AuthUserView,
@@ -508,6 +783,19 @@ export class TicketsService {
         )
       : undefined;
 
-    return { ...ticket, comments };
+    const timer = this.resolveSlaTimer(ticket);
+
+    return {
+      ...ticket,
+      comments,
+      dueAt: timer.dueAt,
+      slaDueAt: timer.slaDueAt,
+      slaRemainingMs: timer.slaRemainingMs,
+      slaBreached: timer.slaBreached,
+      slaPaused: timer.slaPaused,
+      slaCompleted: timer.slaCompleted,
+      slaPercentConsumed: timer.slaPercentConsumed,
+      timeToResolution: timer.timeToResolution,
+    };
   }
 }

@@ -59,6 +59,7 @@ export class SessionService {
                 },
               },
             },
+            extraPermissions: { include: { permission: true } },
           },
         },
       },

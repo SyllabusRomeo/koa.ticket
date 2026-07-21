@@ -1,0 +1,138 @@
+.wrap {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.45rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(15, 74, 64, 0.16);
+  background: rgba(251, 241, 218, 0.55);
+}
+
+.tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-height: 2rem;
+  min-width: 2rem;
+  padding: 0 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(15, 74, 64, 0.22);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tool:hover {
+  filter: brightness(1.04);
+}
+
+.toolActive {
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+  border-color: transparent;
+}
+
+.sep {
+  width: 1px;
+  height: 1.35rem;
+  background: rgba(15, 74, 64, 0.2);
+  margin: 0 0.15rem;
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.editor {
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(15, 74, 64, 0.22);
+  background: rgba(255, 255, 255, 0.92);
+  line-height: 1.55;
+  outline: none;
+}
+
+.editor:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(15, 74, 64, 0.12);
+}
+
+.editor :global(h1),
+.editor :global(h2),
+.editor :global(h3) {
+  font-family: var(--font-display);
+  margin: 0.85rem 0 0.45rem;
+  line-height: 1.25;
+}
+
+.editor :global(p) {
+  margin: 0.45rem 0;
+}
+
+.editor :global(ul),
+.editor :global(ol) {
+  margin: 0.45rem 0;
+  padding-left: 1.35rem;
+}
+
+.editor :global(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  margin: 0.5rem 0;
+}
+
+.editor :global(a) {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.editor :global(blockquote) {
+  margin: 0.65rem 0;
+  padding: 0.35rem 0 0.35rem 0.85rem;
+  border-left: 3px solid rgba(15, 74, 64, 0.35);
+  opacity: 0.92;
+}
+
+.editor :global(pre),
+.editor :global(code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.editor :global(pre) {
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: rgba(15, 74, 64, 0.06);
+  overflow-x: auto;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.82rem;
+  opacity: 0.75;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-danger);
+  font-weight: 600;
+  font-size: 0.9rem;
+}

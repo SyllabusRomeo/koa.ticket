@@ -1,0 +1,177 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+  max-width: 920px;
+}
+
+.hero {
+  padding: 1.1rem 1.2rem;
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(135deg, rgba(15, 74, 64, 0.94), rgba(69, 100, 51, 0.88));
+  color: #fff;
+}
+
+.eyebrow {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.lede {
+  margin: 0;
+  max-width: 40rem;
+  line-height: 1.45;
+  font-size: 1.05rem;
+}
+
+.panel {
+  padding: 1.15rem 1.25rem;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(15, 74, 64, 0.1);
+  box-shadow: var(--shadow-soft);
+}
+
+.panel h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.65rem;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: var(--color-primary);
+}
+
+.hint,
+.meta {
+  margin: 0 0 0.85rem;
+  font-size: 0.9rem;
+  opacity: 0.85;
+  line-height: 1.45;
+}
+
+.meta code,
+.hint code,
+.steps code,
+.examples code {
+  font-size: 0.85em;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  background: rgba(237, 244, 172, 0.55);
+}
+
+.statusGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.statusCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(15, 74, 64, 0.12);
+}
+
+.statusCard strong {
+  font-family: var(--font-display);
+}
+
+.statusCard em {
+  font-style: normal;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.ready {
+  background: rgba(237, 244, 172, 0.45);
+  border-color: rgba(69, 100, 51, 0.35);
+}
+
+.pending {
+  background: rgba(251, 241, 218, 0.55);
+}
+
+.urlList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.urlList li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: rgba(251, 241, 218, 0.5);
+  border: 1px solid rgba(15, 74, 64, 0.08);
+}
+
+.urlList code {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+  word-break: break-all;
+}
+
+.copyBtn {
+  composes: root secondary from '../../../../components/Button.module.css';
+  min-height: 2.2rem;
+  padding: 0 0.8rem;
+}
+
+.examples {
+  margin: 0 0 1rem;
+  padding-left: 1.1rem;
+}
+
+.examples li {
+  margin-bottom: 0.35rem;
+}
+
+.steps {
+  margin: 0;
+  padding-left: 1.2rem;
+  line-height: 1.55;
+}
+
+.simForm label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.simForm textarea {
+  border: 1.5px solid rgba(15, 74, 64, 0.22);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  background: #fff;
+}
+
+.result {
+  margin: 0.85rem 0 0;
+  padding: 0.85rem;
+  border-radius: var(--radius-sm);
+  background: rgba(237, 244, 172, 0.4);
+  border-left: 3px solid var(--color-secondary);
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 0.95rem;
+}

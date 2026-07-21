@@ -70,6 +70,30 @@ export class CreateTeamDto {
   departmentId?: string;
 }
 
+export class UpdateTeamDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  locationId?: string;
+
+  @IsOptional()
+  @IsString()
+  departmentId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
 export class AddTeamMemberDto {
   @IsString()
   userId!: string;

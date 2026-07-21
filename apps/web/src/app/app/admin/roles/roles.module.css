@@ -1,0 +1,541 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 1080px;
+}
+
+.hero {
+  padding: 1rem 1.15rem;
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(15, 74, 64, 0.92),
+      rgba(69, 100, 51, 0.88)
+    );
+  color: #fff;
+}
+
+.eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.intro {
+  margin: 0;
+  max-width: 40rem;
+  font-size: 1.05rem;
+  line-height: 1.45;
+}
+
+.bannerOk {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  background: rgba(237, 244, 172, 0.55);
+  border-left: 3px solid var(--color-secondary);
+  font-weight: 600;
+}
+
+.panel {
+  padding: 1.15rem 1.25rem 1.35rem;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(15, 74, 64, 0.1);
+  box-shadow: var(--shadow-soft);
+}
+
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(15, 74, 64, 0.1);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+}
+
+.sectionHint {
+  margin: 0.3rem 0 0;
+  font-size: 0.9rem;
+  opacity: 0.78;
+  max-width: 36rem;
+}
+
+.badge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-sm);
+  background: rgba(237, 244, 172, 0.7);
+  color: var(--color-primary);
+  border: 1px solid rgba(69, 100, 51, 0.25);
+}
+
+.roleRail {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) 1fr;
+  gap: 1.15rem;
+  align-items: stretch;
+  min-height: 280px;
+}
+
+.roleListWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.65rem;
+  border-radius: var(--radius-sm);
+  background: rgba(251, 241, 218, 0.55);
+  border: 1px solid rgba(15, 74, 64, 0.08);
+}
+
+.railLabel {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.roleList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.roleBtn {
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.75rem;
+  cursor: pointer;
+  font: inherit;
+  color: var(--color-text-primary);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.roleBtn:hover,
+.roleBtn:focus-visible {
+  background: rgba(255, 255, 255, 0.75);
+  outline: none;
+}
+
+.roleBtnActive {
+  background: #fff;
+  border-color: rgba(15, 74, 64, 0.22);
+  box-shadow:
+    inset 4px 0 0 var(--color-primary),
+    0 4px 14px rgba(15, 74, 64, 0.08);
+}
+
+.roleBtn strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1rem;
+}
+
+.roleBtn span {
+  display: block;
+  font-size: 0.8rem;
+  opacity: 0.75;
+  margin-top: 0.15rem;
+}
+
+.roleDetail {
+  padding: 0.85rem 1rem 1rem;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(15, 74, 64, 0.08);
+}
+
+.roleDetailHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.roleDetail h3 {
+  margin: 0.25rem 0 0;
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+}
+
+.codeTag {
+  margin: 0;
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: rgba(15, 74, 64, 0.08);
+}
+
+.roleStat {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-secondary);
+}
+
+.roleDesc {
+  margin: 0 0 1rem;
+  opacity: 0.85;
+}
+
+.permGroups {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.permGroup h4 {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-secondary);
+}
+
+.permChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.permChip {
+  font-size: 0.8rem;
+  font-family: ui-monospace, 'Cascadia Code', monospace;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(237, 244, 172, 0.55);
+  border: 1px solid rgba(69, 100, 51, 0.2);
+}
+
+.assignGrid {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) 1fr;
+  gap: 1.15rem;
+  align-items: stretch;
+  min-height: 320px;
+}
+
+.userSearch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.65rem;
+  border-radius: var(--radius-sm);
+  background: rgba(251, 241, 218, 0.55);
+  border: 1px solid rgba(15, 74, 64, 0.08);
+}
+
+.fieldLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.userSearch input {
+  border: 1.5px solid rgba(15, 74, 64, 0.22);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  background: #fff;
+}
+
+.userList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 360px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.userRow {
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.65rem;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.userRow:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.userRowActive {
+  background: #fff;
+  border-color: rgba(15, 74, 64, 0.18);
+  box-shadow:
+    inset 4px 0 0 var(--color-primary),
+    0 4px 12px rgba(15, 74, 64, 0.08);
+}
+
+.userRow strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.userRow em {
+  display: block;
+  font-style: normal;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.assignPanel {
+  padding: 0.85rem 1rem 1rem;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(15, 74, 64, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+
+.assignHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.assignPanel h3 {
+  margin: 0.15rem 0 0.25rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+}
+
+.linkish {
+  border: 0;
+  background: transparent;
+  color: var(--color-secondary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.roleFieldset,
+.permFieldset {
+  margin: 0 0 1rem;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.fieldsetLegend {
+  padding: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.fieldsetHint {
+  margin: 0.35rem 0 0.75rem;
+  font-size: 0.85rem;
+  opacity: 0.78;
+  max-width: 36rem;
+}
+
+.roleRadios {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.5rem;
+}
+
+.roleRadio {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.65rem 0.7rem;
+  border-radius: var(--radius-sm);
+  background: rgba(251, 241, 218, 0.45);
+  border: 1.5px solid rgba(15, 74, 64, 0.1);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.roleRadioOn {
+  background: rgba(237, 244, 172, 0.55);
+  border-color: rgba(15, 74, 64, 0.35);
+}
+
+.roleRadio strong {
+  display: block;
+}
+
+.roleRadio span span {
+  display: block;
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+
+.extraGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-height: 280px;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.extraGroup h4 {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-secondary);
+}
+
+.extraChecks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.35rem;
+}
+
+.extraCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(15, 74, 64, 0.1);
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.extraCheckOn {
+  background: rgba(237, 244, 172, 0.45);
+  border-color: rgba(15, 74, 64, 0.28);
+}
+
+.extraCheckImplied {
+  opacity: 0.72;
+  cursor: default;
+  background: rgba(251, 241, 218, 0.4);
+}
+
+.extraCheck code {
+  font-family: ui-monospace, 'Cascadia Code', monospace;
+  font-size: 0.78rem;
+}
+
+.extraCheck em {
+  display: block;
+  font-style: normal;
+  font-size: 0.72rem;
+  opacity: 0.7;
+  margin-top: 0.1rem;
+}
+
+.ctaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(15, 74, 64, 0.1);
+}
+
+.emptyPanel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0.35rem;
+  min-height: 12rem;
+  padding: 1.25rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px dashed rgba(15, 74, 64, 0.22);
+  background: rgba(251, 241, 218, 0.35);
+  color: var(--color-primary);
+}
+
+.emptyPanel strong {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+}
+
+.emptyPanel p {
+  margin: 0;
+  opacity: 0.8;
+  max-width: 28rem;
+}
+
+.emptyInline {
+  padding: 0.75rem;
+  opacity: 0.75;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 860px) {
+  .roleRail,
+  .assignGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .roleList {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .roleBtn {
+    width: auto;
+    min-width: 9rem;
+  }
+
+  .roleBtnActive {
+    box-shadow:
+      inset 0 -3px 0 var(--color-primary),
+      0 4px 14px rgba(15, 74, 64, 0.08);
+  }
+
+  .userList {
+    max-height: 220px;
+  }
+}

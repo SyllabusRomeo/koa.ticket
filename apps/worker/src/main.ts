@@ -29,13 +29,20 @@ async function tickSla() {
 
     if (inst.pausedAt) {
       const pausedMs = now - inst.pausedAt.getTime();
+      const newDue = new Date(inst.dueAt.getTime() + pausedMs);
       await prisma.slaInstance.update({
         where: { id: inst.id },
         data: {
           pausedAt: null,
-          dueAt: new Date(inst.dueAt.getTime() + pausedMs),
+          dueAt: newDue,
         },
       });
+      if (inst.metric === 'resolution') {
+        await prisma.ticket.update({
+          where: { id: inst.ticketId },
+          data: { dueAt: newDue },
+        });
+      }
       updated++;
       continue;
     }

@@ -44,6 +44,11 @@ export class AttachmentsController {
     return this.attachments.list(user, id);
   }
 
+  @Get('attachments/limits')
+  limits() {
+    return this.attachments.limits();
+  }
+
   @Get('attachments/:id/download')
   async download(
     @CurrentUser() user: AuthUserView,

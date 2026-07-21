@@ -70,7 +70,12 @@ Enterprise ITSM platform per PRD v1.0. Modular monolith, Docker-first, Hetzner-r
 
 - [x] Auto-routing rules (category → team)
 - [x] In-app notifications + preferences API
+- [x] Ticket detail: visible assign/reassign (team + assignee) + auto-rule explanation
+- [x] Ticket lifecycle action buttons (workflow transitions + soft-delete for elevated roles)
 - [ ] Email delivery (SMTP wiring later)
+- [ ] Assignment-rule admin UI (API exists)
+
+See also [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md) for module matrix and honest PRD gaps.
 
 ## Phase 7 — Portals & dashboards (done — MVP)
 

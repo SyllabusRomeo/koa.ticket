@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  max-width: 960px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 1.25rem 1.5rem 2.5rem;
 }
@@ -19,9 +19,13 @@
 }
 
 .mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 2.25rem;
   height: 2.25rem;
   border-radius: 8px;
+  color: var(--color-text-on-primary);
   background:
     linear-gradient(145deg, var(--color-primary-light), transparent 60%),
     var(--color-primary);
@@ -38,15 +42,9 @@
   font-size: 0.9rem;
 }
 
+/* Sign out / chrome — tertiary (see docs/UX_BUTTONS.md) */
 .ghost {
-  min-height: 2.4rem;
-  padding: 0 0.9rem;
-  border-radius: var(--radius-sm);
-  border: 1.5px solid rgba(15, 74, 64, 0.28);
-  background: transparent;
-  color: var(--color-primary);
-  font-weight: 600;
-  cursor: pointer;
+  composes: root tertiary from '../../components/Button.module.css';
 }
 
 .panel {
@@ -74,11 +72,21 @@
   margin-bottom: 1.25rem;
 }
 
-.navRow a {
+.navRow a,
+.navLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   font-weight: 700;
   padding: 0.45rem 0.8rem;
   border-radius: var(--radius-sm);
   background: rgba(237, 244, 172, 0.55);
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.navLink:hover {
+  background: rgba(237, 244, 172, 0.85);
 }
 
 .pageTitle {
@@ -101,6 +109,15 @@
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  position: relative;
+}
+
+.statsIcon {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  color: var(--color-primary);
+  opacity: 0.55;
 }
 
 .stats strong {
@@ -114,9 +131,13 @@
 }
 
 .sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   margin: 1rem 0 0.5rem;
   font-family: var(--font-display);
   font-size: 1.15rem;
+  color: var(--color-primary);
 }
 
 .ticketList {
@@ -149,35 +170,105 @@
   border-left: 3px solid var(--color-secondary);
 }
 
+.nextStep {
+  margin: 0 0 1.25rem;
+}
+
+.nextStepLabel {
+  margin: 0 0 0.55rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.ctaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.ticketList a.rowLink {
+  display: grid;
+  gap: 0.15rem;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  margin: -0.15rem -0.25rem;
+  padding: 0.15rem 0.25rem;
+  transition: background 0.15s ease;
+}
+
+.ticketRowTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 0.75rem;
+}
+
+.ticketList a.rowLink:hover,
+.ticketList a.rowLink:focus-visible {
+  background: rgba(15, 74, 64, 0.06);
+  outline: none;
+}
+
+.ticketList a.rowLink strong {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.emptyState {
+  margin: 0;
+  opacity: 0.8;
+}
+
+.emptyState a {
+  font-weight: 700;
+}
+
 .error {
   color: var(--color-danger);
   font-weight: 600;
 }
 
-.actions {
+.actions,
+.btnRow {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  align-items: center;
   margin-top: 0.5rem;
 }
 
+.btnRowEnd {
+  justify-content: flex-end;
+}
+
+/* Shared action system — docs/UX_BUTTONS.md */
 .btn {
-  min-height: 2.3rem;
-  padding: 0 0.85rem;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: var(--color-primary);
-  color: var(--color-text-on-primary);
-  font-weight: 700;
-  cursor: pointer;
+  composes: root primary from '../../components/Button.module.css';
 }
 
 .btnSecondary {
-  background: transparent;
-  color: var(--color-primary);
-  border: 1.5px solid rgba(15, 74, 64, 0.3);
+  composes: root secondary from '../../components/Button.module.css';
+}
+
+.btnTertiary {
+  composes: root tertiary from '../../components/Button.module.css';
+}
+
+.btnSuccess {
+  composes: root success from '../../components/Button.module.css';
 }
 
 .btnDanger {
-  background: var(--color-danger);
+  composes: root danger from '../../components/Button.module.css';
+}
+
+.btnDangerOutline {
+  composes: root dangerOutline from '../../components/Button.module.css';
 }

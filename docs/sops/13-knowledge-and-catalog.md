@@ -14,31 +14,44 @@ Publish reusable guidance and present requestable IT services.
 
 ### For authors (agents / managers with `knowledge:write`)
 
-Create via API:
+1. Open **Knowledge** → **Create article** (`/app/knowledge/new`).
+2. Write the body with the **formatting toolbar**: Bold, Italic, H2/H3, bullets, numbered lists, links, and **Insert image**.
+3. Inline images upload via `POST /api/v1/knowledge/media`, then embed in the HTML body.
+4. Use **Attach files** for downloadable attachments (PDF, Office, ZIP) — uploaded after save, or from the article page.
+5. Publish immediately or save as draft; drafts are invisible to employees until published.
+
+Create via API (body is **sanitized HTML**):
 
 ```http
 POST /api/v1/knowledge
 {
   "title": "Connect to corporate VPN",
   "slug": "connect-vpn",
-  "body": "Step-by-step...",
+  "body": "<h2>Steps</h2><p>Open the <strong>VPN</strong> client…</p>",
   "category": "Network",
   "publish": true
 }
 ```
 
-Drafts remain invisible to employees until published:
+Attachments / media:
 
-```http
-POST /api/v1/knowledge/:id/publish
-```
+| Method | Path | Purpose |
+| --- | --- | --- |
+| POST | `/knowledge/media` | Inline image upload (`knowledge:write`) |
+| POST | `/knowledge/:id/attachments` | Article file attachment |
+| GET | `/knowledge/:id/attachments` | List attachments |
+| GET | `/knowledge/attachments/:id/content` | Inline view (images) |
+| GET | `/knowledge/attachments/:id/download` | Download |
+| POST | `/knowledge/:id/publish` | Publish draft |
+
+Allowed body tags (server allowlist): `p`, `h1`–`h3`, `strong`, `em`, `ul`, `ol`, `li`, `a`, `img`, `br`, `code`, `pre`, `blockquote`.
 
 ### Content standards
 
 - Clear title; one topic per article
-- Steps numbered; include screenshots where helpful
+- Steps numbered; include screenshots via **Insert image** where helpful
+- Attachments for templates / installers; keep secrets out of articles
 - Review dates / ownership (process) even if fields expand later
-- Never put secrets in articles
 
 Seed example: `reset-password-m365`.
 

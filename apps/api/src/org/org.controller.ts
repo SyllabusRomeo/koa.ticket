@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { PERMISSIONS } from '@logit/shared';
 import { RequirePermissions } from '../auth/decorators';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
@@ -8,6 +17,7 @@ import {
   CreateDepartmentDto,
   CreateLocationDto,
   CreateTeamDto,
+  UpdateTeamDto,
 } from './dto/org.dto';
 import { OrgService } from './org.service';
 
@@ -52,9 +62,21 @@ export class OrgController {
     return this.org.createTeam(dto);
   }
 
+  @Patch('teams/:id')
+  @RequirePermissions(PERMISSIONS.ORG_MANAGE)
+  updateTeam(@Param('id') id: string, @Body() dto: UpdateTeamDto) {
+    return this.org.updateTeam(id, dto);
+  }
+
   @Post('teams/:id/members')
   @RequirePermissions(PERMISSIONS.ORG_MANAGE)
   addMember(@Param('id') id: string, @Body() dto: AddTeamMemberDto) {
     return this.org.addTeamMember(id, dto);
+  }
+
+  @Delete('teams/:id/members/:userId')
+  @RequirePermissions(PERMISSIONS.ORG_MANAGE)
+  removeMember(@Param('id') id: string, @Param('userId') userId: string) {
+    return this.org.removeTeamMember(id, userId);
   }
 }

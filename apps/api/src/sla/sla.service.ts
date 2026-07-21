@@ -27,7 +27,7 @@ export class SlaService {
       now.getTime() + policy.resolveMinutes * 60_000,
     );
 
-    return this.prisma.$transaction([
+    const [first, resolution] = await this.prisma.$transaction([
       this.prisma.slaInstance.create({
         data: {
           ticketId,
@@ -47,6 +47,14 @@ export class SlaService {
         },
       }),
     ]);
+
+    // Denormalize resolution target onto the ticket for queue/list timers.
+    await this.prisma.ticket.update({
+      where: { id: ticketId },
+      data: { dueAt: resolveDue },
+    });
+
+    return [first, resolution];
   }
 
   listForTicket(ticketId: string) {
@@ -89,13 +97,20 @@ export class SlaService {
 
       if (inst.pausedAt) {
         const pausedMs = now - inst.pausedAt.getTime();
+        const newDue = new Date(inst.dueAt.getTime() + pausedMs);
         await this.prisma.slaInstance.update({
           where: { id: inst.id },
           data: {
             pausedAt: null,
-            dueAt: new Date(inst.dueAt.getTime() + pausedMs),
+            dueAt: newDue,
           },
         });
+        if (inst.metric === 'resolution') {
+          await this.prisma.ticket.update({
+            where: { id: inst.ticketId },
+            data: { dueAt: newDue },
+          });
+        }
         continue;
       }
 

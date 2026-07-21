@@ -193,13 +193,6 @@
   opacity: 0.75;
 }
 
-.dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--color-secondary);
-}
-
 @keyframes fadeUp {
   from {
     opacity: 0;

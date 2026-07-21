@@ -6,6 +6,9 @@ import { api, type ApprovalItem, type AuthUser } from '@/lib/api';
 import { can } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import styles from '../app.module.css';
+import { Check, ClipboardCheck, X } from 'lucide-react';
+import { EmptyState } from '@/components/EmptyState';
+import { Icon } from '@/components/Icon';
 
 export default function ApprovalsPage() {
   const router = useRouter();
@@ -44,10 +47,7 @@ export default function ApprovalsPage() {
     };
   }, [router]);
 
-  async function decide(
-    id: string,
-    decision: 'approved' | 'rejected',
-  ) {
+  async function decide(id: string, decision: 'approved' | 'rejected') {
     setBusyId(id);
     setError(null);
     try {
@@ -85,7 +85,8 @@ export default function ApprovalsPage() {
     <AppShell user={user} onLogout={logout} title="Approvals">
       <section className={styles.panel}>
         <p className={styles.mission}>
-          Approve or reject service and access requests assigned to you.
+          Approve or reject service and access requests assigned to you. Use
+          Approve / Reject on each row below.
         </p>
         {error ? (
           <p className={styles.error} role="alert">
@@ -93,7 +94,10 @@ export default function ApprovalsPage() {
           </p>
         ) : null}
         {items.length === 0 ? (
-          <p className={styles.muted}>No pending approvals.</p>
+          <EmptyState icon={ClipboardCheck}>
+            No pending approvals right now.{' '}
+            <a href="/app">Back to Home</a>
+          </EmptyState>
         ) : (
           <ul className={styles.ticketList}>
             {items.map((a) => (
@@ -108,18 +112,20 @@ export default function ApprovalsPage() {
                   <div className={styles.actions}>
                     <button
                       type="button"
-                      className={styles.btn}
+                      className={styles.btnSuccess}
                       disabled={busyId === a.id}
                       onClick={() => decide(a.id, 'approved')}
                     >
+                      <Icon icon={Check} size="sm" />
                       Approve
                     </button>
                     <button
                       type="button"
-                      className={`${styles.btn} ${styles.btnDanger}`}
+                      className={styles.btnDanger}
                       disabled={busyId === a.id}
                       onClick={() => decide(a.id, 'rejected')}
                     >
+                      <Icon icon={X} size="sm" />
                       Reject
                     </button>
                   </div>

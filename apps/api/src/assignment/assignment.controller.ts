@@ -37,7 +37,7 @@ export class AssignmentController {
   constructor(private readonly assignment: AssignmentService) {}
 
   @Get()
-  @RequirePermissions(PERMISSIONS.ORG_MANAGE)
+  @RequirePermissions(PERMISSIONS.ORG_READ)
   list() {
     return this.assignment.listRules();
   }

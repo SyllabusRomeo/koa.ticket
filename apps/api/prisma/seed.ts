@@ -669,22 +669,73 @@ async function main() {
   });
 
   // Phase 9 — assets
-  const laptopType = await prisma.assetType.upsert({
+  const assetTypeDefs = [
+    { code: 'LAPTOP', name: 'Laptop' },
+    { code: 'DESKTOP', name: 'Desktop' },
+    { code: 'MONITOR', name: 'Monitor' },
+    { code: 'PHONE', name: 'Mobile phone' },
+    { code: 'TABLET', name: 'Tablet' },
+    { code: 'SERVER', name: 'Server' },
+    { code: 'NETWORK', name: 'Network device' },
+    { code: 'PERIPHERAL', name: 'Peripheral' },
+  ] as const;
+  for (const t of assetTypeDefs) {
+    await prisma.assetType.upsert({
+      where: { code: t.code },
+      update: { name: t.name },
+      create: { code: t.code, name: t.name },
+    });
+  }
+  const laptopType = await prisma.assetType.findUniqueOrThrow({
     where: { code: 'LAPTOP' },
-    update: { name: 'Laptop' },
-    create: { code: 'LAPTOP', name: 'Laptop' },
+  });
+  const hqLocation = await prisma.location.findFirst({
+    where: { deletedAt: null },
+    orderBy: { code: 'asc' },
   });
   await prisma.asset.upsert({
     where: { assetTag: 'GH-IT-0001' },
-    update: { status: 'in_use', assignedUserId: employee.id },
+    update: {
+      status: 'in_service',
+      assignedUserId: employee.id,
+      name: 'Demo Latitude laptop',
+      locationId: hqLocation?.id ?? null,
+      notes: 'Seed demo asset for the register.',
+    },
     create: {
       assetTag: 'GH-IT-0001',
+      name: 'Demo Latitude laptop',
       typeId: laptopType.id,
       serialNumber: 'SN-DEMO-001',
       manufacturer: 'Dell',
       model: 'Latitude 5540',
-      status: 'in_use',
+      status: 'in_service',
       assignedUserId: employee.id,
+      locationId: hqLocation?.id ?? null,
+      notes: 'Seed demo asset for the register.',
+    },
+  });
+  await prisma.asset.upsert({
+    where: { assetTag: 'GH-IT-0002' },
+    update: {
+      status: 'in_stock',
+      name: 'Spare docking station',
+      locationId: hqLocation?.id ?? null,
+    },
+    create: {
+      assetTag: 'GH-IT-0002',
+      name: 'Spare docking station',
+      typeId: (
+        await prisma.assetType.findUniqueOrThrow({
+          where: { code: 'PERIPHERAL' },
+        })
+      ).id,
+      serialNumber: 'SN-DOCK-002',
+      manufacturer: 'Dell',
+      model: 'WD19TB',
+      status: 'in_stock',
+      locationId: hqLocation?.id ?? null,
+      notes: 'Hot-spare dock for laptop users.',
     },
   });
 

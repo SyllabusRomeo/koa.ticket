@@ -8,6 +8,13 @@
   gap: 1.5rem;
 }
 
+.pageWithBanner {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
 .brand {
   display: flex;
   align-items: center;
@@ -16,12 +23,23 @@
 }
 
 .mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 2rem;
   height: 2rem;
   border-radius: 8px;
+  color: var(--color-text-on-primary);
   background:
     linear-gradient(145deg, var(--color-primary-light), transparent 60%),
     var(--color-primary);
+}
+
+.logo {
+  width: 2.25rem;
+  height: 2.25rem;
+  object-fit: contain;
+  border-radius: 6px;
 }
 
 .name {
@@ -88,6 +106,10 @@
 }
 
 .submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
   min-height: 2.75rem;
   margin-top: 0.25rem;
   border: 0;

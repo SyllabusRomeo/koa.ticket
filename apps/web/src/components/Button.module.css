@@ -1,0 +1,134 @@
+/**
+ * LogIT action buttons — industry ITSM hierarchy, brand greens.
+ * See docs/UX_BUTTONS.md for when to use each variant.
+ */
+
+.root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.4rem;
+  padding: 0 0.95rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid transparent;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    filter 0.15s ease;
+}
+
+.root:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.root:disabled,
+.root[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: none;
+}
+
+/* Primary — main next action (prefer one per view) */
+.primary {
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+  border-color: var(--color-primary);
+}
+
+.primary:hover:not(:disabled):not([aria-disabled='true']) {
+  filter: brightness(1.08);
+}
+
+/* Secondary — safe alternatives */
+.secondary {
+  background: transparent;
+  color: var(--color-primary);
+  border-color: rgba(15, 74, 64, 0.32);
+}
+
+.secondary:hover:not(:disabled):not([aria-disabled='true']) {
+  background: rgba(15, 74, 64, 0.05);
+}
+
+/* Tertiary / ghost — low emphasis (Sign out, Audit trail, Cancel-as-link) */
+.tertiary {
+  background: transparent;
+  color: var(--color-primary);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.tertiary:hover:not(:disabled):not([aria-disabled='true']) {
+  background: rgba(15, 74, 64, 0.06);
+}
+
+/* Danger — destructive (Delete, Reject, Cancel ticket) */
+.danger {
+  background: var(--color-danger);
+  color: #fff;
+  border-color: var(--color-danger);
+}
+
+.danger:hover:not(:disabled):not([aria-disabled='true']) {
+  filter: brightness(1.05);
+}
+
+.dangerOutline {
+  background: transparent;
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.dangerOutline:hover:not(:disabled):not([aria-disabled='true']) {
+  background: rgba(255, 71, 71, 0.08);
+}
+
+.dangerOutline:focus-visible {
+  outline-color: var(--color-danger);
+}
+
+/* Success — Resolve / Approve (LogIT secondary green) */
+.success {
+  background: var(--color-secondary);
+  color: #fff;
+  border-color: var(--color-secondary);
+}
+
+.success:hover:not(:disabled):not([aria-disabled='true']) {
+  filter: brightness(1.08);
+}
+
+/* Soft success — primary CTA on dark surfaces (AgentWorkspace hero) */
+.successSoft {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border-color: rgba(237, 244, 172, 0.9);
+}
+
+.successSoft:hover:not(:disabled):not([aria-disabled='true']) {
+  filter: brightness(1.03);
+}
+
+.successSoft:focus-visible {
+  outline-color: var(--color-primary-light);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.rowEnd {
+  justify-content: flex-end;
+}

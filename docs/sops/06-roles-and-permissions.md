@@ -8,6 +8,17 @@ Explain RBAC so admins assign the right access and users understand limits.
 
 **Frontend hiding is not security.** Every protected API action is enforced server-side with session + permission checks.
 
+## Primary role + additional permissions
+
+- Each user has **one primary role** (not multiple roles).
+- Optionally grant **additional (extra) permissions** beyond that role.
+- **Effective permissions** at session time = role permissions ∪ extras.
+- Extras are **additive only** — they never remove grants from the role.
+- Changing the primary role **keeps** extras that are still additive under the new role (permissions already covered by the new role are dropped from the stored extras set). Sending `extraPermissionCodes: []` clears all extras.
+- UI: **Roles & Access** (`/app/admin/roles`) — radio for primary role, checkboxes for extras. Requires `roles:manage` / `users:manage`.
+
+Existing users that previously had multiple `user_roles` rows keep their first listed role as primary until an admin saves access (which collapses to a single role).
+
 ## Roles (seeded)
 
 | Role code | Name | Typical access |
@@ -50,10 +61,12 @@ Examples from `@logit/shared`:
 - `knowledge:read` / `knowledge:write`
 - `assets:read` / `assets:write`
 
-## How to assign roles (admin)
+## How to assign access (admin)
 
 1. Sign in as sysadmin.
-2. Use Users API (UI admin screens expand over time):
+2. Prefer **Roles & Access** in the app, or use the API:
+
+Create user (exactly one primary role via `roleCodes` length 0 or 1; default `employee`):
 
 ```http
 POST /api/v1/users
@@ -68,7 +81,20 @@ Authorization: session cookie
 }
 ```
 
-If password omitted, a temporary password is generated and `mustChangePassword` is set.
+Update primary role + optional extras (example: employee who can also read all tickets):
+
+```http
+PATCH /api/v1/users/:id/roles
+Authorization: session cookie
+{
+  "roleCode": "employee",
+  "extraPermissionCodes": ["tickets:read_all"]
+}
+```
+
+Legacy `roleCodes: ["employee"]` is still accepted (single element). Omit `extraPermissionCodes` to keep existing extras when only changing the role.
+
+If password is omitted on create, a temporary password is generated and `mustChangePassword` is set. Ask the user to re-sign-in after access changes so the session picks up effective permissions.
 
 ## Visibility rules (tickets)
 

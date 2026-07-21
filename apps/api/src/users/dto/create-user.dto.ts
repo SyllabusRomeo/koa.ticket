@@ -32,6 +32,7 @@ export class CreateUserDto {
   })
   password?: string;
 
+  /** Exactly one primary role (omit for default `employee`). Length > 1 is rejected. */
   @IsOptional()
   @IsArray()
   @IsString({ each: true })

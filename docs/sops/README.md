@@ -34,6 +34,12 @@ Use this index to find the right procedure. Each SOP is written so a new user ca
 | [19](./19-api-reference-quick.md) | API quick reference | Developers, integrators |
 | [20](./20-change-and-release.md) | Change, release & seed data | Admins, developers |
 
+Also see product docs:
+
+- [Enterprise roadmap](../ENTERPRISE_ROADMAP.md)
+- [Gap assessment](../GAP_ASSESSMENT.md)
+- [Slack / Teams integrations](../INTEGRATIONS_SLACK_TEAMS.md)
+
 ---
 
 ## Quick links (local MVP)

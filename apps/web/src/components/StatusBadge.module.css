@@ -1,0 +1,63 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  max-width: 100%;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* New / Open / Assigned — brand teal */
+.open {
+  color: var(--color-primary);
+  background: rgba(15, 74, 64, 0.08);
+  border-color: rgba(15, 74, 64, 0.18);
+}
+
+/* In progress — accent / info */
+.progress {
+  color: #5b3a7a;
+  background: rgba(249, 221, 255, 0.65);
+  border-color: rgba(91, 58, 122, 0.22);
+}
+
+/* Pending / on hold / pending approval — warm */
+.pending {
+  color: #8a4a1a;
+  background: rgba(222, 136, 79, 0.18);
+  border-color: rgba(231, 69, 36, 0.28);
+}
+
+/* Resolved — success green */
+.resolved {
+  color: var(--color-secondary);
+  background: rgba(69, 100, 51, 0.12);
+  border-color: rgba(69, 100, 51, 0.28);
+}
+
+/* Closed — muted */
+.closed {
+  color: rgba(15, 74, 64, 0.62);
+  background: rgba(15, 74, 64, 0.05);
+  border-color: rgba(15, 74, 64, 0.12);
+}
+
+/* Cancelled — danger outline */
+.cancelled {
+  color: var(--color-danger);
+  background: rgba(255, 71, 71, 0.06);
+  border-color: rgba(255, 71, 71, 0.45);
+}

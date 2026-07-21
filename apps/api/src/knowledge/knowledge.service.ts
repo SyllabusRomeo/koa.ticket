@@ -1,12 +1,134 @@
 import {
+  BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
+  StreamableFile,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { createReadStream, existsSync, mkdirSync } from 'fs';
+import { writeFile } from 'fs/promises';
+import { join, extname } from 'path';
+import { randomBytes } from 'crypto';
+import { PERMISSIONS } from '@logit/shared';
 import { PrismaService } from '../prisma/prisma.service';
+import type { AuthUserView } from '../auth/auth.service';
+import {
+  extractKnowledgeAttachmentIds,
+  sanitizeKnowledgeHtml,
+} from './html-sanitize';
 
 @Injectable()
 export class KnowledgeService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly uploadDir: string;
+  private readonly maxBytes: number;
+  private readonly allowed: Set<string>;
+  private readonly imageExts = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp']);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    config: ConfigService,
+  ) {
+    this.uploadDir = config.get('UPLOAD_DIR') ?? './data/uploads';
+    this.maxBytes = Number(config.get('UPLOAD_MAX_BYTES') ?? 10_485_760);
+    this.allowed = new Set(
+      (
+        config.get('ALLOWED_UPLOAD_EXTENSIONS') ??
+        'pdf,png,jpg,jpeg,gif,doc,docx,xls,xlsx,txt,csv,zip'
+      )
+        .split(',')
+        .map((s: string) => s.trim().toLowerCase())
+        .filter(Boolean),
+    );
+    if (!existsSync(this.uploadDir)) {
+      mkdirSync(this.uploadDir, { recursive: true });
+    }
+  }
+
+  private serializeAttachment(row: {
+    id: string;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    kind: string;
+    createdAt: Date;
+    uploadedById: string;
+    articleId?: string | null;
+    uploadedBy?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
+  }) {
+    return {
+      id: row.id,
+      originalName: row.originalName,
+      mimeType: row.mimeType,
+      sizeBytes: row.sizeBytes,
+      kind: row.kind,
+      createdAt: row.createdAt,
+      uploadedById: row.uploadedById,
+      articleId: row.articleId ?? null,
+      url: `/api/v1/knowledge/attachments/${row.id}/content`,
+      downloadUrl: `/api/v1/knowledge/attachments/${row.id}/download`,
+      uploadedBy: row.uploadedBy
+        ? {
+            id: row.uploadedBy.id,
+            firstName: row.uploadedBy.firstName,
+            lastName: row.uploadedBy.lastName,
+            email: row.uploadedBy.email,
+          }
+        : null,
+    };
+  }
+
+  private attachmentInclude = {
+    uploadedBy: {
+      select: { id: true, firstName: true, lastName: true, email: true },
+    },
+  } as const;
+
+  private async claimInlineFromBody(articleId: string, body: string) {
+    const ids = extractKnowledgeAttachmentIds(body);
+    if (!ids.length) return;
+    await this.prisma.knowledgeAttachment.updateMany({
+      where: {
+        id: { in: ids },
+        OR: [{ articleId: null }, { articleId }],
+      },
+      data: { articleId, kind: 'inline' },
+    });
+  }
+
+  private async toArticleView(
+    article: {
+      id: string;
+      slug: string;
+      title: string;
+      body: string;
+      status: string;
+      category: string | null;
+      publishedAt: Date | null;
+      createdById: string;
+      createdAt: Date;
+      updatedAt: Date;
+    },
+    includeAttachments = true,
+  ) {
+    const attachments = includeAttachments
+      ? await this.prisma.knowledgeAttachment.findMany({
+          where: { articleId: article.id, kind: 'attachment' },
+          orderBy: { createdAt: 'desc' },
+          include: this.attachmentInclude,
+        })
+      : [];
+    return {
+      ...article,
+      body: article.body,
+      attachments: attachments.map((a) => this.serializeAttachment(a)),
+    };
+  }
 
   listPublished() {
     return this.prisma.knowledgeArticle.findMany({
@@ -18,6 +140,7 @@ export class KnowledgeService {
         title: true,
         category: true,
         publishedAt: true,
+        status: true,
       },
     });
   }
@@ -25,6 +148,15 @@ export class KnowledgeService {
   listAll() {
     return this.prisma.knowledgeArticle.findMany({
       orderBy: { updatedAt: 'desc' },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        category: true,
+        publishedAt: true,
+        status: true,
+        updatedAt: true,
+      },
     });
   }
 
@@ -36,10 +168,10 @@ export class KnowledgeService {
     if (!allowDraft && article.status !== 'published') {
       throw new NotFoundException('Article not found');
     }
-    return article;
+    return this.toArticleView(article);
   }
 
-  create(data: {
+  async create(data: {
     title: string;
     body: string;
     slug: string;
@@ -47,10 +179,11 @@ export class KnowledgeService {
     createdById: string;
     publish?: boolean;
   }) {
-    return this.prisma.knowledgeArticle.create({
+    const body = sanitizeKnowledgeHtml(data.body);
+    const article = await this.prisma.knowledgeArticle.create({
       data: {
         title: data.title,
-        body: data.body,
+        body,
         slug: data.slug,
         category: data.category,
         createdById: data.createdById,
@@ -58,12 +191,199 @@ export class KnowledgeService {
         publishedAt: data.publish ? new Date() : null,
       },
     });
+    await this.claimInlineFromBody(article.id, body);
+    return this.toArticleView(article);
+  }
+
+  async update(
+    id: string,
+    data: {
+      title?: string;
+      body?: string;
+      category?: string | null;
+      publish?: boolean;
+    },
+  ) {
+    const existing = await this.prisma.knowledgeArticle.findUnique({
+      where: { id },
+    });
+    if (!existing) throw new NotFoundException('Article not found');
+
+    const publish = data.publish === true;
+    const body =
+      data.body === undefined ? undefined : sanitizeKnowledgeHtml(data.body);
+    const article = await this.prisma.knowledgeArticle.update({
+      where: { id },
+      data: {
+        title: data.title?.trim(),
+        body,
+        category: data.category === undefined ? undefined : data.category,
+        ...(data.publish === undefined
+          ? {}
+          : {
+              status: publish ? 'published' : 'draft',
+              publishedAt: publish
+                ? (existing.publishedAt ?? new Date())
+                : null,
+            }),
+      },
+    });
+    if (body) await this.claimInlineFromBody(article.id, body);
+    return this.toArticleView(article);
   }
 
   async publish(id: string) {
-    return this.prisma.knowledgeArticle.update({
+    const article = await this.prisma.knowledgeArticle.update({
       where: { id },
       data: { status: 'published', publishedAt: new Date() },
     });
+    return this.toArticleView(article);
+  }
+
+  private assertWrite(user: AuthUserView) {
+    if (!user.permissions.includes(PERMISSIONS.KNOWLEDGE_WRITE)) {
+      throw new ForbiddenException('knowledge:write required');
+    }
+  }
+
+  private async assertCanReadArticle(
+    user: AuthUserView,
+    articleId: string | null | undefined,
+  ) {
+    if (!articleId) {
+      // Orphan inline media: uploader or writers
+      return;
+    }
+    const article = await this.prisma.knowledgeArticle.findUnique({
+      where: { id: articleId },
+    });
+    if (!article) throw new NotFoundException('Article not found');
+    const canWrite = user.permissions.includes(PERMISSIONS.KNOWLEDGE_WRITE);
+    if (article.status !== 'published' && !canWrite) {
+      throw new NotFoundException('Attachment not found');
+    }
+    if (
+      !canWrite &&
+      !user.permissions.includes(PERMISSIONS.KNOWLEDGE_READ)
+    ) {
+      throw new ForbiddenException('Cannot read knowledge attachments');
+    }
+    return article;
+  }
+
+  private validateFile(file: Express.Multer.File, imagesOnly = false) {
+    if (!file) throw new BadRequestException('File required');
+    if (file.size > this.maxBytes) {
+      throw new BadRequestException(
+        `File too large (max ${Math.round(this.maxBytes / 1024 / 1024)} MB)`,
+      );
+    }
+    const ext = extname(file.originalname).replace('.', '').toLowerCase();
+    if (!this.allowed.has(ext)) {
+      throw new BadRequestException(`Extension .${ext} not allowed`);
+    }
+    if (imagesOnly && !this.imageExts.has(ext)) {
+      throw new BadRequestException('Only image files are allowed for inline media');
+    }
+    return ext;
+  }
+
+  async uploadMedia(user: AuthUserView, file: Express.Multer.File, articleId?: string) {
+    this.assertWrite(user);
+    const ext = this.validateFile(file, true);
+    if (articleId) {
+      const article = await this.prisma.knowledgeArticle.findUnique({
+        where: { id: articleId },
+      });
+      if (!article) throw new NotFoundException('Article not found');
+    }
+
+    const storedName = `kb-${randomBytes(16).toString('hex')}.${ext}`;
+    await writeFile(join(this.uploadDir, storedName), file.buffer);
+
+    const row = await this.prisma.knowledgeAttachment.create({
+      data: {
+        articleId: articleId ?? null,
+        uploadedById: user.id,
+        originalName: file.originalname.slice(0, 255),
+        storedName,
+        mimeType: file.mimetype || 'application/octet-stream',
+        sizeBytes: file.size,
+        kind: 'inline',
+      },
+      include: this.attachmentInclude,
+    });
+    return this.serializeAttachment(row);
+  }
+
+  async uploadAttachment(
+    user: AuthUserView,
+    articleId: string,
+    file: Express.Multer.File,
+  ) {
+    this.assertWrite(user);
+    const ext = this.validateFile(file, false);
+    const article = await this.prisma.knowledgeArticle.findUnique({
+      where: { id: articleId },
+    });
+    if (!article) throw new NotFoundException('Article not found');
+
+    const storedName = `kb-${randomBytes(16).toString('hex')}.${ext}`;
+    await writeFile(join(this.uploadDir, storedName), file.buffer);
+
+    const row = await this.prisma.knowledgeAttachment.create({
+      data: {
+        articleId,
+        uploadedById: user.id,
+        originalName: file.originalname.slice(0, 255),
+        storedName,
+        mimeType: file.mimetype || 'application/octet-stream',
+        sizeBytes: file.size,
+        kind: 'attachment',
+      },
+      include: this.attachmentInclude,
+    });
+    return this.serializeAttachment(row);
+  }
+
+  async listAttachments(user: AuthUserView, articleId: string) {
+    await this.assertCanReadArticle(user, articleId);
+    const rows = await this.prisma.knowledgeAttachment.findMany({
+      where: { articleId, kind: 'attachment' },
+      orderBy: { createdAt: 'desc' },
+      include: this.attachmentInclude,
+    });
+    return rows.map((r) => this.serializeAttachment(r));
+  }
+
+  async streamAttachment(
+    user: AuthUserView,
+    id: string,
+    disposition: 'inline' | 'attachment',
+  ) {
+    const row = await this.prisma.knowledgeAttachment.findUnique({
+      where: { id },
+    });
+    if (!row) throw new NotFoundException('Attachment not found');
+
+    if (row.articleId) {
+      await this.assertCanReadArticle(user, row.articleId);
+    } else {
+      // Unclaimed media: only writer who uploaded, or any knowledge writer
+      const canWrite = user.permissions.includes(PERMISSIONS.KNOWLEDGE_WRITE);
+      if (!canWrite && row.uploadedById !== user.id) {
+        throw new NotFoundException('Attachment not found');
+      }
+    }
+
+    const path = join(this.uploadDir, row.storedName);
+    if (!existsSync(path)) throw new NotFoundException('File missing');
+
+    return {
+      file: new StreamableFile(createReadStream(path)),
+      filename: row.originalName,
+      mimeType: row.mimeType,
+      disposition,
+    };
   }
 }

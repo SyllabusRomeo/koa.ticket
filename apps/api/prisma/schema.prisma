@@ -41,6 +41,8 @@ model User {
   department Department? @relation(fields: [departmentId], references: [id])
   location   Location?   @relation(fields: [locationId], references: [id])
   roles      UserRole[]
+  /** Additive grants beyond the primary role (role ∪ extras = effective permissions). */
+  extraPermissions UserPermission[]
   sessions   Session[]
   teamMembers TeamMember[]
   passwordResetTokens PasswordResetToken[]
@@ -49,6 +51,7 @@ model User {
   ticketComments   TicketComment[]
   ticketHistory    TicketHistory[]
   attachments      TicketAttachment[]
+  knowledgeAttachments KnowledgeAttachment[]
   auditLogs        AuditLog[]
   notifications    Notification[]
   notificationPreferences NotificationPreference[]
@@ -84,6 +87,7 @@ model Permission {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   roles RolePermission[]
+  users UserPermission[]
 
   @@map("permissions")
 }
@@ -98,6 +102,19 @@ model UserRole {
 
   @@id([userId, roleId])
   @@map("user_roles")
+}
+
+/** Per-user permission overrides — additive only (never removes role grants). */
+model UserPermission {
+  userId       String   @map("user_id")
+  permissionId String   @map("permission_id")
+  assignedAt   DateTime @default(now()) @map("assigned_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permissionId])
+  @@map("user_permissions")
 }
 
 model RolePermission {
@@ -171,6 +188,7 @@ model Location {
   departments Department[]
   teams       Team[]
   tickets     Ticket[]
+  assets      Asset[]
 
   @@map("locations")
 }
@@ -589,6 +607,7 @@ model KnowledgeArticle {
   id          String    @id @default(cuid())
   slug        String    @unique
   title       String
+  /// Sanitized HTML (help-center rich text)
   body        String
   status      String    @default("draft")
   category    String?
@@ -597,10 +616,31 @@ model KnowledgeArticle {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  createdBy User @relation(fields: [createdById], references: [id])
+  createdBy   User                  @relation(fields: [createdById], references: [id])
+  attachments KnowledgeAttachment[]
 
   @@index([status])
   @@map("knowledge_articles")
+}
+
+/// File attachments and inline media for knowledge articles
+model KnowledgeAttachment {
+  id           String   @id @default(cuid())
+  articleId    String?  @map("article_id")
+  uploadedById String   @map("uploaded_by_id")
+  originalName String   @map("original_name")
+  storedName   String   @map("stored_name")
+  mimeType     String   @map("mime_type")
+  sizeBytes    Int      @map("size_bytes")
+  /// attachment | inline
+  kind         String   @default("attachment")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  article    KnowledgeArticle? @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  uploadedBy User              @relation(fields: [uploadedById], references: [id])
+
+  @@index([articleId])
+  @@map("knowledge_attachments")
 }
 
 model ServiceCatalogItem {
@@ -633,24 +673,31 @@ model AssetType {
 }
 
 model Asset {
-  id             String    @id @default(cuid())
-  assetTag       String    @unique @map("asset_tag")
-  serialNumber   String?   @map("serial_number")
-  typeId         String    @map("type_id")
-  status         String    @default("in_stock")
-  manufacturer   String?
-  model          String?
-  assignedUserId String?   @map("assigned_user_id")
-  locationId     String?   @map("location_id")
-  notes          String?
-  deletedAt      DateTime? @map("deleted_at")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  id                String    @id @default(cuid())
+  assetTag          String    @unique @map("asset_tag")
+  name              String?
+  serialNumber      String?   @map("serial_number")
+  typeId            String    @map("type_id")
+  status            String    @default("in_stock")
+  manufacturer      String?
+  model             String?
+  assignedUserId    String?   @map("assigned_user_id")
+  locationId        String?   @map("location_id")
+  purchaseDate      DateTime? @map("purchase_date")
+  warrantyExpiresAt DateTime? @map("warranty_expires_at")
+  notes             String?
+  deletedAt         DateTime? @map("deleted_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
   type         AssetType    @relation(fields: [typeId], references: [id])
   assignedUser User?        @relation("AssetAssignee", fields: [assignedUserId], references: [id])
+  location     Location?    @relation(fields: [locationId], references: [id])
   tickets      TicketAsset[]
 
+  @@index([status])
+  @@index([typeId])
+  @@index([assignedUserId])
   @@map("assets")
 }
 

@@ -2,13 +2,28 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import { json, urlencoded, type Response } from 'express';
+import type { IncomingMessage } from 'http';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'],
+    bodyParser: false,
   });
 
+  const rawBodySaver = (
+    req: IncomingMessage & { rawBody?: Buffer },
+    _res: Response,
+    buf: Buffer,
+  ) => {
+    if (Buffer.isBuffer(buf) && buf.length) {
+      req.rawBody = buf;
+    }
+  };
+
+  app.use(json({ verify: rawBodySaver, limit: '2mb' }));
+  app.use(urlencoded({ verify: rawBodySaver, extended: true, limit: '2mb' }));
   app.use(helmet());
   app.use(cookieParser());
   app.enableCors({

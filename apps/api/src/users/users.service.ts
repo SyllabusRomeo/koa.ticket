@@ -8,6 +8,22 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PasswordService } from '../auth/password.service';
 import { CreateUserDto } from './dto/create-user.dto';
 
+const userListSelect = {
+  id: true,
+  email: true,
+  firstName: true,
+  lastName: true,
+  isActive: true,
+  departmentId: true,
+  locationId: true,
+  lastLoginAt: true,
+  createdAt: true,
+  roles: { include: { role: { select: { code: true, name: true } } } },
+  extraPermissions: {
+    include: { permission: { select: { code: true } } },
+  },
+} as const;
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -15,49 +31,59 @@ export class UsersService {
     private readonly passwords: PasswordService,
   ) {}
 
+  private mapUser(u: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    isActive: boolean;
+    departmentId: string | null;
+    locationId: string | null;
+    lastLoginAt: Date | null;
+    createdAt: Date;
+    roles: Array<{ role: { code: string; name: string } }>;
+    extraPermissions: Array<{ permission: { code: string } }>;
+    mfaEnabled?: boolean;
+  }) {
+    const roles = u.roles.map((r) => r.role);
+    return {
+      id: u.id,
+      email: u.email,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      isActive: u.isActive,
+      departmentId: u.departmentId,
+      locationId: u.locationId,
+      lastLoginAt: u.lastLoginAt,
+      createdAt: u.createdAt,
+      ...(u.mfaEnabled !== undefined ? { mfaEnabled: u.mfaEnabled } : {}),
+      /** Primary role first; legacy multi-role rows collapse to one on next save. */
+      roles,
+      primaryRole: roles[0] ?? null,
+      extraPermissions: u.extraPermissions.map((p) => p.permission.code),
+    };
+  }
+
   async list() {
     const users = await this.prisma.user.findMany({
       where: { deletedAt: null },
       orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        isActive: true,
-        departmentId: true,
-        locationId: true,
-        lastLoginAt: true,
-        createdAt: true,
-        roles: { include: { role: { select: { code: true, name: true } } } },
-      },
+      select: userListSelect,
     });
 
-    return users.map((u) => ({
-      ...u,
-      roles: u.roles.map((r) => r.role),
-    }));
+    return users.map((u) => this.mapUser(u));
   }
 
   async getById(id: string) {
     const user = await this.prisma.user.findFirst({
       where: { id, deletedAt: null },
       select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        isActive: true,
+        ...userListSelect,
         mfaEnabled: true,
-        departmentId: true,
-        locationId: true,
-        lastLoginAt: true,
-        createdAt: true,
-        roles: { include: { role: { select: { code: true, name: true } } } },
       },
     });
     if (!user) throw new NotFoundException('User not found');
-    return { ...user, roles: user.roles.map((r) => r.role) };
+    return this.mapUser(user);
   }
 
   async create(dto: CreateUserDto) {
@@ -74,6 +100,11 @@ export class UsersService {
     if (policyError) throw new BadRequestException(policyError);
 
     const roleCodes = dto.roleCodes?.length ? dto.roleCodes : ['employee'];
+    if (roleCodes.length > 1) {
+      throw new BadRequestException(
+        'Assign exactly one primary role (roleCodes length must be 0 or 1)',
+      );
+    }
     const roles = await this.prisma.role.findMany({
       where: { code: { in: roleCodes } },
     });
@@ -111,25 +142,87 @@ export class UsersService {
     };
   }
 
-  async setRoles(userId: string, roleCodes: string[]) {
+  /**
+   * Sets the user's single primary role and optional additive extras.
+   * Extras already implied by the role are dropped on save (stored set stays lean).
+   * Changing the role does not clear extras — only the payload does.
+   */
+  async setAccess(
+    userId: string,
+    opts: {
+      roleCode?: string;
+      roleCodes?: string[];
+      extraPermissionCodes?: string[];
+    },
+  ) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, deletedAt: null },
     });
     if (!user) throw new NotFoundException('User not found');
 
-    const roles = await this.prisma.role.findMany({
-      where: { code: { in: roleCodes } },
-    });
-    if (roles.length !== roleCodes.length) {
-      throw new BadRequestException('One or more roles are invalid');
+    const roleCode =
+      opts.roleCode?.trim() ||
+      (opts.roleCodes?.length ? opts.roleCodes[0] : undefined);
+    if (!roleCode) {
+      throw new BadRequestException('roleCode is required');
+    }
+    if (opts.roleCodes && opts.roleCodes.length > 1) {
+      throw new BadRequestException(
+        'Assign exactly one primary role (use roleCode or a single-element roleCodes)',
+      );
     }
 
-    await this.prisma.$transaction([
-      this.prisma.userRole.deleteMany({ where: { userId } }),
-      this.prisma.userRole.createMany({
-        data: roles.map((r) => ({ userId, roleId: r.id })),
-      }),
-    ]);
+    const role = await this.prisma.role.findUnique({
+      where: { code: roleCode },
+      include: { permissions: { include: { permission: true } } },
+    });
+    if (!role) throw new BadRequestException('Invalid role');
+
+    const rolePermSet = new Set(
+      role.permissions.map((p) => p.permission.code),
+    );
+
+    let uniqueExtras: string[];
+    if (opts.extraPermissionCodes !== undefined) {
+      uniqueExtras = [...new Set(opts.extraPermissionCodes)].filter(
+        (c) => !rolePermSet.has(c),
+      );
+    } else {
+      // Role-only update: keep existing extras that are still additive.
+      const existing = await this.prisma.userPermission.findMany({
+        where: { userId },
+        include: { permission: true },
+      });
+      uniqueExtras = existing
+        .map((e) => e.permission.code)
+        .filter((c) => !rolePermSet.has(c));
+    }
+
+    const perms =
+      uniqueExtras.length === 0
+        ? []
+        : await this.prisma.permission.findMany({
+            where: { code: { in: uniqueExtras } },
+          });
+    if (perms.length !== uniqueExtras.length) {
+      throw new BadRequestException('One or more permissions are invalid');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.userRole.deleteMany({ where: { userId } });
+      await tx.userRole.create({
+        data: { userId, roleId: role.id },
+      });
+      await tx.userPermission.deleteMany({ where: { userId } });
+      if (perms.length) {
+        await tx.userPermission.createMany({
+          data: perms.map((p) => ({
+            userId,
+            permissionId: p.id,
+          })),
+        });
+      }
+    });
 
     return this.getById(userId);
   }
@@ -142,13 +235,20 @@ export class UsersService {
       },
       orderBy: { name: 'asc' },
     });
-    return roles.map((r) => ({
-      id: r.id,
-      code: r.code,
-      name: r.name,
-      description: r.description,
-      userCount: r._count.users,
-      permissions: r.permissions.map((p) => p.permission.code),
-    }));
+    const allPermissions = await this.prisma.permission.findMany({
+      orderBy: { code: 'asc' },
+      select: { code: true, name: true, description: true },
+    });
+    return {
+      roles: roles.map((r) => ({
+        id: r.id,
+        code: r.code,
+        name: r.name,
+        description: r.description,
+        userCount: r._count.users,
+        permissions: r.permissions.map((p) => p.permission.code),
+      })),
+      allPermissions,
+    };
   }
 }

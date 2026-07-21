@@ -19,15 +19,18 @@ Agents need role `agent` or higher and queue/read permissions.
 
 For each new ticket:
 
-1. **Confirm type** (incident vs request vs access vs security)
-2. **Confirm category/subcategory**
-3. **Validate priority** (impact × urgency). Override only with justification (logged)
-4. **Assign team/agent** if not auto-routed
-5. Move status: New → Open/Assigned → In Progress
+1. Open the ticket from **Tickets** (click the number) — detail page shows ownership and actions
+2. **Confirm type** (incident vs request vs access vs security)
+3. **Confirm category/subcategory**
+4. **Validate priority** (impact × urgency). Override only with justification (logged)
+5. **Assign team/agent** in the Assignment panel if not auto-routed (needs `tickets:assign`)
+6. Use **Ticket actions** buttons for allowed status moves (e.g. Open → Assigned → In Progress → Resolve → Close). Reopen from Resolved/Closed when allowed. Soft-delete is for sysadmin / IT manager only.
+7. Move status: New → Open/Assigned → In Progress
 
 ## Auto-routing
 
 Assignment rules can send tickets to teams (seed example: Network category → Service Desk).  
+Rules are listed on the ticket detail page for agents with org read.  
 If wrong queue, reassign and notify.
 
 ## Working the ticket
