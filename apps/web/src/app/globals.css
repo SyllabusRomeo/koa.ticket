@@ -1,0 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Brand */
+  --color-primary: #0f4a40;
+  --color-primary-light: #edf4ac;
+  --color-secondary: #456433;
+
+  /* Backgrounds */
+  --color-background: #ffffff;
+  --color-background-warm: #fbf1da;
+  --color-background-accent: #f9ddff;
+
+  /* Accents & Status */
+  --color-danger: #ff4747;
+  --color-accent-orange: #e74524;
+  --color-accent-muted: #de884f;
+
+  /* Text */
+  --color-text-primary: #0f4a40;
+  --color-text-on-primary: #ffffff;
+
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Source Sans 3', 'Segoe UI', sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --shadow-soft: 0 12px 40px rgba(15, 74, 64, 0.08);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--color-text-primary);
+  background:
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(237, 244, 172, 0.55), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(249, 221, 255, 0.35), transparent 50%),
+    linear-gradient(180deg, var(--color-background-warm) 0%, var(--color-background) 42%);
+  background-attachment: fixed;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}

@@ -1,0 +1,25 @@
+{
+  "name": "logit",
+  "private": true,
+  "version": "0.1.0",
+  "description": "LogIT — Enterprise IT Service Management platform",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @logit/api & npm run dev -w @logit/web & npm run dev -w @logit/worker",
+    "dev:api": "npm run dev -w @logit/api",
+    "dev:web": "npm run dev -w @logit/web",
+    "dev:worker": "npm run dev -w @logit/worker",
+    "build": "npm run build -w @logit/shared && npm run build -w @logit/api && npm run build -w @logit/worker && npm run build -w @logit/web",
+    "lint": "npm run lint -ws --if-present",
+    "test": "npm run test -ws --if-present",
+    "db:generate": "npm run prisma:generate -w @logit/api",
+    "db:migrate": "npm run prisma:migrate -w @logit/api",
+    "db:seed": "npm run prisma:seed -w @logit/api"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

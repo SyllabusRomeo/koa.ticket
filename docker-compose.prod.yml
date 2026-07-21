@@ -1,0 +1,35 @@
+# Production overrides for LogIT on Hetzner / single-server Docker.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  api:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      COOKIE_SECURE: 'true'
+      PORT: 4000
+
+  worker:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+
+  web:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: /api/v1
+
+  nginx:
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+
+  postgres:
+    restart: unless-stopped
+    ports: []
+
+  redis:
+    restart: unless-stopped
+    ports: []

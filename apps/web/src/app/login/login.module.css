@@ -1,0 +1,141 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  gap: 1.5rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  animation: fadeDown 0.5s ease both;
+}
+
+.mark {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, var(--color-primary-light), transparent 60%),
+    var(--color-primary);
+}
+
+.name {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.card {
+  width: min(100%, 420px);
+  padding: 1.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(15, 74, 64, 0.1);
+  box-shadow: var(--shadow-soft);
+  animation: fadeUp 0.55s ease 0.08s both;
+}
+
+.card h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+}
+
+.sub {
+  margin: 0.4rem 0 1.35rem;
+  opacity: 0.85;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.input {
+  min-height: 2.6rem;
+  padding: 0 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(15, 74, 64, 0.22);
+  background: #fff;
+  color: var(--color-text-primary);
+  font: inherit;
+}
+
+.input:focus {
+  outline: 2px solid var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+.error {
+  margin: 0;
+  color: var(--color-danger);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.submit {
+  min-height: 2.75rem;
+  margin-top: 0.25rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--color-secondary);
+}
+
+.submit:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.hint {
+  margin: 1.1rem 0 0;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.hint code {
+  font-size: 0.78rem;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
