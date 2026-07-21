@@ -30,6 +30,30 @@ export class CreateLocationDto {
   timezone?: string;
 }
 
+export class UpdateLocationDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  country?: string | null;
+
+  @IsOptional()
+  @IsString()
+  site?: string | null;
+
+  @IsOptional()
+  @IsString()
+  timezone?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
 export class CreateDepartmentDto {
   @IsString()
   @MinLength(2)

@@ -66,6 +66,16 @@ export type TeamRef = {
   name: string;
 };
 
+export type LocationRef = {
+  id: string;
+  code: string;
+  name: string;
+  site?: string | null;
+  country?: string | null;
+  timezone?: string;
+  isActive?: boolean;
+};
+
 export type TicketSummary = {
   id: string;
   number: string;
@@ -76,6 +86,8 @@ export type TicketSummary = {
   type: { code: string; name: string };
   assignee?: PersonRef | null;
   team?: TeamRef | null;
+  location?: LocationRef | null;
+  locationId?: string | null;
   requester?: PersonRef;
   createdAt: string;
   /** Resolution target (ticket.dueAt or active resolution SLA). */
@@ -315,8 +327,11 @@ export const api = {
   me() {
     return request<{ user: AuthUser }>('/auth/me');
   },
-  listTickets() {
-    return request<TicketSummary[]>('/tickets');
+  listTickets(params: { locationId?: string } = {}) {
+    const qs = new URLSearchParams();
+    if (params.locationId) qs.set('locationId', params.locationId);
+    const query = qs.toString();
+    return request<TicketSummary[]>(`/tickets${query ? `?${query}` : ''}`);
   },
   getTicket(idOrNumber: string) {
     return request<TicketDetail>(`/tickets/${encodeURIComponent(idOrNumber)}`);
@@ -329,6 +344,8 @@ export const api = {
     impact?: string;
     urgency?: string;
     parentNumber?: string;
+    /** Ticket origin site; defaults to requester home location on the API. */
+    locationId?: string;
   }) {
     return request<TicketSummary>('/tickets', {
       method: 'POST',
@@ -366,6 +383,7 @@ export const api = {
       statusCode?: string;
       assigneeId?: string | null;
       teamId?: string | null;
+      locationId?: string | null;
       title?: string;
       description?: string;
     },
@@ -399,21 +417,46 @@ export const api = {
       categories: Array<{ id: string; code: string; name: string }>;
       statuses: Array<{ code: string; name: string }>;
       priorities?: Array<{ id: string; code: string; name: string }>;
+      locations?: LocationRef[];
     }>('/tickets/meta');
   },
   listTeams() {
     return request<TeamWithMembers[]>('/org/teams');
   },
   listLocations() {
-    return request<
-      Array<{
-        id: string;
-        code: string;
-        name: string;
-        country: string | null;
-        site: string | null;
-      }>
-    >('/org/locations');
+    return request<LocationRef[]>('/org/locations');
+  },
+  createLocation(body: {
+    code: string;
+    name: string;
+    country?: string;
+    site?: string;
+    timezone?: string;
+  }) {
+    return request<LocationRef>('/org/locations', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  updateLocation(
+    id: string,
+    body: {
+      name?: string;
+      country?: string | null;
+      site?: string | null;
+      timezone?: string;
+      isActive?: boolean;
+    },
+  ) {
+    return request<LocationRef>(`/org/locations/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  },
+  deactivateLocation(id: string) {
+    return request<LocationRef>(`/org/locations/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
   },
   listDepartments() {
     return request<
@@ -530,6 +573,7 @@ export const api = {
       byType: Array<{ code: string; name: string; count: number }>;
       byTeam: Array<{ code: string; name: string; count: number }>;
       byAssignee: Array<{ code: string; name: string; count: number }>;
+      byLocation: Array<{ code: string; name: string; count: number }>;
       generatedAt: string;
     }>(`/reports/summary${query ? `?${query}` : ''}`);
   },
@@ -908,11 +952,32 @@ export const api = {
         firstName: string;
         lastName: string;
         isActive: boolean;
+        locationId: string | null;
+        location?: {
+          id: string;
+          code: string;
+          name: string;
+          site: string | null;
+        } | null;
         roles: Array<{ code: string; name: string }>;
         primaryRole: { code: string; name: string } | null;
         extraPermissions: string[];
       }>
     >('/users');
+  },
+  updateUser(
+    id: string,
+    body: {
+      firstName?: string;
+      lastName?: string;
+      locationId?: string | null;
+      departmentId?: string | null;
+    },
+  ) {
+    return request(`/users/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
   },
   rolesMatrix() {
     return request<{

@@ -38,6 +38,7 @@ type ReportSummary = {
   byType: Breakdown[];
   byTeam: Breakdown[];
   byAssignee: Breakdown[];
+  byLocation?: Breakdown[];
   generatedAt: string;
 };
 
@@ -300,6 +301,10 @@ export default function ReportsPage() {
               <BreakdownList title="By priority" rows={summary.byPriority} />
               <BreakdownList title="By type" rows={summary.byType} />
               <BreakdownList title="By team" rows={summary.byTeam} />
+              <BreakdownList
+                title="By location"
+                rows={summary.byLocation ?? []}
+              />
               <BreakdownList title="By assignee" rows={summary.byAssignee} />
             </div>
           </>

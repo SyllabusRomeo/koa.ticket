@@ -17,6 +17,7 @@ import {
   CreateDepartmentDto,
   CreateLocationDto,
   CreateTeamDto,
+  UpdateLocationDto,
   UpdateTeamDto,
 } from './dto/org.dto';
 import { OrgService } from './org.service';
@@ -36,6 +37,18 @@ export class OrgController {
   @RequirePermissions(PERMISSIONS.ORG_MANAGE)
   createLocation(@Body() dto: CreateLocationDto) {
     return this.org.createLocation(dto);
+  }
+
+  @Patch('locations/:id')
+  @RequirePermissions(PERMISSIONS.ORG_MANAGE)
+  updateLocation(@Param('id') id: string, @Body() dto: UpdateLocationDto) {
+    return this.org.updateLocation(id, dto);
+  }
+
+  @Delete('locations/:id')
+  @RequirePermissions(PERMISSIONS.ORG_MANAGE)
+  deactivateLocation(@Param('id') id: string) {
+    return this.org.deactivateLocation(id);
   }
 
   @Get('departments')

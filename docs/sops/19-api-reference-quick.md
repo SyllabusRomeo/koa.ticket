@@ -29,19 +29,21 @@ Give developers/integrators a map of MVP HTTP APIs.
 | GET | `/users/roles/matrix` | roles:manage — roles + allPermissions |
 | PATCH | `/users/:id/roles` | users:manage — `{ roleCode, extraPermissionCodes? }` |
 | GET/POST | `/org/locations` | org:read / org:manage |
+| PATCH/DELETE | `/org/locations/:id` | org:manage — update / soft-deactivate |
 | GET/POST | `/org/departments` | org:read / org:manage |
 | GET/POST | `/org/teams` | org:read / org:manage |
 | PATCH | `/org/teams/:id` | org:manage |
 | POST | `/org/teams/:id/members` | org:manage |
 | DELETE | `/org/teams/:id/members/:userId` | org:manage |
+| PATCH | `/users/:id` | users:manage — profile fields incl. `locationId` |
 
 ## Tickets
 
 | Method | Path | Notes |
 | --- | --- | --- |
 | GET | `/tickets/meta` | Types, statuses, categories, matrix |
-| GET/POST | `/tickets` | List/create |
-| GET/PATCH | `/tickets/:id` | Get/update (`version` required on PATCH) |
+| GET/POST | `/tickets` | List/create (`locationId` query filter for staff; create accepts `locationId` origin) |
+| GET/PATCH | `/tickets/:id` | Get/update (`version` required on PATCH; `locationId` for origin site) |
 | POST | `/tickets/:id/comments` | `isInternal` optional |
 | POST | `/tickets/:id/children` | Link child `{ childNumber }` (staff + `tickets:write`) |
 | DELETE | `/tickets/:id/children/:childId` | Unlink child |

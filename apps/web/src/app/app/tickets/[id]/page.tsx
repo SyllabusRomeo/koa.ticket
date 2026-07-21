@@ -6,6 +6,7 @@ import {
   api,
   type AssignmentRule,
   type AuthUser,
+  type LocationRef,
   type TeamWithMembers,
   type TicketAttachment,
   type TicketDetail,
@@ -15,8 +16,10 @@ import { AppShell } from '@/components/AppShell';
 import { Icon } from '@/components/Icon';
 import { StatusBadge } from '@/components/StatusBadge';
 import { TicketAttachments } from '@/components/TicketAttachments';
+import { LocationSelect } from '@/components/LocationSelect';
 import {
   Clock,
+  MapPin,
   Save,
   Trash2,
 } from 'lucide-react';
@@ -59,9 +62,11 @@ export default function TicketDetailPage() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [ticket, setTicket] = useState<TicketDetail | null>(null);
   const [teams, setTeams] = useState<TeamWithMembers[]>([]);
+  const [locations, setLocations] = useState<LocationRef[]>([]);
   const [rules, setRules] = useState<AssignmentRule[]>([]);
   const [teamId, setTeamId] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
+  const [locationId, setLocationId] = useState('');
   const [comment, setComment] = useState('');
   const [internal, setInternal] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +82,7 @@ export default function TicketDetailPage() {
     setTicket(t);
     setTeamId(t.team?.id ?? '');
     setAssigneeId(t.assignee?.id ?? '');
+    setLocationId(t.location?.id ?? t.locationId ?? '');
     try {
       const files = await api.listAttachments(t.number);
       setAttachments(files);
@@ -93,17 +99,29 @@ export default function TicketDetailPage() {
         if (cancelled) return;
         setUser(user);
         await load();
+        try {
+          const meta = await api.ticketMeta();
+          if (!cancelled && meta.locations?.length) {
+            setLocations(meta.locations);
+          }
+        } catch {
+          /* optional */
+        }
         if (can(user, 'org:read') || can(user, 'tickets:assign')) {
           try {
-            const [t, r] = await Promise.all([
+            const [t, r, locs] = await Promise.all([
               api.listTeams(),
               can(user, 'org:read')
                 ? api.assignmentRules()
                 : Promise.resolve([]),
+              can(user, 'org:read')
+                ? api.listLocations()
+                : Promise.resolve([] as LocationRef[]),
             ]);
             if (!cancelled) {
               setTeams(t);
               setRules(r);
+              if (locs.length) setLocations(locs);
             }
           } catch {
             /* optional for employees */
@@ -167,11 +185,39 @@ export default function TicketDetailPage() {
         version: ticket.version,
         teamId: teamId || null,
         assigneeId: assigneeId || null,
+        locationId: locationId || null,
       });
       setTicket(updated);
-      setMessage('Assignment saved.');
+      setLocationId(updated.location?.id ?? '');
+      setMessage('Assignment & location saved.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Assignment failed');
+      try {
+        await load();
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveLocation(e: FormEvent) {
+    e.preventDefault();
+    if (!ticket) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const updated = await api.updateTicket(ticket.number, {
+        version: ticket.version,
+        locationId: locationId || null,
+      });
+      setTicket(updated);
+      setLocationId(updated.location?.id ?? '');
+      setMessage('Ticket origin location updated.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Location update failed');
       try {
         await load();
       } catch {
@@ -352,6 +398,10 @@ export default function TicketDetailPage() {
   }
 
   const canAssign = can(user, 'tickets:assign');
+  const canEditLocation =
+    can(user, 'tickets:read_all') ||
+    can(user, 'tickets:read_queue') ||
+    can(user, 'settings:manage');
   const canAttach =
     ticket.requester?.id === user.id || can(user, 'tickets:write');
   const transitions = ticket.allowedTransitions ?? [];
@@ -360,6 +410,11 @@ export default function TicketDetailPage() {
     : ticket.team
       ? `Unassigned agent · Team: ${ticket.team.name}`
       : 'Unassigned (no team routed yet)';
+  const originLabel = ticket.location
+    ? ticket.location.site
+      ? `${ticket.location.name} · ${ticket.location.site}`
+      : ticket.location.name
+    : 'Not set';
 
   return (
     <AppShell user={user} onLogout={logout} title={ticket.number}>
@@ -387,6 +442,10 @@ export default function TicketDetailPage() {
               {ticket.category ? (
                 <span className={styles.metaChip}>{ticket.category.name}</span>
               ) : null}
+              <span className={styles.metaChip} title="Ticket origin site">
+                <Icon icon={MapPin} size="sm" />
+                {originLabel}
+              </span>
             </p>
             <p className={styles.ownership}>
               Owner: <strong>{ownership}</strong>
@@ -394,6 +453,12 @@ export default function TicketDetailPage() {
             <p className={styles.mutedSmall}>
               Requester: {personName(ticket.requester)} (
               {ticket.requester?.email})
+            </p>
+            <p className={styles.mutedSmall}>
+              Ticket origin site: <strong>{originLabel}</strong>
+              {ticket.location?.country
+                ? ` · ${ticket.location.country}`
+                : ''}
             </p>
           </header>
 
@@ -677,6 +742,46 @@ export default function TicketDetailPage() {
               timeToResolution={ticket.timeToResolution}
             />
           </div>
+
+          {canEditLocation ? (
+            <form className={styles.assignPanel} onSubmit={saveLocation}>
+              <h3>
+                <Icon icon={MapPin} size="sm" />
+                Location
+              </h3>
+              <p className={styles.hint}>
+                Ticket origin site — where the issue is located. Correct if the
+                requester picked the wrong office.
+              </p>
+              <label>
+                Site
+                <LocationSelect
+                  value={locationId}
+                  onChange={setLocationId}
+                  locations={locations}
+                  includeInactive
+                  allowEmpty
+                  emptyLabel="No location"
+                  aria-label="Ticket origin location"
+                />
+              </label>
+              <button type="submit" className={styles.btn} disabled={busy}>
+                <Icon icon={Save} size="sm" />
+                Update location
+              </button>
+            </form>
+          ) : (
+            <div className={styles.assignPanel}>
+              <h3>
+                <Icon icon={MapPin} size="sm" />
+                Location
+              </h3>
+              <p>
+                <strong>{originLabel}</strong>
+              </p>
+              <p className={styles.hint}>Ticket origin site</p>
+            </div>
+          )}
 
           {canAssign ? (
             <form className={styles.assignPanel} onSubmit={saveAssignment}>

@@ -6,6 +6,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   MinLength,
@@ -44,10 +45,23 @@ export class CreateTicketDto {
   @IsIn(URGENCY)
   urgency?: string;
 
-  /** Optional parent ticket number or id (child of major / parent incident). */
+  /** Optional parent ticket number or id (child of major / parent incident / problem). */
   @IsOptional()
   @IsString()
   parentNumber?: string;
+
+  /**
+   * Ticket origin site. Defaults to the requester's home location when omitted.
+   * Pass explicitly to override (e.g. issue at another office).
+   */
+  @IsOptional()
+  @IsString()
+  locationId?: string;
+
+  /** Mark as major incident (staff / create path). */
+  @IsOptional()
+  @IsBoolean()
+  majorIncident?: boolean;
 }
 
 export class LinkChildDto {
@@ -116,6 +130,15 @@ export class UpdateTicketDto {
   @IsOptional()
   @IsString()
   teamId?: string | null;
+
+  /** Ticket origin site — staff can correct if wrong. Empty string clears. */
+  @IsOptional()
+  @IsString()
+  locationId?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  majorIncident?: boolean;
 }
 
 export class AddCommentDto {
@@ -127,4 +150,16 @@ export class AddCommentDto {
   @IsOptional()
   @IsBoolean()
   isInternal?: boolean;
+}
+
+export class AddWorkLogDto {
+  @IsInt()
+  @Min(1)
+  @Max(24 * 60)
+  minutes!: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
 }

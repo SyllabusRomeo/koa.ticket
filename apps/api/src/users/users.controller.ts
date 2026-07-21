@@ -13,6 +13,7 @@ import { RequirePermissions } from '../auth/decorators';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersService } from './users.service';
 
 class SetAccessDto {
@@ -61,6 +62,12 @@ export class UsersController {
   @RequirePermissions(PERMISSIONS.USERS_MANAGE)
   create(@Body() dto: CreateUserDto) {
     return this.users.create(dto);
+  }
+
+  @Patch(':id')
+  @RequirePermissions(PERMISSIONS.USERS_MANAGE)
+  update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+    return this.users.update(id, dto);
   }
 
   @Patch(':id/roles')

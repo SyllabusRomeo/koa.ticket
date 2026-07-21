@@ -58,6 +58,8 @@ model User {
   knowledgeArticles KnowledgeArticle[]
   assignedAssets   Asset[] @relation("AssetAssignee")
   approvals        Approval[] @relation("ApprovalApprover")
+  ticketWatchers   TicketWatcher[]
+  ticketWorkLogs   TicketWorkLog[]
 
   @@index([email])
   @@index([deletedAt])
@@ -379,6 +381,8 @@ model Ticket {
   parentId        String?   @map("parent_id")
   /** When set, this ticket was merged into another (duplicate closed as merged). */
   mergedIntoId    String?   @map("merged_into_id")
+  /** Major incident flag for P1 / business-critical outages. */
+  majorIncident   Boolean   @default(false) @map("major_incident")
   version         Int       @default(1)
   firstResponseAt DateTime? @map("first_response_at")
   resolvedAt      DateTime? @map("resolved_at")
@@ -408,6 +412,8 @@ model Ticket {
   slaInstances SlaInstance[]
   assets      TicketAsset[]
   approvals   Approval[]
+  watchers    TicketWatcher[]
+  workLogs    TicketWorkLog[]
 
   @@index([requesterId])
   @@index([assigneeId])
@@ -415,8 +421,40 @@ model Ticket {
   @@index([teamId])
   @@index([parentId])
   @@index([mergedIntoId])
+  @@index([majorIncident])
   @@index([createdAt])
   @@map("tickets")
+}
+
+model TicketWatcher {
+  id        String   @id @default(cuid())
+  ticketId  String   @map("ticket_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([ticketId, userId])
+  @@index([userId])
+  @@map("ticket_watchers")
+}
+
+model TicketWorkLog {
+  id        String   @id @default(cuid())
+  ticketId  String   @map("ticket_id")
+  authorId  String   @map("author_id")
+  minutes   Int
+  note      String?
+  workedAt  DateTime @default(now()) @map("worked_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId])
+  @@index([authorId])
+  @@map("ticket_work_logs")
 }
 
 model TicketComment {

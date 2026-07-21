@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, type AuthUser } from '@/lib/api';
+import { api, type AuthUser, type LocationRef } from '@/lib/api';
 import { can } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import { Button, ButtonLink } from '@/components/Button';
+import { LocationSelect } from '@/components/LocationSelect';
 import appStyles from '../../app.module.css';
 import styles from './roles.module.css';
 import { Save, Users } from 'lucide-react';
@@ -32,6 +33,13 @@ type UserRow = {
   firstName: string;
   lastName: string;
   isActive: boolean;
+  locationId: string | null;
+  location?: {
+    id: string;
+    code: string;
+    name: string;
+    site: string | null;
+  } | null;
   roles: Array<{ code: string; name: string }>;
   primaryRole: { code: string; name: string } | null;
   extraPermissions: string[];
@@ -60,12 +68,15 @@ export default function RolesAccessPage() {
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [allPermissions, setAllPermissions] = useState<PermRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [locations, setLocations] = useState<LocationRef[]>([]);
   const [activeRole, setActiveRole] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
   const [primaryRole, setPrimaryRole] = useState('');
   const [baselineRole, setBaselineRole] = useState('');
   const [extraPerms, setExtraPerms] = useState<string[]>([]);
   const [baselineExtras, setBaselineExtras] = useState<string[]>([]);
+  const [userLocationId, setUserLocationId] = useState('');
+  const [baselineLocationId, setBaselineLocationId] = useState('');
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -81,6 +92,12 @@ export default function RolesAccessPage() {
     setAllPermissions(matrix.allPermissions);
     setUsers(userList);
     setActiveRole((prev) => prev || matrix.roles[0]?.code || '');
+    try {
+      const locs = await api.listLocations();
+      setLocations(locs);
+    } catch {
+      /* org:read may be missing for pure roles managers */
+    }
   }
 
   useEffect(() => {
@@ -129,17 +146,22 @@ export default function RolesAccessPage() {
 
   const dirty =
     !!selectedUserId &&
-    (primaryRole !== baselineRole || !sameSet(extraPerms, baselineExtras));
+    (primaryRole !== baselineRole ||
+      !sameSet(extraPerms, baselineExtras) ||
+      userLocationId !== baselineLocationId);
 
   function onPickUser(id: string) {
     setSelectedUserId(id);
     const u = users.find((x) => x.id === id);
     const code = u?.primaryRole?.code ?? u?.roles[0]?.code ?? '';
     const extras = u?.extraPermissions ?? [];
+    const loc = u?.locationId ?? '';
     setPrimaryRole(code);
     setBaselineRole(code);
     setExtraPerms(extras);
     setBaselineExtras(extras);
+    setUserLocationId(loc);
+    setBaselineLocationId(loc);
     setMessage(null);
     setError(null);
   }
@@ -147,6 +169,7 @@ export default function RolesAccessPage() {
   function cancelEdit() {
     setPrimaryRole(baselineRole);
     setExtraPerms(baselineExtras);
+    setUserLocationId(baselineLocationId);
     setMessage(null);
     setError(null);
   }
@@ -157,6 +180,8 @@ export default function RolesAccessPage() {
     setBaselineRole('');
     setExtraPerms([]);
     setBaselineExtras([]);
+    setUserLocationId('');
+    setBaselineLocationId('');
     setMessage(null);
     setError(null);
   }
@@ -186,9 +211,15 @@ export default function RolesAccessPage() {
         roleCode: primaryRole,
         extraPermissionCodes: extraPerms,
       });
+      if (userLocationId !== baselineLocationId) {
+        await api.updateUser(selectedUserId, {
+          locationId: userLocationId || null,
+        });
+      }
       await load();
       setBaselineRole(primaryRole);
       setBaselineExtras(extraPerms);
+      setBaselineLocationId(userLocationId);
       setMessage(
         'Access saved. Ask the user to re-sign-in if they already have an active session.',
       );
@@ -396,6 +427,18 @@ export default function RolesAccessPage() {
                         {selectedUser.firstName} {selectedUser.lastName}
                       </h3>
                       <p className={styles.sectionHint}>{selectedUser.email}</p>
+                      {selectedUser.location ? (
+                        <p className={styles.sectionHint}>
+                          Home location: {selectedUser.location.name}
+                          {selectedUser.location.site
+                            ? ` · ${selectedUser.location.site}`
+                            : ''}
+                        </p>
+                      ) : (
+                        <p className={styles.sectionHint}>
+                          Home location: not set
+                        </p>
+                      )}
                     </div>
                     <button
                       type="button"
@@ -405,6 +448,24 @@ export default function RolesAccessPage() {
                       Clear
                     </button>
                   </div>
+
+                  <fieldset className={styles.roleFieldset}>
+                    <legend className={styles.fieldsetLegend}>
+                      Home location
+                    </legend>
+                    <p className={styles.fieldsetHint}>
+                      Default ticket origin site when this user creates a
+                      ticket (they can still override per ticket).
+                    </p>
+                    <LocationSelect
+                      value={userLocationId}
+                      onChange={setUserLocationId}
+                      locations={locations}
+                      allowEmpty
+                      emptyLabel="No home location"
+                      aria-label="User home location"
+                    />
+                  </fieldset>
 
                   <fieldset className={styles.roleFieldset}>
                     <legend className={styles.fieldsetLegend}>

@@ -8,6 +8,7 @@ import { AppShell } from '@/components/AppShell';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
 import { Icon } from '@/components/Icon';
+import { LocationSelect } from '@/components/LocationSelect';
 import { Plus, Save, Users } from 'lucide-react';
 import appStyles from '../../app.module.css';
 import styles from './teams.module.css';
@@ -318,19 +319,15 @@ export default function TeamsAdminPage() {
                 </label>
                 <label className={styles.field}>
                   <span>Location</span>
-                  <select
+                  <LocationSelect
                     value={form.locationId}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, locationId: e.target.value }))
+                    onChange={(id) =>
+                      setForm((f) => ({ ...f, locationId: id }))
                     }
-                  >
-                    <option value="">None</option>
-                    {locations.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name} ({l.code})
-                      </option>
-                    ))}
-                  </select>
+                    locations={locations}
+                    allowEmpty
+                    emptyLabel="None"
+                  />
                 </label>
                 <label className={styles.field}>
                   <span>Department</span>

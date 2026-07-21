@@ -7,6 +7,7 @@ import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PasswordService } from '../auth/password.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 const userListSelect = {
   id: true,
@@ -18,6 +19,7 @@ const userListSelect = {
   locationId: true,
   lastLoginAt: true,
   createdAt: true,
+  location: { select: { id: true, code: true, name: true, site: true } },
   roles: { include: { role: { select: { code: true, name: true } } } },
   extraPermissions: {
     include: { permission: { select: { code: true } } },
@@ -41,6 +43,12 @@ export class UsersService {
     locationId: string | null;
     lastLoginAt: Date | null;
     createdAt: Date;
+    location?: {
+      id: string;
+      code: string;
+      name: string;
+      site: string | null;
+    } | null;
     roles: Array<{ role: { code: string; name: string } }>;
     extraPermissions: Array<{ permission: { code: string } }>;
     mfaEnabled?: boolean;
@@ -54,6 +62,7 @@ export class UsersService {
       isActive: u.isActive,
       departmentId: u.departmentId,
       locationId: u.locationId,
+      location: u.location ?? null,
       lastLoginAt: u.lastLoginAt,
       createdAt: u.createdAt,
       ...(u.mfaEnabled !== undefined ? { mfaEnabled: u.mfaEnabled } : {}),
@@ -140,6 +149,52 @@ export class UsersService {
       user,
       temporaryPassword: dto.password ? undefined : plain,
     };
+  }
+
+  async update(id: string, dto: UpdateUserDto) {
+    const existing = await this.prisma.user.findFirst({
+      where: { id, deletedAt: null },
+    });
+    if (!existing) throw new NotFoundException('User not found');
+
+    if (dto.locationId !== undefined && dto.locationId !== null && dto.locationId.trim()) {
+      const loc = await this.prisma.location.findFirst({
+        where: { id: dto.locationId.trim(), deletedAt: null },
+      });
+      if (!loc) throw new BadRequestException('Location not found');
+    }
+    if (
+      dto.departmentId !== undefined &&
+      dto.departmentId !== null &&
+      dto.departmentId.trim()
+    ) {
+      const dept = await this.prisma.department.findFirst({
+        where: { id: dto.departmentId.trim(), deletedAt: null },
+      });
+      if (!dept) throw new BadRequestException('Department not found');
+    }
+
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        firstName: dto.firstName?.trim(),
+        lastName: dto.lastName?.trim(),
+        locationId:
+          dto.locationId === undefined
+            ? undefined
+            : dto.locationId === null || !dto.locationId.trim()
+              ? null
+              : dto.locationId.trim(),
+        departmentId:
+          dto.departmentId === undefined
+            ? undefined
+            : dto.departmentId === null || !dto.departmentId.trim()
+              ? null
+              : dto.departmentId.trim(),
+      },
+    });
+
+    return this.getById(id);
   }
 
   /**

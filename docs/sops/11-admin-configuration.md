@@ -14,8 +14,30 @@ Nothing location-related should be hard-coded; configure via API/admin tools.
 
 ### Locations
 
-`GET/POST /api/v1/org/locations`  
-Fields: code, name, country, site, timezone (default `Africa/Accra`).
+**Admin UI (preferred):** `/app/admin/locations` — list, create, edit, soft-deactivate (`org:manage`; sysadmin / IT manager).
+
+API:
+
+`GET /api/v1/org/locations` (`org:read`)  
+`POST /api/v1/org/locations` · `PATCH /api/v1/org/locations/:id` · `DELETE /api/v1/org/locations/:id` (soft) (`org:manage`)
+
+Fields: `code`, `name`, `country`, `site`, `timezone` (default `Africa/Accra`), `isActive`.
+
+Active locations also appear on `GET /tickets/meta` so requesters can pick a **ticket origin site** without `org:read`.
+
+### Ticket origin location
+
+Every ticket stores `locationId` — the site the issue is coming from (not necessarily the assignee’s office).
+
+| Moment | Behavior |
+| --- | --- |
+| Create | Defaults to the requester’s home `user.locationId`; create form / API may override via `locationId` |
+| List | Location shown on each row; staff can filter `GET /tickets?locationId=` |
+| Detail | “Ticket origin site” shown prominently; staff (`tickets:read_queue` / `read_all`) can correct via `PATCH` |
+| Routing | Assignment rules may match on ticket `locationId` |
+| Reports | Summary includes `byLocation` breakdown |
+
+Set user home location on **Roles & Access** (`PATCH /users/:id` with `locationId`) so new tickets stamp correctly.
 
 ### Departments
 
@@ -37,9 +59,10 @@ Examples: Service Desk, Infrastructure, Applications, Security. Seed creates **S
 
 ## Users
 
-- List: `GET /api/v1/users` (`users:read`)
-- Create: `POST /api/v1/users` (`users:manage`) with a single primary role via `roleCodes` (length 0–1), optional temp password
-- Assign access: **Roles & Access** UI or `PATCH /api/v1/users/:id/roles` with `roleCode` + optional `extraPermissionCodes` (additive). See [SOP-06](./06-roles-and-permissions.md).
+- List: `GET /api/v1/users` (`users:read`) — includes `locationId` / `location`
+- Create: `POST /api/v1/users` (`users:manage`) with a single primary role via `roleCodes` (length 0–1), optional temp password, optional `locationId`
+- Update profile: `PATCH /api/v1/users/:id` — `locationId`, name, department
+- Assign access: **Roles & Access** UI (also sets home location) or `PATCH /api/v1/users/:id/roles` with `roleCode` + optional `extraPermissionCodes` (additive). See [SOP-06](./06-roles-and-permissions.md).
 
 Disable users by setting inactive / soft-delete practices (expand UI later). Prefer deactivation over hard delete.
 

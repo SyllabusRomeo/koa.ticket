@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -18,6 +19,7 @@ import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import {
   AddCommentDto,
+  AddWorkLogDto,
   CreateTicketDto,
   LinkChildDto,
   MergeTicketsDto,
@@ -51,8 +53,28 @@ export class TicketsController {
   }
 
   @Get()
-  list(@CurrentUser() user: AuthUserView) {
-    return this.tickets.list(user);
+  list(
+    @CurrentUser() user: AuthUserView,
+    @Query('locationId') locationId?: string,
+    @Query('typeCode') typeCode?: string,
+    @Query('statusCode') statusCode?: string,
+    @Query('assigneeId') assigneeId?: string,
+    @Query('queue') queue?: string,
+    @Query('majorIncident') majorIncident?: string,
+  ) {
+    return this.tickets.list(user, {
+      locationId,
+      typeCode,
+      statusCode,
+      assigneeId,
+      queue,
+      majorIncident:
+        majorIncident === '1' || majorIncident === 'true'
+          ? true
+          : majorIncident === '0' || majorIncident === 'false'
+            ? false
+            : undefined,
+    });
   }
 
   @Post()
@@ -86,6 +108,30 @@ export class TicketsController {
     @Body() dto: AddCommentDto,
   ) {
     return this.tickets.addComment(user, id, dto);
+  }
+
+  @Post(':id/watch')
+  watch(@CurrentUser() user: AuthUserView, @Param('id') id: string) {
+    return this.tickets.watch(user, id);
+  }
+
+  @Delete(':id/watch')
+  unwatch(@CurrentUser() user: AuthUserView, @Param('id') id: string) {
+    return this.tickets.unwatch(user, id);
+  }
+
+  @Post(':id/work-logs')
+  addWorkLog(
+    @CurrentUser() user: AuthUserView,
+    @Param('id') id: string,
+    @Body() dto: AddWorkLogDto,
+  ) {
+    return this.tickets.addWorkLog(user, id, dto);
+  }
+
+  @Get(':id/work-logs')
+  listWorkLogs(@CurrentUser() user: AuthUserView, @Param('id') id: string) {
+    return this.tickets.listWorkLogs(user, id);
   }
 
   @Post(':id/merge')

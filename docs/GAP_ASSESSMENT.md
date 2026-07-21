@@ -36,7 +36,7 @@ Honest status after competitive PRD V.20 (Notion), **Product Requirements Docume
 | Notifications | In-app + preferences + **email delivery** | Digest / digests schedules | High → Done MVP |
 | Reporting | Summary, CSV, workspace KPIs | Stage/bottleneck/SLA heatmaps, scheduled | Medium |
 | RBAC / Roles & Access | Full matrix + extras; sysadmin = all | Fine-grained custom roles UX polish | Low |
-| Org / teams / locations | API + Teams admin UI | Richer location tree UI | Low |
+| Org / teams / locations | API + Teams + **Locations admin** + ticket origin | Soft-deactivate UX polish | Low → Done MVP |
 | Branding | Login logo/banner admin | Portal themes | Low |
 | Audit | Filtered trail UI | Immutable export schedules | Low |
 | API / webhooks out | REST session API | Signed outbound webhooks | Medium |

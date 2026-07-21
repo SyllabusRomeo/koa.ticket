@@ -9,6 +9,7 @@ import {
   CreateDepartmentDto,
   CreateLocationDto,
   CreateTeamDto,
+  UpdateLocationDto,
   UpdateTeamDto,
 } from './dto/org.dto';
 
@@ -19,7 +20,7 @@ export class OrgService {
   listLocations() {
     return this.prisma.location.findMany({
       where: { deletedAt: null },
-      orderBy: { name: 'asc' },
+      orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
     });
   }
 
@@ -29,9 +30,46 @@ export class OrgService {
       data: {
         code,
         name: dto.name.trim(),
-        country: dto.country?.trim(),
-        site: dto.site?.trim(),
-        timezone: dto.timezone ?? 'Africa/Accra',
+        country: dto.country?.trim() || null,
+        site: dto.site?.trim() || null,
+        timezone: dto.timezone?.trim() || 'Africa/Accra',
+      },
+    });
+  }
+
+  async updateLocation(id: string, dto: UpdateLocationDto) {
+    const existing = await this.prisma.location.findFirst({
+      where: { id, deletedAt: null },
+    });
+    if (!existing) throw new NotFoundException('Location not found');
+
+    return this.prisma.location.update({
+      where: { id },
+      data: {
+        name: dto.name?.trim(),
+        country:
+          dto.country === undefined
+            ? undefined
+            : dto.country?.trim() || null,
+        site:
+          dto.site === undefined ? undefined : dto.site?.trim() || null,
+        timezone: dto.timezone?.trim() || undefined,
+        isActive: dto.isActive,
+      },
+    });
+  }
+
+  async deactivateLocation(id: string) {
+    const existing = await this.prisma.location.findFirst({
+      where: { id, deletedAt: null },
+    });
+    if (!existing) throw new NotFoundException('Location not found');
+
+    return this.prisma.location.update({
+      where: { id },
+      data: {
+        isActive: false,
+        deletedAt: new Date(),
       },
     });
   }

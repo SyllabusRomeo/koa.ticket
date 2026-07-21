@@ -320,6 +320,7 @@ export class ReportsService {
       byTypeRaw,
       byTeamRaw,
       byAssigneeRaw,
+      byLocationRaw,
     ] = await Promise.all([
       this.prisma.ticket.count({
         where: {
@@ -365,9 +366,15 @@ export class ReportsService {
         where,
         _count: { _all: true },
       }),
+      this.prisma.ticket.groupBy({
+        by: ['locationId'],
+        where,
+        _count: { _all: true },
+      }),
     ]);
 
-    const [statuses, priorities, types, teams, assignees] = await Promise.all([
+    const [statuses, priorities, types, teams, assignees, locations] =
+      await Promise.all([
       this.prisma.ticketStatus.findMany({
         select: { id: true, code: true, name: true },
       }),
@@ -391,6 +398,9 @@ export class ReportsService {
         },
         select: { id: true, firstName: true, lastName: true, email: true },
       }),
+      this.prisma.location.findMany({
+        select: { id: true, code: true, name: true, site: true },
+      }),
     ]);
 
     const statusMap = new Map(statuses.map((s) => [s.id, s]));
@@ -398,6 +408,7 @@ export class ReportsService {
     const typeMap = new Map(types.map((t) => [t.id, t]));
     const teamMap = new Map(teams.map((t) => [t.id, t]));
     const assigneeMap = new Map(assignees.map((u) => [u.id, u]));
+    const locationMap = new Map(locations.map((l) => [l.id, l]));
 
     const byStatus: NamedCount[] = byStatusRaw
       .map((row) => {
@@ -487,6 +498,37 @@ export class ReportsService {
       })(),
     ];
 
+    const byLocation: NamedCount[] = [
+      ...byLocationRaw
+        .filter((r) => r.locationId)
+        .map((row) => {
+          const l = locationMap.get(row.locationId!);
+          const label = l
+            ? l.site
+              ? `${l.name} (${l.site})`
+              : l.name
+            : 'Unknown';
+          return {
+            code: l?.code ?? row.locationId!,
+            name: label,
+            count: row._count._all,
+          };
+        })
+        .sort((a, b) => b.count - a.count),
+      ...(() => {
+        const none = byLocationRaw.find((r) => r.locationId === null);
+        return none
+          ? [
+              {
+                code: 'none',
+                name: 'No location',
+                count: none._count._all,
+              },
+            ]
+          : [];
+      })(),
+    ];
+
     return {
       openTickets,
       createdToday,
@@ -501,6 +543,7 @@ export class ReportsService {
       byType,
       byTeam,
       byAssignee,
+      byLocation,
       generatedAt: now.toISOString(),
     };
   }
@@ -640,10 +683,11 @@ export class ReportsService {
       }
     };
 
-    writeBreakdown('By status', summary.byStatus);
+      writeBreakdown('By status', summary.byStatus);
     writeBreakdown('By priority', summary.byPriority);
     writeBreakdown('By type', summary.byType);
     writeBreakdown('By team', summary.byTeam);
+    writeBreakdown('By location', summary.byLocation ?? []);
     writeBreakdown('By assignee', summary.byAssignee);
 
     doc.addPage();

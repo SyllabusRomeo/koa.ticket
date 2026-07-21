@@ -82,6 +82,7 @@ export function workspaceNextActions(user: AuthUser): WorkspaceAction[] {
     }
     if (can(user, 'org:manage')) {
       push({ href: '/app/admin/teams', label: 'Service teams' });
+      push({ href: '/app/admin/locations', label: 'Locations' });
     }
     push({ href: '/app/admin/integrations', label: 'Integrations' });
     push({ href: '/app/admin/branding', label: 'Branding' });
@@ -128,6 +129,7 @@ export function workspaceNextActions(user: AuthUser): WorkspaceAction[] {
     }
     if (can(user, 'org:manage')) {
       push({ href: '/app/admin/teams', label: 'Service teams' });
+      push({ href: '/app/admin/locations', label: 'Locations' });
     }
     if (
       can(user, 'tickets:read_queue') ||
@@ -252,6 +254,7 @@ export function navForUser(user: AuthUser): NavItem[] {
   }
   if (can(user, 'org:manage')) {
     items.push({ href: '/app/admin/teams', label: 'Teams' });
+    items.push({ href: '/app/admin/locations', label: 'Locations' });
   }
   if (can(user, 'settings:manage') || can(user, 'org:manage')) {
     items.push({ href: '/app/admin/routing', label: 'Routing & SLA' });

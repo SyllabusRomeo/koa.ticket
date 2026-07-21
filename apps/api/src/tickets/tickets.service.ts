@@ -16,6 +16,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { SlaService } from '../sla/sla.service';
 import {
   AddCommentDto,
+  AddWorkLogDto,
   CreateTicketDto,
   UpdateTicketDto,
 } from './dto/ticket.dto';
@@ -91,7 +92,9 @@ export class TicketsService {
     if (!type) throw new BadRequestException('Invalid ticket type');
 
     const needsApproval =
-      type.code === 'service_request' || type.code === 'access_request';
+      type.code === 'service_request' ||
+      type.code === 'access_request' ||
+      type.code === 'change';
     const initialStatusCode = needsApproval ? 'pending_approval' : 'new';
     const status = await this.prisma.ticketStatus.findUniqueOrThrow({
       where: { code: initialStatusCode },
@@ -125,10 +128,25 @@ export class TicketsService {
     const priority = await this.resolvePriority(impact, urgency);
     const number = await this.nextNumber(type.prefix);
 
+    /** Ticket origin site: explicit override, else requester home location. */
+    let locationId: string | null = user.locationId;
+    if (dto.locationId !== undefined) {
+      const trimmed = dto.locationId.trim();
+      if (!trimmed) {
+        locationId = null;
+      } else {
+        const loc = await this.prisma.location.findFirst({
+          where: { id: trimmed, deletedAt: null, isActive: true },
+        });
+        if (!loc) throw new BadRequestException('Location not found');
+        locationId = loc.id;
+      }
+    }
+
     const teamId = await this.assignment.resolveTeamId({
       categoryId,
       typeId: type.id,
-      locationId: user.locationId,
+      locationId,
     });
 
     let parentId: string | undefined;
@@ -144,6 +162,11 @@ export class TicketsService {
       parentId = parent.id;
     }
 
+    const majorIncident =
+      !!dto.majorIncident &&
+      (type.code === 'incident' || type.code === 'security_incident') &&
+      this.canStaffTickets(user);
+
     const ticket = await this.prisma.ticket.create({
       data: {
         number,
@@ -158,9 +181,10 @@ export class TicketsService {
         urgency,
         requesterId: user.id,
         departmentId: user.departmentId,
-        locationId: user.locationId,
+        locationId,
         teamId: teamId ?? undefined,
         parentId,
+        majorIncident,
         history: {
           create: [
             {
@@ -174,6 +198,15 @@ export class TicketsService {
                     actorId: user.id,
                     field: 'parent',
                     newValue: dto.parentNumber!.trim(),
+                  },
+                ]
+              : []),
+            ...(majorIncident
+              ? [
+                  {
+                    actorId: user.id,
+                    field: 'major_incident',
+                    newValue: 'true',
                   },
                 ]
               : []),
@@ -234,16 +267,50 @@ export class TicketsService {
     return this.serialize(withSla, user);
   }
 
-  async list(user: AuthUserView) {
+  async list(
+    user: AuthUserView,
+    opts: {
+      locationId?: string;
+      typeCode?: string;
+      statusCode?: string;
+      assigneeId?: string;
+      queue?: string;
+      majorIncident?: boolean;
+    } = {},
+  ) {
     const where: Prisma.TicketWhereInput = { deletedAt: null };
     if (!this.canReadAll(user)) {
       where.requesterId = user.id;
     }
 
+    const staff = this.canStaffTickets(user);
+    if (opts.locationId && staff) {
+      where.locationId = opts.locationId;
+    }
+    if (opts.typeCode) {
+      where.type = { code: opts.typeCode };
+    }
+    if (opts.statusCode) {
+      where.status = { code: opts.statusCode };
+    }
+    if (opts.majorIncident !== undefined && staff) {
+      where.majorIncident = opts.majorIncident;
+    }
+    if (staff && opts.queue === 'mine') {
+      where.assigneeId = user.id;
+    } else if (staff && opts.queue === 'unassigned') {
+      where.assigneeId = null;
+      if (!opts.statusCode) {
+        where.status = { isTerminal: false };
+      }
+    } else if (opts.assigneeId && staff) {
+      where.assigneeId = opts.assigneeId;
+    }
+
     const tickets = await this.prisma.ticket.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
-      take: 100,
+      orderBy: [{ majorIncident: 'desc' }, { createdAt: 'desc' }],
+      take: 200,
       include: this.defaultInclude(false),
     });
 
@@ -295,6 +362,8 @@ export class TicketsService {
       'status',
       'priority',
       'type',
+      'location',
+      'site',
       'requester',
       'assignee',
       'team',
@@ -309,6 +378,8 @@ export class TicketsService {
         escape(t.status.code),
         escape(t.priority?.code ?? ''),
         escape(t.type.code),
+        escape(t.location?.name ?? ''),
+        escape(t.location?.site ?? ''),
         escape(person(t.requester)),
         escape(person(t.assignee)),
         escape(t.team?.name ?? ''),
@@ -533,6 +604,46 @@ export class TicketsService {
         oldValue: existing.teamId,
         newValue: dto.teamId,
       });
+    }
+
+    if (dto.locationId !== undefined) {
+      if (!this.canStaffTickets(user)) {
+        throw new ForbiddenException('Cannot change ticket location');
+      }
+      const nextLoc =
+        dto.locationId === null || dto.locationId.trim() === ''
+          ? null
+          : dto.locationId.trim();
+      if (nextLoc) {
+        const loc = await this.prisma.location.findFirst({
+          where: { id: nextLoc, deletedAt: null },
+        });
+        if (!loc) throw new BadRequestException('Location not found');
+        data.location = { connect: { id: loc.id } };
+      } else {
+        data.location = { disconnect: true };
+      }
+      history.push({
+        actorId: user.id,
+        field: 'location',
+        oldValue: existing.locationId,
+        newValue: nextLoc,
+      });
+    }
+
+    if (dto.majorIncident !== undefined) {
+      if (!this.canStaffTickets(user)) {
+        throw new ForbiddenException('Cannot set major incident flag');
+      }
+      if (dto.majorIncident !== existing.majorIncident) {
+        data.majorIncident = dto.majorIncident;
+        history.push({
+          actorId: user.id,
+          field: 'major_incident',
+          oldValue: String(existing.majorIncident),
+          newValue: String(dto.majorIncident),
+        });
+      }
     }
 
     if (dto.categoryCode) {
@@ -1041,8 +1152,8 @@ export class TicketsService {
   }
 
   async meta() {
-    const [types, statuses, categories, priorities, matrix] = await Promise.all(
-      [
+    const [types, statuses, categories, priorities, matrix, locations] =
+      await Promise.all([
         this.prisma.ticketType.findMany({
           where: { isActive: true },
           orderBy: { name: 'asc' },
@@ -1062,10 +1173,22 @@ export class TicketsService {
         this.prisma.priorityMatrix.findMany({
           include: { priority: true },
         }),
-      ],
-    );
+        this.prisma.location.findMany({
+          where: { deletedAt: null, isActive: true },
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            site: true,
+            country: true,
+            timezone: true,
+            isActive: true,
+          },
+          orderBy: { name: 'asc' },
+        }),
+      ]);
 
-    return { types, statuses, categories, priorities, matrix };
+    return { types, statuses, categories, priorities, matrix, locations };
   }
 
   private async findAccessible(
@@ -1104,6 +1227,16 @@ export class TicketsService {
         select: { id: true, firstName: true, lastName: true, email: true },
       },
       team: { select: { id: true, code: true, name: true } },
+      location: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          site: true,
+          country: true,
+          timezone: true,
+        },
+      },
       parent: withComments
         ? {
             select: {

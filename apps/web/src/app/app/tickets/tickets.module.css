@@ -372,6 +372,27 @@
   margin: 0 0 1rem;
 }
 
+.locationFilter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-primary, #0f4a40);
+}
+
+.locationFilter select {
+  font: inherit;
+  font-weight: 500;
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(15, 74, 64, 0.18);
+  background: #fff;
+  min-width: 12rem;
+}
+
 .chip,
 .chipActive {
   display: inline-flex;

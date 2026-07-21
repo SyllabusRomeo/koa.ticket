@@ -2,12 +2,13 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, type AuthUser, type TicketSummary } from '@/lib/api';
+import { api, type AuthUser, type LocationRef, type TicketSummary } from '@/lib/api';
 import { can } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import { PendingAttachments } from '@/components/TicketAttachments';
+import { LocationSelect } from '@/components/LocationSelect';
 import styles from './tickets.module.css';
-import { Plus, Download, Ticket, UserRound, UserX } from 'lucide-react';
+import { Plus, Download, Ticket, UserRound, UserX, MapPin } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 import { Icon } from '@/components/Icon';
 import { Button } from '@/components/Button';
@@ -20,6 +21,7 @@ export default function TicketsPage() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [tickets, setTickets] = useState<TicketSummary[]>([]);
+  const [locations, setLocations] = useState<LocationRef[]>([]);
   const [types, setTypes] = useState<Array<{ code: string; name: string }>>([]);
   const [categories, setCategories] = useState<
     Array<{ code: string; name: string }>
@@ -28,6 +30,8 @@ export default function TicketsPage() {
   const [description, setDescription] = useState('');
   const [typeCode, setTypeCode] = useState('incident');
   const [categoryCode, setCategoryCode] = useState('');
+  const [locationId, setLocationId] = useState('');
+  const [filterLocation, setFilterLocation] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,14 +39,20 @@ export default function TicketsPage() {
   const [exporting, setExporting] = useState(false);
   const [queueFilter, setQueueFilter] = useState<QueueFilter>('all');
 
-  async function load() {
+  async function load(locFilter?: string) {
+    const locationFilter = locFilter ?? filterLocation;
     const [list, meta] = await Promise.all([
-      api.listTickets(),
+      api.listTickets(
+        locationFilter ? { locationId: locationFilter } : undefined,
+      ),
       api.ticketMeta(),
     ]);
     setTickets(list);
     setTypes(meta.types);
     setCategories(meta.categories);
+    if (meta.locations?.length) {
+      setLocations(meta.locations);
+    }
     if (!categoryCode && meta.categories[0]) {
       setCategoryCode(meta.categories[0].code);
     }
@@ -55,7 +65,16 @@ export default function TicketsPage() {
         const { user } = await api.me();
         if (cancelled) return;
         setUser(user);
+        setLocationId(user.locationId ?? '');
         await load();
+        if (!cancelled && can(user, 'org:read')) {
+          try {
+            const locs = await api.listLocations();
+            if (!cancelled) setLocations(locs);
+          } catch {
+            /* meta locations already loaded */
+          }
+        }
       } catch {
         if (!cancelled) router.replace('/login');
       } finally {
@@ -86,6 +105,7 @@ export default function TicketsPage() {
         description,
         typeCode,
         categoryCode: categoryCode || undefined,
+        locationId: locationId || undefined,
         impact: 'medium',
         urgency: 'medium',
       });
@@ -96,6 +116,7 @@ export default function TicketsPage() {
       }
       setTitle('');
       setDescription('');
+      setLocationId(user?.locationId ?? '');
       setPendingFiles([]);
       await load();
       router.push(`/app/tickets/${encodeURIComponent(created.number)}`);
@@ -186,6 +207,17 @@ export default function TicketsPage() {
                   </option>
                 ))}
               </select>
+            </label>
+            <label>
+              Location — where is this issue located?
+              <LocationSelect
+                value={locationId}
+                onChange={setLocationId}
+                locations={locations}
+                allowEmpty
+                emptyLabel="Use my home location"
+                aria-label="Ticket origin location"
+              />
             </label>
             <label>
               Description
@@ -282,6 +314,28 @@ export default function TicketsPage() {
               </button>
             </div>
           ) : null}
+          {showQueueChips && locations.length > 0 ? (
+            <label className={styles.locationFilter}>
+              <Icon icon={MapPin} size="sm" />
+              Filter by location
+              <LocationSelect
+                value={filterLocation}
+                onChange={async (id) => {
+                  setFilterLocation(id);
+                  setLoading(true);
+                  try {
+                    await load(id);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                locations={locations}
+                allowEmpty
+                emptyLabel="All locations"
+                aria-label="Filter tickets by location"
+              />
+            </label>
+          ) : null}
           {filteredTickets.length === 0 ? (
             <EmptyState icon={Ticket} className={styles.empty}>
               {tickets.length === 0 ? (
@@ -308,6 +362,11 @@ export default function TicketsPage() {
             <ul>
               {filteredTickets.map((t) => {
                 const metaParts = [
+                  t.location
+                    ? t.location.site
+                      ? `${t.location.name} (${t.location.site})`
+                      : t.location.name
+                    : null,
                   t.priority?.name,
                   t.type.name,
                   t.assignee
