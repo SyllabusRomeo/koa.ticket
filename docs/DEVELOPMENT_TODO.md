@@ -53,7 +53,7 @@ Update statuses here as work lands. Principle: **capture data → workflows → 
 | M4 | Catalog dynamic forms | `[x]` | Per-item formSchema; validate + persist answers |
 | M5 | Signed outbound webhooks | `[x]` | HMAC endpoints + Admin → Integrations |
 | M6 | Prod TLS / CI automation | `[x]` | GitHub Actions CI; Nginx TLS + Let's Encrypt script; `docs/PRODUCTION.md` |
-| M7 | Slack/Teams Bot Framework JWT polish | `[ ]` | First-cut webhooks shipped |
+| M7 | Slack/Teams Bot Framework JWT polish | `[x]` | Slack HMAC + Bot Framework JWT (JWKS) + shared-secret fallback |
 | M8 | Notification digests | `[ ]` | Real-time alerts + prefs shipped; digests later |
 | M9 | Reporting heatmaps / scheduled exports | `[ ]` | Summary + CSV shipped |
 | M10 | Omnichannel channel metadata on tickets | `[ ]` | Web + chat + email intake |

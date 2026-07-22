@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHmac, timingSafeEqual } from 'crypto';
+import { timingSafeEqual } from 'crypto';
 import { ROLES } from '@logit/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService, type AuthUserView } from '../auth/auth.service';
@@ -20,7 +20,13 @@ import {
   extractTicketNumberFromSubject,
 } from '../email/email-subject.parser';
 import { TicketsService } from '../tickets/tickets.service';
+import {
+  extractBearerToken,
+  verifyBotFrameworkJwt,
+  verifySharedBearerSecret,
+} from './bot-framework-auth';
 import { parseChatTicketMessage } from './chat-message.parser';
+import { verifySlackRequestSignature } from './slack-signing';
 
 export type ChatTicketResult = {
   ok: true;
@@ -60,13 +66,11 @@ export class IntegrationsService {
   ) {}
 
   status() {
-    const slackSigning = !!this.config.get('SLACK_SIGNING_SECRET');
+    const slackSigning = !!this.slackSigningSecret();
     const slackBot = !!this.config.get('SLACK_BOT_TOKEN');
-    const teamsAppId = !!this.config.get('TEAMS_APP_ID');
-    const teamsSecret = !!(
-      this.config.get('TEAMS_APP_PASSWORD') ||
-      this.config.get('TEAMS_WEBHOOK_SECRET')
-    );
+    const teamsAppId = !!this.teamsAppId();
+    const teamsSecret = !!this.teamsWebhookSecret();
+    const requireAuth = this.integrationsRequireAuth();
     const publicUrl = this.publicAppUrl();
     const apiBase = this.publicApiUrl();
     const emailStatus = this.email.status();
@@ -76,6 +80,7 @@ export class IntegrationsService {
         configured: slackSigning || slackBot,
         signingSecret: slackSigning,
         botToken: slackBot,
+        authRequired: requireAuth,
         eventsUrl: `${apiBase}/integrations/slack/events`,
         slashUrl: `${apiBase}/integrations/slack/commands`,
       },
@@ -83,6 +88,9 @@ export class IntegrationsService {
         configured: teamsAppId || teamsSecret,
         appId: teamsAppId,
         webhookSecret: teamsSecret,
+        jwtVerification: teamsAppId,
+        allowEmulator: this.teamsAllowEmulator(),
+        authRequired: requireAuth,
         messagesUrl: `${apiBase}/integrations/teams/messages`,
       },
       email: emailStatus,
@@ -97,6 +105,36 @@ export class IntegrationsService {
         'Printer offline impact:medium urgency:low',
       ],
     };
+  }
+
+  private integrationsRequireAuth() {
+    const flag = this.config.get('INTEGRATIONS_REQUIRE_AUTH');
+    if (flag === '1' || flag === 'true') return true;
+    if (flag === '0' || flag === 'false') return false;
+    return this.config.get('NODE_ENV') === 'production';
+  }
+
+  private slackSigningSecret() {
+    return this.config.get<string>('SLACK_SIGNING_SECRET')?.trim() || '';
+  }
+
+  /** Microsoft App ID for Bot Framework JWT audience. */
+  private teamsAppId() {
+    return (
+      this.config.get<string>('TEAMS_APP_ID')?.trim() ||
+      this.config.get<string>('MICROSOFT_APP_ID')?.trim() ||
+      ''
+    );
+  }
+
+  /** Shared bearer for simple connectors (not Bot Framework client secret). */
+  private teamsWebhookSecret() {
+    return this.config.get<string>('TEAMS_WEBHOOK_SECRET')?.trim() || '';
+  }
+
+  private teamsAllowEmulator() {
+    const v = this.config.get('TEAMS_ALLOW_EMULATOR');
+    return v === '1' || v === 'true';
   }
 
   publicAppUrl() {
@@ -123,45 +161,94 @@ export class IntegrationsService {
     timestamp: string | undefined,
     signature: string | undefined,
   ) {
-    const secret = this.config.get<string>('SLACK_SIGNING_SECRET');
+    const secret = this.slackSigningSecret();
     if (!secret) {
+      if (this.integrationsRequireAuth()) {
+        throw new UnauthorizedException(
+          'SLACK_SIGNING_SECRET is required when INTEGRATIONS_REQUIRE_AUTH/production is on',
+        );
+      }
       // Dev mode: allow when secret not configured
       return;
     }
     if (!rawBody || !timestamp || !signature) {
       throw new UnauthorizedException('Missing Slack signature headers');
     }
-    const ts = Number(timestamp);
-    if (!Number.isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > 60 * 5) {
-      throw new UnauthorizedException('Slack request timestamp expired');
-    }
-    const body =
-      typeof rawBody === 'string' ? rawBody : rawBody.toString('utf8');
-    const base = `v0:${timestamp}:${body}`;
-    const digest = `v0=${createHmac('sha256', secret).update(base).digest('hex')}`;
-    const a = Buffer.from(digest);
-    const b = Buffer.from(signature);
-    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    const result = verifySlackRequestSignature({
+      signingSecret: secret,
+      rawBody,
+      timestamp,
+      signature,
+    });
+    if (!result.ok) {
+      if (result.reason === 'expired') {
+        throw new UnauthorizedException('Slack request timestamp expired');
+      }
+      if (result.reason === 'missing') {
+        throw new UnauthorizedException('Missing Slack signature headers');
+      }
       throw new UnauthorizedException('Invalid Slack signature');
     }
   }
 
-  verifyTeamsSecret(authHeader: string | undefined) {
-    const secret =
-      this.config.get<string>('TEAMS_WEBHOOK_SECRET') ||
-      this.config.get<string>('TEAMS_APP_PASSWORD');
-    if (!secret) return;
-    if (!authHeader) {
+  /**
+   * Teams / Bot Framework inbound auth.
+   * Prefer JWT (TEAMS_APP_ID / MICROSOFT_APP_ID + Bot Framework JWKS).
+   * Fall back to shared TEAMS_WEBHOOK_SECRET Bearer for simple connectors.
+   */
+  async verifyTeamsAuth(
+    authHeader: string | undefined,
+    activity?: { serviceUrl?: unknown },
+  ) {
+    const appId = this.teamsAppId();
+    const sharedSecret = this.teamsWebhookSecret();
+    const requireAuth = this.integrationsRequireAuth();
+
+    if (!appId && !sharedSecret) {
+      if (requireAuth) {
+        throw new UnauthorizedException(
+          'TEAMS_APP_ID (JWT) or TEAMS_WEBHOOK_SECRET is required when auth is enforced',
+        );
+      }
+      return { mode: 'open' as const };
+    }
+
+    if (!authHeader?.trim()) {
       throw new UnauthorizedException('Missing Teams authorization');
     }
-    const token = authHeader.startsWith('Bearer ')
-      ? authHeader.slice(7)
-      : authHeader;
-    const a = Buffer.from(token);
-    const b = Buffer.from(secret);
-    if (a.length !== b.length || !timingSafeEqual(a, b)) {
-      throw new UnauthorizedException('Invalid Teams secret');
+
+    const bearer = extractBearerToken(authHeader);
+    const rawToken = bearer ?? authHeader.trim();
+
+    // JWT path when App ID is configured and token looks like a JWT.
+    if (appId && bearer && bearer.split('.').length === 3) {
+      const serviceUrl =
+        typeof activity?.serviceUrl === 'string' ? activity.serviceUrl : null;
+      const jwt = await verifyBotFrameworkJwt({
+        token: bearer,
+        appId,
+        activityServiceUrl: serviceUrl,
+        allowEmulator: this.teamsAllowEmulator(),
+      });
+      if (jwt.ok) {
+        return { mode: jwt.mode };
+      }
+      // If JWT failed but shared secret is configured, try secret next.
+      if (!sharedSecret) {
+        throw new UnauthorizedException(
+          `Invalid Bot Framework JWT (${jwt.reason})`,
+        );
+      }
     }
+
+    if (sharedSecret) {
+      if (!verifySharedBearerSecret(rawToken, sharedSecret)) {
+        throw new UnauthorizedException('Invalid Teams webhook secret');
+      }
+      return { mode: 'shared-secret' as const };
+    }
+
+    throw new UnauthorizedException('Invalid Teams authorization');
   }
 
   async resolveActor(opts: {

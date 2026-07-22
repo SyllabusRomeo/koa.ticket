@@ -142,8 +142,10 @@ Expand further over time for attachment limits, password policy.
 
 ## Integrations (Slack / Teams / Email / Outbound webhooks)
 
-Sysadmin UI: `/app/admin/integrations` — webhook URLs, env status (Slack, Teams, SMTP), chat ticket simulate, email inbound URL, **outbound signed webhooks**.  
+Sysadmin UI: `/app/admin/integrations` — webhook URLs, env status (Slack HMAC, Teams **Bot Framework JWT** / shared secret, SMTP), chat ticket simulate, email inbound URL, **outbound signed webhooks**.
 Docs: [INTEGRATIONS_SLACK_TEAMS.md](../INTEGRATIONS_SLACK_TEAMS.md) · [INTEGRATIONS_EMAIL.md](../INTEGRATIONS_EMAIL.md) · [INTEGRATIONS_OUTBOUND_WEBHOOKS.md](../INTEGRATIONS_OUTBOUND_WEBHOOKS.md) · Roadmap: [ENTERPRISE_ROADMAP.md](../ENTERPRISE_ROADMAP.md).
+
+**Prod auth:** set `SLACK_SIGNING_SECRET` and either `TEAMS_APP_ID` (JWT) or `TEAMS_WEBHOOK_SECRET`. Auth is enforced when `NODE_ENV=production` or `INTEGRATIONS_REQUIRE_AUTH=true`.
 
 Outbound email uses `SMTP_*` / `EMAIL_FROM` (skipped gracefully when unset). Inbound: `POST /api/v1/integrations/email/inbound` with optional `EMAIL_INBOUND_SECRET`. Threading uses Message-ID / In-Reply-To (plus subject tokens). Optional IMAP poller: `IMAP_HOST` / `IMAP_USER` / `IMAP_PASS` — see [INTEGRATIONS_EMAIL.md](../INTEGRATIONS_EMAIL.md).
 

@@ -253,6 +253,7 @@ export default function IntegrationsAdminPage() {
                 Signing secret:{' '}
                 {status?.slack.signingSecret ? 'yes' : 'no'} · Bot token:{' '}
                 {status?.slack.botToken ? 'yes' : 'no'}
+                {status?.slack.authRequired ? ' · auth required' : ''}
               </em>
             </div>
             <div
@@ -267,8 +268,11 @@ export default function IntegrationsAdminPage() {
                   : 'Not configured (dev simulate still works)'}
               </span>
               <em>
-                App id: {status?.teams.appId ? 'yes' : 'no'} · Webhook secret:{' '}
-                {status?.teams.webhookSecret ? 'yes' : 'no'}
+                App id (JWT): {status?.teams.appId ? 'yes' : 'no'} · Webhook
+                secret: {status?.teams.webhookSecret ? 'yes' : 'no'}
+                {status?.teams.jwtVerification ? ' · JWT on' : ''}
+                {status?.teams.allowEmulator ? ' · emulator' : ''}
+                {status?.teams.authRequired ? ' · auth required' : ''}
               </em>
             </div>
             <div

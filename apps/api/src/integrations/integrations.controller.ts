@@ -169,14 +169,16 @@ export class IntegrationsController {
     };
   }
 
-  /** Teams / Bot Framework-style inbound message (loose body) */
+  /** Teams / Bot Framework inbound activity (JWT or shared webhook secret) */
   @Public()
   @Post('teams/messages')
   async teamsMessages(
     @Body() body: Record<string, unknown>,
     @Headers('authorization') authorization?: string,
   ) {
-    this.integrations.verifyTeamsSecret(authorization);
+    await this.integrations.verifyTeamsAuth(authorization, {
+      serviceUrl: body?.serviceUrl,
+    });
 
     const type = typeof body.type === 'string' ? body.type : '';
     if (type === 'conversationUpdate' || type === 'invoke') {
