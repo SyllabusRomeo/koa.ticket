@@ -128,4 +128,4 @@ Functional + server authz + validation + migration + audit (if needed) + errors 
 
 See **[GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md)** for the live shipped-vs-pending matrix.
 
-Notable remaining: Slack/Teams Bot JWT polish, notification digests, reporting heatmaps / scheduled exports, omnichannel metadata, CMDB depth, AI assists, knowledge deflection analytics.
+Notable remaining: notification digests, reporting heatmaps / scheduled exports, omnichannel metadata, CMDB depth, AI assists, knowledge deflection analytics.

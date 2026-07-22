@@ -1625,6 +1625,7 @@ export const api = {
         configured: boolean;
         signingSecret: boolean;
         botToken: boolean;
+        authRequired?: boolean;
         eventsUrl: string;
         slashUrl: string;
       };
@@ -1632,6 +1633,9 @@ export const api = {
         configured: boolean;
         appId: boolean;
         webhookSecret: boolean;
+        jwtVerification?: boolean;
+        allowEmulator?: boolean;
+        authRequired?: boolean;
         messagesUrl: string;
       };
       email: {

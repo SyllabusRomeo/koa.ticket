@@ -25,7 +25,7 @@ Honest status after competitive PRD V.20 (Notion), **Product Requirements Docume
 | Routing & SLA admin | Policies + assignment rules UI |
 | Catalog one-click request | Browse → ticket |
 | Email I/O | SMTP outbound + inbound webhook MVP |
-| Slack / Teams | First-cut webhooks + simulate + integrations hub |
+| Slack / Teams | Webhooks + simulate + Bot Framework JWT + Slack HMAC |
 | Assets register | CRUD, retire, CSV, ticket link |
 | Knowledge | Rich HTML, media, attachments, publish |
 | Reports | Summary, CSV, workspace KPIs, location breakdown |
@@ -81,7 +81,7 @@ Honest status after competitive PRD V.20 (Notion), **Product Requirements Docume
 | Change management | Type `change` + statuses seeded | Change enablement workflow / CAB | High (PRD) |
 | Major incident | **Flag + API filter** (`majorIncident`) | MI dashboard, badge/filter UI, related grouping | High |
 | Email-to-ticket / outbound | **Done MVP** (SMTP + inbound webhook) | IMAP poller, richer threading | Done MVP |
-| Slack / Teams | First-cut webhooks + simulate + admin hub | Full Bot Framework JWT | Medium |
+| Slack / Teams | Webhooks + simulate + **Bot Framework JWT** + Slack HMAC | Channel endorsements / outbound replies | Low |
 | Omnichannel source model | Web + chat + email intake | Unified channel metadata on tickets | Medium |
 | Notifications | In-app + preferences + **email delivery** | Digests; watcher fan-out | Medium |
 | Reporting | Summary, CSV, workspace KPIs, byLocation | Stage/bottleneck/SLA heatmaps, scheduled | Medium |

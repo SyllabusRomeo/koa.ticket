@@ -12,7 +12,7 @@ Inspired by common service-desk product pillars (omnichannel, ticket management,
 
 | Pillar | Now (shipped) | Next (Phase 2) | Later (Phase 3–4) |
 | --- | --- | --- | --- |
-| **Omnichannel intake** | Web tickets + **Slack/Teams chat → ticket** (+ simulate) + **email inbound webhook** | IMAP poller polish | Voice/portal widgets, full Bot Framework JWT |
+| **Omnichannel intake** | Web tickets + **Slack/Teams chat → ticket** (+ simulate) + **email inbound webhook** + **Bot Framework JWT** | Channel endorsements / outbound bot replies | Voice/portal widgets |
 | **Ticket management** | Lifecycle, assign, comments, attachments, soft-delete, SLA TTR, **parent/child**, **merge**, stage duration, **origin location**, **watchers/worklogs APIs**, **major-incident flag** | Watchers/worklogs UI, MI badge/filter, rich filters, bulk actions | Problem/Change dedicated workflows |
 | **Agent workspace** | **Home KPI dashboard** + bar breakdowns + **queue TTR badges** | Queue boards, workload, collision/presence | Personalized dashboards, saved widgets |
 | **Automation / workflows** | Assignment rules on create, SLA worker, **Routing & SLA admin UI**, **email notifications (SMTP)** | Digests / schedules; watcher fan-out | Visual workflow designer |
