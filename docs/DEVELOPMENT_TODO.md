@@ -101,9 +101,13 @@ Optional polish: outbound webhook retry worker, bot outbound replies, board pres
 - [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md)  
 - [ENTERPRISE_ROADMAP.md](./ENTERPRISE_ROADMAP.md)  
 - [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)  
+- [CHANGELOG.md](./CHANGELOG.md) — M1–M10 summary  
 - [PRODUCTION.md](./PRODUCTION.md) — TLS + CI  
+- [NOTIFICATIONS.md](./NOTIFICATIONS.md) — digests  
 - [sops/11-admin-configuration.md](./sops/11-admin-configuration.md)  
 - [INTEGRATIONS_EMAIL.md](./INTEGRATIONS_EMAIL.md) — email + omnichannel channel stamp  
+- [INTEGRATIONS_SLACK_TEAMS.md](./INTEGRATIONS_SLACK_TEAMS.md)  
+- [INTEGRATIONS_OUTBOUND_WEBHOOKS.md](./INTEGRATIONS_OUTBOUND_WEBHOOKS.md)  
 
 ---
 
