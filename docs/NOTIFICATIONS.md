@@ -91,3 +91,4 @@ GET /api/v1/notifications/digest/status
 - Push / mobile
 - Escalation paging for P1 / major incidents
 - Optional suppress of per-event email when digest-only is preferred
+- Outbound Slack/Teams bot replies for lifecycle events

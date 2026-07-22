@@ -38,11 +38,13 @@ Critical production settings:
 ```env
 NODE_ENV=production
 COOKIE_SECURE=true
+TRUST_PROXY=1
 SESSION_SECRET=<long-random>
 POSTGRES_PASSWORD=<strong>
 WEB_ORIGIN=https://your-domain.example
+APP_PUBLIC_URL=https://your-domain.example
+API_PUBLIC_URL=https://your-domain.example/api/v1
 ```
-
 ### 3. Start with production overrides
 
 ```bash

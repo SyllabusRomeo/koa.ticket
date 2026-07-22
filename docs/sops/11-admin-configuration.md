@@ -151,6 +151,11 @@ Outbound email uses `SMTP_*` / `EMAIL_FROM` (skipped gracefully when unset). Inb
 
 Outbound webhooks: HMAC-SHA256 signed POSTs on `ticket.created` / `updated` / `assigned` / `commented`. Toggle with `WEBHOOKS_ENABLED` (default true). Manage endpoints under Integrations — see [INTEGRATIONS_OUTBOUND_WEBHOOKS.md](../INTEGRATIONS_OUTBOUND_WEBHOOKS.md).
 
+## Digests & scheduled reports
+
+- Digests: Profile → Notification alerts; env `DIGEST_*` — see [NOTIFICATIONS.md](../NOTIFICATIONS.md).
+- Scheduled report emails: Reports UI schedules; env `REPORT_SCHEDULE_ENABLED`, `REPORT_SCHEDULE_POLL_MINUTES` — see [PRODUCTION.md](../PRODUCTION.md).
+
 ## Seed vs production
 
 After first production deploy:

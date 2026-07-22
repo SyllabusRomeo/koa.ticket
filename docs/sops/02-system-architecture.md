@@ -11,7 +11,7 @@ Describe how LogIT is structured so operators and developers can reason about ch
 ## High-level diagram
 
 ```
-Browser / Client
+Browser / Client / Slack / Teams / Email
       │
       ▼
 Nginx (reverse proxy, TLS in prod)
@@ -21,15 +21,16 @@ Nginx (reverse proxy, TLS in prod)
       └──► API (NestJS) — /api/v1/*
                │
                ├── PostgreSQL (source of truth)
-               ├── Redis (cache / queues / future rate limits)
+               ├── Redis (cache / queues / presence)
                ├── File storage (uploads volume)
-               └── Worker (SLA ticks, future email/jobs)
+               ├── Worker (SLA ticks)
+               └── In-process pollers (IMAP, digests, report schedules)
 ```
 
 ## Repository layout
 
 ```
-koa.ticketing/
+koa.ticket/
   apps/
     api/       NestJS API + Prisma
     web/       Next.js portal
@@ -38,7 +39,7 @@ koa.ticketing/
     shared/    Shared constants (roles, permissions, brand)
   infra/
     docker/    Dockerfiles
-    nginx/     Reverse proxy config
+    nginx/     Reverse proxy + TLS config
     hetzner/   Production notes
   docs/
     sops/      These SOPs
@@ -50,36 +51,39 @@ koa.ticketing/
 
 | Module | Responsibility |
 | --- | --- |
-| Identity / Auth | Login, sessions, passwords, RBAC guards |
+| Identity / Auth | Login, sessions, passwords, MFA, Entra SSO, RBAC guards |
 | Users | User administration |
 | Org | Locations, departments, teams |
-| Tickets | Lifecycle, comments, priority, workflow |
+| Tickets | Lifecycle, comments, priority, workflow, watchers, work logs, presence, channel |
 | Attachments | Secure file upload/download |
 | Audit | Immutable business audit events |
 | SLA | Policies, instances, escalations |
-| Assignment | Routing rules |
-| Notifications | In-app notifications & preferences |
+| Assignment | Routing rules + skills / workload auto-assign |
+| Approvals | Queue + multi-step policies |
+| Notifications | In-app, preferences, digests |
 | Knowledge | Articles |
-| Catalog | Service catalog items |
+| Catalog | Service catalog + dynamic forms |
 | Assets | Asset register & ticket links |
-| Reports | Summaries & CSV export |
+| Reports | Summaries, heatmap, stages, CSV/PDF, schedules |
+| Integrations | Slack/Teams, email/IMAP, outbound webhooks |
 | Health | `/health`, `/health/live`, `/health/ready` |
 
 ## Data store rules
 
 - **PostgreSQL** is authoritative for business data.
-- **Redis** must not be the only copy of critical records.
+- **Redis** must not be the only copy of critical records (presence may fall back to memory).
 - Uploads live on disk/volume with randomized stored names (not public predictable URLs).
 - Soft-delete / archive preferred over hard delete for business records.
 
 ## Security architecture (summary)
 
 - Server-side authorization on every protected API route
-- Argon2id password hashing
-- HttpOnly session cookie (`logit_session`)
+- Argon2id password hashing; optional TOTP MFA; optional Entra OIDC
+- HttpOnly session cookie (`logit_session`); `COOKIE_SECURE` + `TRUST_PROXY` in prod
 - Helmet security headers on API
 - Audit logging for sensitive actions
 - Attachment allowlists + size limits
+- Slack HMAC / Teams Bot Framework JWT / webhook HMAC signatures
 
 ## Local vs production topology
 
@@ -89,9 +93,11 @@ koa.ticketing/
 | DB | Docker Postgres on host `15432` | Private Docker network only |
 | Redis | Host `6379` | Private only |
 | Cookies | `COOKIE_SECURE=false` | `COOKIE_SECURE=true` + HTTPS |
+| Proxy | — | `TRUST_PROXY=1` |
 
 ## Related SOPs
 
 - [03 Local setup](./03-technical-setup-local.md)
 - [04 Docker deployment](./04-docker-deployment.md)
 - [05 Hetzner production](./05-hetzner-production.md)
+- [Production TLS + CI](../PRODUCTION.md)

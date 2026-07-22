@@ -80,6 +80,16 @@ chmod +x scripts/init-letsencrypt.sh
 
 API and web already bind **`0.0.0.0:$PORT`** (Render / Docker friendly).
 
+### Background pollers (API process)
+
+| Feature | Disable | Interval env |
+| --- | --- | --- |
+| IMAP inbound | unset `IMAP_HOST` | `IMAP_POLL_MINUTES` |
+| Notification digests | `DIGEST_ENABLED=false` | `DIGEST_POLL_MINUTES` |
+| Report schedule emails | `REPORT_SCHEDULE_ENABLED=false` | `REPORT_SCHEDULE_POLL_MINUTES` (default `15`) |
+
+Requires SMTP for digest and scheduled-report delivery.
+
 ### Renewal
 
 Re-run `./scripts/init-letsencrypt.sh <domain> <email>` periodically, or schedule `certbot renew` and copy live certs into `infra/certs/` then `nginx -s reload`.
@@ -88,3 +98,5 @@ Re-run `./scripts/init-letsencrypt.sh <domain> <email>` periodically, or schedul
 
 - [infra/hetzner/README.md](../infra/hetzner/README.md) — firewall / production gate
 - [SOP-17 Backup](./sops/17-backup-and-recovery.md)
+- [NOTIFICATIONS.md](./NOTIFICATIONS.md) — digests
+- [INTEGRATIONS_EMAIL.md](./INTEGRATIONS_EMAIL.md) — IMAP / SMTP

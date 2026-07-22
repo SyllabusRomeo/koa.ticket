@@ -4,11 +4,11 @@
 
 Explain how users are notified and how preferences work.
 
-## Channels (MVP)
+## Channels
 
-- **In-app notifications** (primary)
+- **In-app notifications** (primary) — bell in AppShell + `/app/notifications` inbox
 - **Email** — SMTP outbound via nodemailer for key ticket events (see [INTEGRATIONS_EMAIL.md](../INTEGRATIONS_EMAIL.md))
-- **Digests** — optional daily/weekly email rollup of unread notifications (Profile → Email digest); see [NOTIFICATIONS.md](../NOTIFICATIONS.md)
+- **Digests** — optional daily/weekly email rollup of unread notifications (Profile → Notification alerts → Email digest); see [NOTIFICATIONS.md](../NOTIFICATIONS.md)
 - Future: Microsoft Teams bot replies, SMS, push
 
 ## Common events
@@ -21,15 +21,20 @@ Explain how users are notified and how preferences work.
 
 ## How to view
 
-Workspace shows recent unread notifications after login.  
-API:
+- **Bell** in the app shell — unread badge, links to inbox
+- Workspace Home may show a recent unread strip
+- API:
 
 ```http
 GET /api/v1/notifications
+GET /api/v1/notifications/unread-count
 POST /api/v1/notifications/:id/read
+POST /api/v1/notifications/read-all
 ```
 
 ## Preferences
+
+**UI:** My profile → Notification alerts (per-event in-app / email toggles + digest frequency + quiet hours).
 
 ```http
 GET /api/v1/notifications/preferences
@@ -55,9 +60,10 @@ PATCH /api/v1/notifications/digest
 }
 ```
 
-`frequency`: `none` | `daily` | `weekly`. Digests leave in-app rows unread and set `lastDigestAt`.
+`frequency`: `none` | `daily` | `weekly`. Digests leave in-app rows unread and set `lastDigestAt`. Env: `DIGEST_ENABLED`, `DIGEST_POLL_MINUTES`, `DIGEST_SEND_HOUR`, `DIGEST_WEEKDAY`.
 
 ## Related SOPs
 
 - [12 SLA and escalations](./12-sla-and-escalations.md)
 - [08 Employee self-service](./08-employee-self-service.md)
+- [NOTIFICATIONS.md](../NOTIFICATIONS.md)
