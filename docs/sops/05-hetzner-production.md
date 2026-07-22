@@ -57,10 +57,18 @@ Prod overlay typically:
 
 ### 4. TLS
 
-- Issue certificate (Let's Encrypt recommended)
-- Configure Nginx for HTTPS + HTTP redirect
-- Automate renewal
+Use the production Nginx TLS config (Let's Encrypt):
 
+```bash
+chmod +x scripts/init-letsencrypt.sh
+./scripts/init-letsencrypt.sh your-domain.example you@example.com
+```
+
+- Config: `infra/nginx/tls.conf` (HTTP → HTTPS redirect + ACME webroot)
+- Certs: `infra/certs/fullchain.pem` + `privkey.pem` (gitignored)
+- Details: [PRODUCTION.md](../PRODUCTION.md)
+
+Prod overlay also sets `COOKIE_SECURE=true` and `TRUST_PROXY=1` on the API.
 ### 5. Post-deploy verification
 
 - [ ] `https://your-domain/health/ready` returns ok
@@ -89,3 +97,4 @@ Details: `infra/hetzner/README.md`
 
 - [17 Backup and recovery](./17-backup-and-recovery.md)
 - [18 Troubleshooting](./18-troubleshooting.md)
+- [PRODUCTION.md](../PRODUCTION.md) — CI + TLS runbook

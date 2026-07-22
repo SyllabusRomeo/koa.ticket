@@ -54,17 +54,20 @@
 .cta {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.35rem;
-  min-height: 2.35rem;
-  padding: 0 0.9rem;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.95rem;
   border-radius: var(--radius-sm);
-  font-weight: 700;
-  text-decoration: none;
   border: 1.5px solid rgba(255, 255, 255, 0.45);
-  color: #fff;
   background: transparent;
+  color: #fff;
   font: inherit;
+  font-weight: 700;
+  line-height: 1.25;
+  text-decoration: none;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .ctaSolid {

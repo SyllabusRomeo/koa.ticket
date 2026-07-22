@@ -1,0 +1,57 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.unread {
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-primary, #0f4a40);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.list li button {
+  width: 100%;
+  display: grid;
+  gap: 0.2rem;
+  text-align: left;
+  font: inherit;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-primary, #0f4a40) 14%, transparent);
+  background: #fff;
+  cursor: pointer;
+}
+
+.unreadRow button {
+  border-color: color-mix(in srgb, var(--color-secondary, #c4a35a) 45%, #ccc);
+  background: color-mix(in srgb, var(--color-warm, #fbf1da) 75%, #fff);
+}
+
+.read button {
+  opacity: 0.78;
+}
+
+.list strong {
+  color: var(--color-primary, #0f4a40);
+}
+
+.list span {
+  font-size: 0.92rem;
+}
+
+.list em {
+  font-style: normal;
+  font-size: 0.78rem;
+  opacity: 0.65;
+}

@@ -26,6 +26,18 @@ async function bootstrap() {
   app.use(urlencoded({ verify: rawBodySaver, extended: true, limit: '2mb' }));
   app.use(helmet());
   app.use(cookieParser());
+
+  // Behind Nginx/Caddy/Render: trust X-Forwarded-* so req.ip / secure cookies work.
+  // TRUST_PROXY=1 (hop count) or true → enable; unset/false → leave Express default.
+  const trustProxy = process.env.TRUST_PROXY;
+  if (trustProxy && trustProxy !== '0' && trustProxy !== 'false') {
+    const hops = Number(trustProxy);
+    app.getHttpAdapter().getInstance().set(
+      'trust proxy',
+      Number.isFinite(hops) && hops > 0 ? hops : 1,
+    );
+  }
+
   app.enableCors({
     origin: process.env.WEB_ORIGIN?.split(',') ?? [
       'http://localhost:3100',

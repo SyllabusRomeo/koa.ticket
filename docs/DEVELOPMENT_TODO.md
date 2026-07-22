@@ -47,14 +47,14 @@ Update statuses here as work lands. Principle: **capture data → workflows → 
 
 | # | Item | Status | Notes |
 | --- | --- | --- | --- |
-| M1 | IMAP poller + richer email threading | `[ ]` | Webhook inbound MVP works |
-| M2 | Skills / workload-aware routing | `[ ]` | Category/location rules exist |
-| M3 | Approval config / multi-step | `[ ]` | Queue + decide works |
-| M4 | Catalog dynamic forms | `[ ]` | One-click request works |
-| M5 | Signed outbound webhooks | `[ ]` | REST session API only |
-| M6 | Prod TLS / CI automation | `[ ]` | Docker/Hetzner scaffold done |
+| M1 | IMAP poller + richer email threading | `[x]` | IMAP UNSEEN poll + Message-ID / In-Reply-To threading |
+| M2 | Skills / workload-aware routing | `[x]` | Skills catalog + least-open auto-assign on rules |
+| M3 | Approval config / multi-step | `[x]` | Policies + sequential steps; Admin → Approval policies |
+| M4 | Catalog dynamic forms | `[x]` | Per-item formSchema; validate + persist answers |
+| M5 | Signed outbound webhooks | `[x]` | HMAC endpoints + Admin → Integrations |
+| M6 | Prod TLS / CI automation | `[x]` | GitHub Actions CI; Nginx TLS + Let's Encrypt script; `docs/PRODUCTION.md` |
 | M7 | Slack/Teams Bot Framework JWT polish | `[ ]` | First-cut webhooks shipped |
-| M8 | Notification digests | `[ ]` | After watcher fan-out |
+| M8 | Notification digests | `[ ]` | Real-time alerts + prefs shipped; digests later |
 | M9 | Reporting heatmaps / scheduled exports | `[ ]` | Summary + CSV shipped |
 | M10 | Omnichannel channel metadata on tickets | `[ ]` | Web + chat + email intake |
 
@@ -97,4 +97,5 @@ Update statuses here as work lands. Principle: **capture data → workflows → 
 - [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md)  
 - [ENTERPRISE_ROADMAP.md](./ENTERPRISE_ROADMAP.md)  
 - [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)  
+- [PRODUCTION.md](./PRODUCTION.md) — TLS + CI  
 - [sops/11-admin-configuration.md](./sops/11-admin-configuration.md)  

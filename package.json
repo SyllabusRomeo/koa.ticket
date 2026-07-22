@@ -15,6 +15,8 @@
     "build": "npm run build -w @logit/shared && npm run build -w @logit/api && npm run build -w @logit/worker && npm run build -w @logit/web",
     "lint": "npm run lint -ws --if-present",
     "test": "npm run test -ws --if-present",
+    "typecheck": "npm run build -w @logit/shared && tsc -p apps/api/tsconfig.json --noEmit && tsc -p apps/worker/tsconfig.json --noEmit",
+    "ci": "npm run typecheck && npm run test -w @logit/api && npm run build -w @logit/api && npm run build -w @logit/worker && npm run build -w @logit/web",
     "db:generate": "npm run prisma:generate -w @logit/api",
     "db:migrate": "npm run prisma:migrate -w @logit/api",
     "db:seed": "npm run prisma:seed -w @logit/api"

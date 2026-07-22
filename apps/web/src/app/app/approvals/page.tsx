@@ -104,7 +104,12 @@ export default function ApprovalsPage() {
               <li key={a.id}>
                 <strong>{a.ticket.number}</strong> {a.ticket.title}
                 <em>
-                  {a.ticket.type.name} · Requester{' '}
+                  {a.ticket.type.name}
+                  {a.step
+                    ? ` · Step ${a.step.stepOrder}: ${a.step.name}`
+                    : ''}
+                  {a.policy ? ` · ${a.policy.name}` : ''}
+                  {' · Requester '}
                   {a.ticket.requester.firstName} {a.ticket.requester.lastName} (
                   {a.ticket.requester.email})
                 </em>

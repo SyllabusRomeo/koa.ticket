@@ -57,3 +57,4 @@ docker compose down -v       # DESTROYS volumes — data loss
 
 - [05 Hetzner production](./05-hetzner-production.md)
 - [17 Backup and recovery](./17-backup-and-recovery.md)
+- [PRODUCTION.md](../PRODUCTION.md) — TLS overlay + CI

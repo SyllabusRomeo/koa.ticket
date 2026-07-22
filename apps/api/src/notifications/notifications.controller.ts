@@ -36,6 +36,17 @@ export class NotificationsController {
     return this.notifications.getPreferences(user.id);
   }
 
+  @Get('events')
+  events() {
+    return this.notifications.eventCatalog();
+  }
+
+  @Get('unread-count')
+  async unreadCount(@CurrentUser() user: AuthUserView) {
+    const count = await this.notifications.unreadCount(user.id);
+    return { count };
+  }
+
   @Patch('preferences')
   upsertPref(@CurrentUser() user: AuthUserView, @Body() dto: PrefDto) {
     return this.notifications.upsertPreference(user.id, dto.eventType, dto);
@@ -44,6 +55,11 @@ export class NotificationsController {
   @Get()
   list(@CurrentUser() user: AuthUserView) {
     return this.notifications.listForUser(user.id);
+  }
+
+  @Post('read-all')
+  markAllRead(@CurrentUser() user: AuthUserView) {
+    return this.notifications.markAllRead(user.id);
   }
 
   @Post(':id/read')

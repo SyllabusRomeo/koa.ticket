@@ -2,6 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
+import { PrismaService } from '../prisma/prisma.service';
+import {
+  formatMessageIdHeader,
+  normalizeMessageId,
+} from './email-headers';
 
 export type EmailSendResult =
   | { ok: true; messageId?: string; skipped?: false }
@@ -13,7 +18,10 @@ export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private transporter: Transporter | null = null;
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   /** SMTP is usable when host + from address are set. */
   isConfigured(): boolean {
@@ -75,6 +83,7 @@ export class EmailService {
     const from = this.fromAddress();
     const configured = this.isConfigured();
     const apiBase = this.publicApiUrl();
+    const imapHost = this.config.get<string>('IMAP_HOST')?.trim();
     return {
       configured,
       outbound: {
@@ -87,21 +96,26 @@ export class EmailService {
       inbound: {
         webhookUrl: `${apiBase}/integrations/email/inbound`,
         secretConfigured: this.inboundSecretConfigured(),
-        note: 'POST JSON or form fields: from, subject, text|html. Subject token [INC-2026-…] comments; else creates ticket.',
+        note: 'POST from, subject, text|html, optional messageId / inReplyTo / references. Subject token or reply headers thread comments.',
       },
       imap: {
-        implemented: false,
-        note: 'IMAP poller is a stub — use inbound webhook (SendGrid/Mailgun parse) for MVP.',
+        implemented: true,
+        configured: Boolean(
+          imapHost &&
+            this.config.get<string>('IMAP_USER')?.trim() &&
+            (this.config.get<string>('IMAP_PASS')?.trim() ||
+              this.config.get<string>('IMAP_PASSWORD')?.trim()),
+        ),
+        host: imapHost
+          ? `${imapHost}:${this.config.get('IMAP_PORT') ?? '993'}`
+          : null,
+        mailbox: this.config.get<string>('IMAP_MAILBOX')?.trim() || 'INBOX',
+        pollMinutes: Number(this.config.get('IMAP_POLL_MINUTES') ?? '5') || 5,
+        note: imapHost
+          ? 'IMAP poller active when API is running (UNSEEN → ticket create/comment).'
+          : 'Set IMAP_HOST, IMAP_USER, IMAP_PASS to enable polling (webhook still works).',
       },
       appPublicUrl: this.publicAppUrl(),
-    };
-  }
-
-  /** IMAP poller placeholder — not implemented in MVP. */
-  pollImapOnce(): { ok: false; reason: string } {
-    return {
-      ok: false,
-      reason: 'IMAP poller not implemented; configure inbound webhook instead.',
     };
   }
 
@@ -128,6 +142,9 @@ export class EmailService {
     subject: string;
     text: string;
     html?: string;
+    inReplyTo?: string | null;
+    references?: string[];
+    ticketId?: string;
   }): Promise<EmailSendResult> {
     if (!this.isConfigured()) {
       this.logger.log(
@@ -148,7 +165,44 @@ export class EmailService {
         subject: opts.subject,
         text: opts.text,
         html: opts.html,
+        inReplyTo: opts.inReplyTo
+          ? formatMessageIdHeader(opts.inReplyTo)
+          : undefined,
+        references: opts.references?.length
+          ? opts.references.map((id) => formatMessageIdHeader(id))
+          : undefined,
       });
+
+      const messageId = normalizeMessageId(info.messageId);
+      if (messageId && opts.ticketId) {
+        try {
+          await this.prisma.emailMessage.upsert({
+            where: { messageId },
+            create: {
+              messageId,
+              inReplyTo: opts.inReplyTo
+                ? normalizeMessageId(opts.inReplyTo)
+                : null,
+              references: opts.references?.length
+                ? opts.references
+                    .map((r) => normalizeMessageId(r) ?? r)
+                    .join(' ')
+                : null,
+              direction: 'outbound',
+              ticketId: opts.ticketId,
+              subject: opts.subject,
+              fromAddress: this.fromAddress() ?? null,
+              toAddress: opts.to,
+            },
+            update: {},
+          });
+        } catch (err) {
+          this.logger.warn(
+            `Failed to persist outbound Message-ID: ${err instanceof Error ? err.message : err}`,
+          );
+        }
+      }
+
       return { ok: true, messageId: info.messageId };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -165,6 +219,9 @@ export class EmailService {
     eventLabel: string;
     body: string;
     linkPath?: string;
+    inReplyTo?: string | null;
+    references?: string[];
+    ticketId?: string;
   }): Promise<EmailSendResult> {
     const base = this.publicAppUrl();
     const path =
@@ -186,7 +243,48 @@ export class EmailService {
 <p>Ticket: <code>${escapeHtml(opts.ticketNumber)}</code><br/>
 <a href="${escapeHtml(url)}">Open in LogIT</a></p>
 <p>— LogIT</p>`;
-    return this.send({ to: opts.to, subject, text, html });
+
+    let ticketId = opts.ticketId;
+    let inReplyTo = opts.inReplyTo;
+    let references = opts.references;
+
+    if (!ticketId || inReplyTo === undefined) {
+      const ticket = await this.prisma.ticket.findFirst({
+        where: { number: opts.ticketNumber, deletedAt: null },
+        select: { id: true },
+      });
+      ticketId = ticketId ?? ticket?.id;
+      if (ticket && (inReplyTo === undefined || !references?.length)) {
+        const messages = await this.prisma.emailMessage.findMany({
+          where: { ticketId: ticket.id },
+          orderBy: { createdAt: 'asc' },
+          select: { messageId: true, direction: true },
+          take: 40,
+        });
+        references = references?.length
+          ? references
+          : messages.map((m) => m.messageId);
+        if (inReplyTo === undefined) {
+          const lastInbound = [...messages]
+            .reverse()
+            .find((m) => m.direction === 'inbound');
+          inReplyTo =
+            lastInbound?.messageId ??
+            messages[messages.length - 1]?.messageId ??
+            null;
+        }
+      }
+    }
+
+    return this.send({
+      to: opts.to,
+      subject,
+      text,
+      html,
+      inReplyTo,
+      references,
+      ticketId,
+    });
   }
 }
 

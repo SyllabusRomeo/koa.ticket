@@ -14,6 +14,7 @@ import type { AuthUserView } from '../auth/auth.service';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { IntegrationsService } from './integrations.service';
+import { ImapPollerService } from './imap-poller.service';
 
 class SimulateDto {
   @IsString()
@@ -31,13 +32,31 @@ class SimulateDto {
 
 @Controller('integrations')
 export class IntegrationsController {
-  constructor(private readonly integrations: IntegrationsService) {}
+  constructor(
+    private readonly integrations: IntegrationsService,
+    private readonly imap: ImapPollerService,
+  ) {}
 
   @Get('status')
   @UseGuards(SessionAuthGuard, RolesGuard)
   @Roles(ROLES.SYSADMIN)
   status() {
-    return this.integrations.status();
+    const base = this.integrations.status();
+    return {
+      ...base,
+      email: {
+        ...base.email,
+        imap: this.imap.status(),
+      },
+    };
+  }
+
+  @Post('email/imap/poll')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(ROLES.SYSADMIN)
+  async imapPoll(@CurrentUser() user: AuthUserView) {
+    this.integrations.assertSysadmin(user);
+    return this.imap.pollOnce();
   }
 
   @Post('chat/simulate')

@@ -138,6 +138,23 @@ export default function TicketDetailPage() {
     setAssigneeId(t.assignee?.id ?? '');
     setLocationId(t.location?.id ?? t.locationId ?? '');
     setWatching(!!t.watching);
+    if (t.location) {
+      setLocations((prev) => {
+        if (prev.some((l) => l.id === t.location!.id)) return prev;
+        return [
+          {
+            id: t.location.id,
+            code: t.location.code,
+            name: t.location.name,
+            site: t.location.site,
+            country: t.location.country,
+            timezone: t.location.timezone,
+            isActive: true,
+          },
+          ...prev,
+        ];
+      });
+    }
     setRootCause(t.rootCause ?? '');
     setWorkaround(t.workaround ?? '');
     setChangeRisk(t.changeRisk ?? '');
@@ -173,7 +190,13 @@ export default function TicketDetailPage() {
         try {
           const meta = await api.ticketMeta();
           if (!cancelled && meta.locations?.length) {
-            setLocations(meta.locations);
+            setLocations((prev) => {
+              const byId = new Map(meta.locations.map((l) => [l.id, l]));
+              for (const l of prev) {
+                if (!byId.has(l.id)) byId.set(l.id, l);
+              }
+              return [...byId.values()];
+            });
           }
         } catch {
           /* optional */
@@ -1603,7 +1626,8 @@ export default function TicketDetailPage() {
               <h3>How auto-assignment works</h3>
               <p className={styles.hint}>
                 On create, the first matching active rule routes the ticket to a
-                team. People are not auto-picked — assign an agent after routing.
+                team. Rules with auto-assign also pick the least-loaded skilled
+                agent on that team.
               </p>
               <ul>
                 {rules.map((r) => (
@@ -1614,6 +1638,11 @@ export default function TicketDetailPage() {
                       {r.ticketType ? ` · ${r.ticketType.name}` : ''}
                       {' to '}
                       {r.team?.name ?? 'team'}
+                      {r.autoAssignAssignee
+                        ? r.skill
+                          ? ` · auto (${r.skill.name})`
+                          : ' · auto (least open)'
+                        : ''}
                     </em>
                   </li>
                 ))}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { KeyRound, Save, ShieldCheck, ShieldOff } from 'lucide-react';
+import { Bell, KeyRound, Save, ShieldCheck, ShieldOff } from 'lucide-react';
 import { api, type AuthUser } from '@/lib/api';
 import { roleLabel } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
@@ -57,6 +57,16 @@ export default function ProfilePage() {
   const [mfaDisableCode, setMfaDisableCode] = useState('');
   const [mfaBusy, setMfaBusy] = useState(false);
 
+  type PrefRow = {
+    eventType: string;
+    label: string;
+    description: string;
+    inAppEnabled: boolean;
+    emailEnabled: boolean;
+  };
+  const [prefs, setPrefs] = useState<PrefRow[]>([]);
+  const [prefsBusy, setPrefsBusy] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -70,6 +80,12 @@ export default function ProfilePage() {
         setLastName(data.user.lastName ?? '');
         setLocationId(data.user.locationId ?? '');
         setDepartmentId(data.user.departmentId ?? '');
+        try {
+          const p = await api.notificationPreferences();
+          if (!cancelled) setPrefs(p);
+        } catch {
+          /* optional */
+        }
       } catch {
         if (!cancelled) router.replace('/login');
       } finally {
@@ -216,6 +232,26 @@ export default function ProfilePage() {
     }
   }
 
+  async function onTogglePref(
+    eventType: string,
+    patch: { inAppEnabled?: boolean; emailEnabled?: boolean },
+  ) {
+    setPrefsBusy(true);
+    setError(null);
+    try {
+      await api.setNotificationPreference({ eventType, ...patch });
+      setPrefs((prev) =>
+        prev.map((p) => (p.eventType === eventType ? { ...p, ...patch } : p)),
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Could not update preference',
+      );
+    } finally {
+      setPrefsBusy(false);
+    }
+  }
+
   if (loading || !user) {
     return (
       <main className={appStyles.page}>
@@ -231,7 +267,7 @@ export default function ProfilePage() {
           <p className={styles.eyebrow}>Account</p>
           <p className={styles.intro}>
             Update how you appear in LogIT, set your home location, change your
-            password, and manage two-factor authentication.
+            password, manage notification alerts, and two-factor authentication.
           </p>
         </header>
 
@@ -381,6 +417,56 @@ export default function ProfilePage() {
               </Button>
             </div>
           </form>
+        </section>
+
+        <section className={styles.panel}>
+          <h2 className={styles.sectionTitle}>
+            <Icon icon={Bell} size="sm" /> Notification alerts
+          </h2>
+          <p className={styles.sectionHint}>
+            Choose which ticket and approval events reach you in-app and by
+            email. Defaults are on for every event.
+          </p>
+          {prefs.length === 0 ? (
+            <p className={styles.sectionHint}>Preferences unavailable.</p>
+          ) : (
+            <ul className={styles.prefList}>
+              {prefs.map((p) => (
+                <li key={p.eventType} className={styles.prefRow}>
+                  <div>
+                    <strong>{p.label}</strong>
+                    <span>{p.description}</span>
+                  </div>
+                  <label className={styles.prefToggle}>
+                    <input
+                      type="checkbox"
+                      checked={p.inAppEnabled}
+                      disabled={prefsBusy}
+                      onChange={(e) =>
+                        void onTogglePref(p.eventType, {
+                          inAppEnabled: e.target.checked,
+                        })
+                      }
+                    />
+                    In-app
+                  </label>
+                  <label className={styles.prefToggle}>
+                    <input
+                      type="checkbox"
+                      checked={p.emailEnabled}
+                      disabled={prefsBusy}
+                      onChange={(e) =>
+                        void onTogglePref(p.eventType, {
+                          emailEnabled: e.target.checked,
+                        })
+                      }
+                    />
+                    Email
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <section className={styles.panel}>

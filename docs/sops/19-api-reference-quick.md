@@ -73,9 +73,15 @@ Give developers/integrators a map of MVP HTTP APIs.
 | GET/POST | `/sla/policies` |
 | GET | `/sla/tickets/:id` |
 | GET/POST | `/assignment-rules` |
+| GET/POST | `/skills` |
+| GET/PUT | `/skills/users/:userId` |
 | GET | `/notifications` |
+| GET | `/notifications/unread-count` |
+| POST | `/notifications/read-all` |
 | POST | `/notifications/:id/read` |
 | GET/PATCH | `/notifications/preferences` |
+| GET/POST | `/approvals` · `/approvals/:id/decide` |
+| GET/POST | `/approvals/policies` |
 
 ## Knowledge / Catalog / Assets / Reports
 

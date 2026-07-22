@@ -6,6 +6,7 @@ import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PresenceModule } from '../presence/presence.module';
 import { SlaModule } from '../sla/sla.module';
+import { WebhooksModule } from '../webhooks/webhooks.module';
 import { TicketsController } from './tickets.controller';
 import { TicketsService } from './tickets.service';
 
@@ -18,6 +19,7 @@ import { TicketsService } from './tickets.service';
     SlaModule,
     ApprovalsModule,
     PresenceModule,
+    WebhooksModule,
   ],
   controllers: [TicketsController],
   providers: [TicketsService],

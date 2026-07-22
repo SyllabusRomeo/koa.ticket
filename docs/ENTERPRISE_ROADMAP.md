@@ -18,7 +18,7 @@ Inspired by common service-desk product pillars (omnichannel, ticket management,
 | **Automation / workflows** | Assignment rules on create, SLA worker, **Routing & SLA admin UI**, **email notifications (SMTP)** | Digests / schedules; watcher fan-out | Visual workflow designer |
 | **Routing / tagging** | Category + **location** rules → team + **admin UI** | Skills-based / load-balance UI | Dynamic forms, auto-tagging |
 | **Reporting / analytics** | Summary + CSV + workspace metrics + **byLocation** | Scheduled exports, SLA heatmaps, stage bottlenecks | Custom dashboards, marketplace analytics |
-| **Integrations** | Integrations admin hub, Slack/Teams + **email** | More chat channels, webhooks out | Marketplace / plugin packs |
+| **Integrations** | Integrations admin hub, Slack/Teams + **email** + **signed outbound webhooks** | More chat channels | Marketplace / plugin packs |
 | **Self-service** | Catalog browse, knowledge, employee tickets, **one-click catalog request** | Guided resolution | Portal themes |
 | **Org admin** | **Locations admin**, Teams admin, Roles & Access | Soft-deactivate polish | Full org tree designer |
 | **Asset / CMDB** | **Asset register MVP+** (filters, CRUD, retire, CSV, ticket link API) | Discovery / auto-import, richer CI classes | Full CMDB relationships & impact |

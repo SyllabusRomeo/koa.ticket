@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Install · typecheck · test · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate --schema=apps/api/prisma/schema.prisma
+
+      - name: Typecheck / build shared
+        run: npm run build -w @logit/shared
+
+      - name: Typecheck API
+        run: npx tsc -p apps/api/tsconfig.json --noEmit
+
+      - name: Typecheck worker
+        run: npx tsc -p apps/worker/tsconfig.json --noEmit
+
+      - name: Unit tests (API)
+        run: npm run test -w @logit/api
+
+      - name: Build API
+        run: npm run build -w @logit/api
+
+      - name: Build worker
+        run: npm run build -w @logit/worker
+
+      - name: Build web
+        run: npm run build -w @logit/web
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'

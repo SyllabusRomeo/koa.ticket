@@ -1,0 +1,4 @@
+# Placeholder directory for production TLS material (not committed).
+# Populate via ./scripts/init-letsencrypt.sh or copy Let's Encrypt files:
+#   fullchain.pem
+#   privkey.pem

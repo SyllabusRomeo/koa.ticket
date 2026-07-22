@@ -102,8 +102,11 @@ export function AgentWorkspace({
   isSysadmin,
 }: Props) {
   const { kpis } = metrics;
-  const activeStatus = metrics.byStatus.filter((s) => !s.isTerminal);
-  const closedish = metrics.byStatus.filter((s) => s.isTerminal);
+  /** Resolved is not terminal (awaiting close), but ops treat it as done. */
+  const isDoneStatus = (s: { code: string; isTerminal: boolean }) =>
+    s.isTerminal || s.code === 'resolved';
+  const activeStatus = metrics.byStatus.filter((s) => !isDoneStatus(s));
+  const closedish = metrics.byStatus.filter((s) => isDoneStatus(s));
 
   return (
     <div className={styles.workspace}>
@@ -235,7 +238,7 @@ export function AgentWorkspace({
         <div className={styles.chartPanel}>
           <h2>
             <Icon icon={Ticket} size="sm" />
-            Closed / cancelled
+            Resolved / closed
           </h2>
           {closedish.length === 0 ? (
             <EmptyState icon={Inbox}>None yet.</EmptyState>

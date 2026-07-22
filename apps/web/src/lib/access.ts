@@ -23,6 +23,23 @@ export function showAgentWorkspace(user: AuthUser) {
   );
 }
 
+/** Can browse / resolve tickets in a staff capacity (queue or org-wide). */
+export function canWorkTicketQueue(user: AuthUser | null | undefined) {
+  if (!user) return false;
+  return (
+    can(user, 'tickets:read_all') ||
+    can(user, 'tickets:read_queue') ||
+    can(user, 'settings:manage') ||
+    showAgentWorkspace(user)
+  );
+}
+
+/** Full organization ticket visibility (managers / admins / auditors). */
+export function canSeeOrgTickets(user: AuthUser | null | undefined) {
+  if (!user) return false;
+  return can(user, 'tickets:read_all') || can(user, 'settings:manage');
+}
+
 export function roleLabel(roles: string[]) {
   const map: Record<string, string> = {
     employee: 'Employee self-service',
@@ -88,6 +105,9 @@ export function workspaceNextActions(user: AuthUser): WorkspaceAction[] {
     push({ href: '/app/admin/branding', label: 'Branding' });
     if (can(user, 'settings:manage') || can(user, 'org:manage')) {
       push({ href: '/app/admin/routing', label: 'Routing & SLA' });
+    }
+    if (can(user, 'settings:manage')) {
+      push({ href: '/app/admin/approvals', label: 'Approval policies' });
     }
     if (can(user, 'tickets:read_all') || can(user, 'tickets:read_queue')) {
       push({ href: '/app/queue', label: 'Open queue board' });
@@ -223,12 +243,21 @@ export function notificationHref(note: {
 export type NavItem = { href: string; label: string };
 
 /** Always shown in the top bar for every signed-in user. */
-const PRIMARY_NAV: NavItem[] = [
-  { href: '/app', label: 'Home' },
-  { href: '/app/tickets', label: 'Tickets' },
-  { href: '/app/knowledge', label: 'Knowledge' },
-  { href: '/app/catalog', label: 'Catalog' },
-];
+export function primaryNavForUser(user: AuthUser): NavItem[] {
+  return [
+    { href: '/app', label: 'Home' },
+    {
+      href: '/app/tickets',
+      label: canSeeOrgTickets(user)
+        ? 'Tickets'
+        : canWorkTicketQueue(user)
+          ? 'My assignments'
+          : 'My tickets',
+    },
+    { href: '/app/knowledge', label: 'Knowledge' },
+    { href: '/app/catalog', label: 'Catalog' },
+  ];
+}
 
 const ADMIN_NAV_HREFS = new Set([
   '/app/admin/roles',
@@ -236,12 +265,13 @@ const ADMIN_NAV_HREFS = new Set([
   '/app/admin/departments',
   '/app/admin/locations',
   '/app/admin/routing',
+  '/app/admin/approvals',
   '/app/admin/integrations',
   '/app/admin/branding',
 ]);
 
 export function navForUser(user: AuthUser): NavItem[] {
-  const items: NavItem[] = [...PRIMARY_NAV];
+  const items: NavItem[] = [...primaryNavForUser(user)];
 
   if (showAgentWorkspace(user)) {
     const ticketsIdx = items.findIndex((i) => i.href === '/app/tickets');
@@ -277,6 +307,12 @@ export function navForUser(user: AuthUser): NavItem[] {
   }
   if (can(user, 'settings:manage') || can(user, 'org:manage')) {
     items.push({ href: '/app/admin/routing', label: 'Routing & SLA' });
+    if (can(user, 'settings:manage')) {
+      items.push({
+        href: '/app/admin/approvals',
+        label: 'Approval policies',
+      });
+    }
   }
   if (hasRole(user, 'sysadmin')) {
     items.push({ href: '/app/admin/integrations', label: 'Integrations' });
@@ -298,7 +334,7 @@ export function navGroupsForUser(user: AuthUser): {
   admin: NavItem[];
 } {
   const items = navForUser(user);
-  const primary: NavItem[] = [...PRIMARY_NAV];
+  const primary: NavItem[] = [...primaryNavForUser(user)];
   if (showAgentWorkspace(user)) {
     const ticketsIdx = primary.findIndex((i) => i.href === '/app/tickets');
     primary.splice(

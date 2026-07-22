@@ -9,7 +9,7 @@ import {
 } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ChevronDown, LogOut, Menu, UserRound, X } from 'lucide-react';
+import { ChevronDown, Bell, LogOut, Menu, UserRound, X } from 'lucide-react';
 import styles from '../app/app/app.module.css';
 import shell from './AppShell.module.css';
 import { api, type AuthUser } from '@/lib/api';
@@ -136,6 +136,7 @@ export function AppShell({
 
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
 
   const profileRef = useRef<HTMLDivElement>(null);
   const profileMenuId = useId();
@@ -145,6 +146,24 @@ export function AppShell({
   useEffect(() => {
     setProfileOpen(false);
     setMobileOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadUnread() {
+      try {
+        const { count } = await api.notificationUnreadCount();
+        if (!cancelled) setUnread(count);
+      } catch {
+        /* optional */
+      }
+    }
+    void loadUnread();
+    const id = window.setInterval(() => void loadUnread(), 45_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
   }, [pathname]);
 
   const closeMobile = () => setMobileOpen(false);
@@ -191,6 +210,23 @@ export function AppShell({
           </nav>
 
           <div className={shell.profileCluster}>
+            <Link
+              href="/app/notifications"
+              className={shell.bellLink}
+              aria-label={
+                unread > 0
+                  ? `${unread} unread notifications`
+                  : 'Notifications'
+              }
+              title="Notifications"
+            >
+              <Icon icon={Bell} size="sm" />
+              {unread > 0 ? (
+                <span className={shell.bellBadge}>
+                  {unread > 99 ? '99+' : unread}
+                </span>
+              ) : null}
+            </Link>
             <div className={shell.menuWrap} ref={profileRef}>
               <button
                 type="button"

@@ -60,11 +60,16 @@ Seed example: `reset-password-m365`.
 ### For employees
 
 1. Open **Catalog**.
-2. Read available services (code, name, description).
-3. Click **Request this service** (optional notes) — creates the matching ticket in one step (`POST /api/v1/catalog/:id/request`).
-4. Service/access requests that require approval appear in Approvals.
+2. Read available services (code, name, description). Services with a form show a **form** chip.
+3. Select a service. If it has a `formSchema`, fill the dynamic fields; notes remain optional.
+4. Click **Request this service** — creates the matching ticket (`POST /api/v1/catalog/:id/request` with `{ notes?, answers? }`).
+5. Answers are validated against the schema, appended under **Catalog form answers** in the ticket description, and stored as JSON on the ticket (`catalogAnswers`).
+6. Items with an empty schema keep the notes-only one-click flow.
+7. Service/access requests that require approval appear in Approvals.
 
 ### For admins (`settings:manage`)
+
+Create or edit catalog items (including a field builder for the request form):
 
 ```http
 POST /api/v1/catalog
@@ -74,11 +79,29 @@ POST /api/v1/catalog
   "description": "...",
   "ticketTypeCode": "service_request",
   "categoryCode": "HARDWARE",
-  "teamId": "..."
+  "teamId": "...",
+  "formSchema": [
+    {
+      "name": "justification",
+      "label": "Business justification",
+      "type": "textarea",
+      "required": true
+    }
+  ]
 }
 ```
 
-Seed example: Request Laptop.
+```http
+PATCH /api/v1/catalog/:id
+{
+  "name": "...",
+  "formSchema": [ /* same field shape; null clears */ ]
+}
+```
+
+Field types: `text`, `textarea`, `select`, `number`, `checkbox`. Optional: `required`, `placeholder`, `helpText`, `options`, `min`, `max`, `defaultValue`.
+
+Seed examples: `REQ-LAPTOP` (full sample form), `REQ-SOFTWARE`, `REQ-VPN`; `ACC-MFA-RESET` stays notes-only.
 
 ## Related SOPs
 

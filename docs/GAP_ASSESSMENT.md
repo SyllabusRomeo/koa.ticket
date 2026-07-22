@@ -49,8 +49,8 @@ Honest status after competitive PRD V.20 (Notion), **Product Requirements Docume
 | **Medium** | Skills / workload-aware routing | Category/location rules exist |
 | **Medium** | Approval config / multi-step | Queue + decide works |
 | **Medium** | Catalog dynamic forms | One-click request works |
-| **Medium** | Signed outbound webhooks | REST session API only |
-| **Medium** | Prod TLS / CI automation | Docker/Hetzner scaffold done |
+| **Medium** | Signed outbound webhooks | **Done MVP** (HMAC + Admin Integrations) |
+| **Medium** | Prod TLS / CI automation | **Done** (GitHub Actions + Nginx TLS / LE script) |
 | **Later** | CMDB discovery / CI relationships | Asset register MVP+ shipped |
 | **Strategic** | AI assists | Classify, summarize, duplicate, SLA risk |
 
@@ -89,10 +89,10 @@ Honest status after competitive PRD V.20 (Notion), **Product Requirements Docume
 | Org / teams / locations | API + Teams + **Locations admin** + ticket origin | Soft-deactivate UX polish | Done MVP |
 | Branding | Login logo/banner admin | Portal themes | Low |
 | Audit | Filtered trail UI | Immutable export schedules | Low |
-| API / webhooks out | REST session API | Signed outbound webhooks | Medium |
+| API / webhooks out | **Done MVP** (signed outbound) | Retry worker / marketplace | Medium |
 | SSO / MFA | Session + Argon2 | Entra/SAML, MFA UX | High (identity) |
 | AI assists | — | Classify, summarize, duplicate, SLA risk (Phase 3+) | Strategic |
-| Self-hosting / deploy | Docker Compose, Render-aware | Prod TLS/CI automation | Medium |
+| Self-hosting / deploy | Docker Compose, Render-aware, **CI + Nginx TLS** | Scheduled LE renew polish / multi-node | Medium |
 
 ---
 

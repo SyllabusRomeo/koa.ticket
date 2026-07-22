@@ -1,0 +1,98 @@
+.grid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+@media (min-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+.panel {
+  background: var(--color-surface, #fff);
+  border: 1px solid color-mix(in srgb, var(--color-primary, #0f4a40) 18%, transparent);
+  border-radius: 12px;
+  padding: 1.1rem 1.2rem 1.25rem;
+}
+
+.panel h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+  color: var(--color-primary, #0f4a40);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.list li {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-warm, #fbf1da) 70%, #fff);
+}
+
+.list em {
+  font-style: normal;
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--color-primary, #0f4a40) 70%, #666);
+}
+
+.form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.form label,
+.stepBox label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.form input,
+.form select,
+.stepBox input,
+.stepBox select {
+  font: inherit;
+  font-weight: 500;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-primary, #0f4a40) 25%, #ccc);
+}
+
+.stepBox {
+  border: 1px solid color-mix(in srgb, var(--color-primary, #0f4a40) 18%, #ccc);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.stepBox legend {
+  padding: 0 0.35rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.check {
+  display: flex !important;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 500 !important;
+}
+
+.check input {
+  width: auto;
+}

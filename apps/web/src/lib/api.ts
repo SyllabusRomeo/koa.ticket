@@ -14,6 +14,26 @@ export type AuthUser = {
   locationId: string | null;
 };
 
+export type CatalogFormFieldType =
+  | 'text'
+  | 'textarea'
+  | 'select'
+  | 'number'
+  | 'checkbox';
+
+export type CatalogFormField = {
+  name: string;
+  label: string;
+  type: CatalogFormFieldType;
+  required?: boolean;
+  placeholder?: string;
+  helpText?: string;
+  options?: Array<string | { value: string; label: string }>;
+  min?: number;
+  max?: number;
+  defaultValue?: string | number | boolean;
+};
+
 export type PersonRef = {
   id: string;
   firstName: string;
@@ -238,10 +258,21 @@ export type AssignmentRule = {
   id: string;
   name: string;
   priority: number;
+  autoAssignAssignee?: boolean;
   category: { id: string; code: string; name: string } | null;
   ticketType: { id: string; code: string; name: string } | null;
   location: { id: string; code: string; name: string } | null;
   team: TeamRef | null;
+  skill?: { id: string; code: string; name: string } | null;
+};
+
+export type Skill = {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  isActive?: boolean;
+  _count?: { users: number };
 };
 
 export type KnowledgeAttachment = {
@@ -275,6 +306,14 @@ export type ApprovalItem = {
   status: string;
   comment: string | null;
   createdAt: string;
+  stepOrder?: number | null;
+  step?: {
+    id: string;
+    name: string;
+    stepOrder: number;
+    mode: string;
+  } | null;
+  policy?: { id: string; name: string } | null;
   ticket: {
     id: string;
     number: string;
@@ -287,6 +326,35 @@ export type ApprovalItem = {
       lastName: string;
     };
   };
+};
+
+export type ApprovalPolicy = {
+  id: string;
+  name: string;
+  priority: number;
+  ticketTypeId: string | null;
+  categoryId: string | null;
+  changeRisk: string | null;
+  isActive: boolean;
+  steps: Array<{
+    id: string;
+    name: string;
+    stepOrder: number;
+    approverRoleCode: string;
+    mode: string;
+  }>;
+};
+
+export type WebhookEndpoint = {
+  id: string;
+  name: string;
+  url: string;
+  isActive: boolean;
+  eventTypes: string[];
+  secretHint: string;
+  secret?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type TicketAttachment = {
@@ -823,12 +891,37 @@ export const api = {
     categoryId?: string;
     ticketTypeId?: string;
     locationId?: string;
+    skillId?: string;
+    autoAssignAssignee?: boolean;
     priority?: number;
   }) {
     return request('/assignment-rules', {
       method: 'POST',
       body: JSON.stringify(body),
     });
+  },
+  listSkills() {
+    return request<Skill[]>('/skills');
+  },
+  createSkill(body: { code: string; name: string; description?: string }) {
+    return request<Skill>('/skills', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  getUserSkills(userId: string) {
+    return request<Array<{ id: string; code: string; name: string }>>(
+      `/skills/users/${encodeURIComponent(userId)}`,
+    );
+  },
+  setUserSkills(userId: string, skillIds: string[]) {
+    return request<Array<{ id: string; code: string; name: string }>>(
+      `/skills/users/${encodeURIComponent(userId)}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ skillIds }),
+      },
+    );
   },
   slaPolicies() {
     return request<
@@ -1023,8 +1116,41 @@ export const api = {
         body: string;
         link: string | null;
         readAt: string | null;
+        createdAt?: string;
       }>
     >('/notifications');
+  },
+  notificationUnreadCount() {
+    return request<{ count: number }>('/notifications/unread-count');
+  },
+  markNotificationRead(id: string) {
+    return request(`/notifications/${encodeURIComponent(id)}/read`, {
+      method: 'POST',
+    });
+  },
+  markAllNotificationsRead() {
+    return request('/notifications/read-all', { method: 'POST' });
+  },
+  notificationPreferences() {
+    return request<
+      Array<{
+        eventType: string;
+        label: string;
+        description: string;
+        inAppEnabled: boolean;
+        emailEnabled: boolean;
+      }>
+    >('/notifications/preferences');
+  },
+  setNotificationPreference(body: {
+    eventType: string;
+    inAppEnabled?: boolean;
+    emailEnabled?: boolean;
+  }) {
+    return request('/notifications/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
   },
   knowledge() {
     return request<KnowledgeArticle[]>('/knowledge');
@@ -1139,6 +1265,9 @@ export const api = {
         name: string;
         description: string;
         ticketTypeCode: string;
+        categoryCode?: string | null;
+        teamId?: string | null;
+        formSchema?: CatalogFormField[] | null;
       }>
     >('/catalog');
   },
@@ -1149,13 +1278,34 @@ export const api = {
     ticketTypeCode: string;
     categoryCode?: string;
     teamId?: string;
+    formSchema?: CatalogFormField[];
   }) {
     return request('/catalog', {
       method: 'POST',
       body: JSON.stringify(body),
     });
   },
-  requestCatalogItem(idOrCode: string, notes?: string) {
+  updateCatalogItem(
+    idOrCode: string,
+    body: {
+      name?: string;
+      description?: string;
+      ticketTypeCode?: string;
+      categoryCode?: string | null;
+      teamId?: string | null;
+      isActive?: boolean;
+      formSchema?: CatalogFormField[] | null;
+    },
+  ) {
+    return request(`/catalog/${encodeURIComponent(idOrCode)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  },
+  requestCatalogItem(
+    idOrCode: string,
+    body?: { notes?: string; answers?: Record<string, unknown> },
+  ) {
     return request<{
       ticket: TicketDetail;
       catalogItem: {
@@ -1163,10 +1313,14 @@ export const api = {
         code: string;
         name: string;
         ticketTypeCode: string;
+        formSchema?: CatalogFormField[] | null;
       };
     }>(`/catalog/${encodeURIComponent(idOrCode)}/request`, {
       method: 'POST',
-      body: JSON.stringify({ notes: notes || undefined }),
+      body: JSON.stringify({
+        notes: body?.notes || undefined,
+        answers: body?.answers,
+      }),
     });
   },
   assets(params: {
@@ -1278,6 +1432,27 @@ export const api = {
     return request<ApprovalItem>(`/approvals/${id}/decide`, {
       method: 'POST',
       body: JSON.stringify({ decision, comment }),
+    });
+  },
+  approvalPolicies() {
+    return request<ApprovalPolicy[]>('/approvals/policies');
+  },
+  createApprovalPolicy(body: {
+    name: string;
+    ticketTypeId?: string;
+    categoryId?: string;
+    changeRisk?: string;
+    priority?: number;
+    steps: Array<{
+      name: string;
+      approverRoleCode: string;
+      mode?: 'any' | 'all';
+      stepOrder?: number;
+    }>;
+  }) {
+    return request<ApprovalPolicy>('/approvals/policies', {
+      method: 'POST',
+      body: JSON.stringify(body),
     });
   },
   listUsers() {
@@ -1475,6 +1650,10 @@ export const api = {
         };
         imap: {
           implemented: boolean;
+          configured?: boolean;
+          host?: string | null;
+          mailbox?: string;
+          pollMinutes?: number;
           note: string;
         };
         appPublicUrl: string;
@@ -1499,6 +1678,81 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     });
+  },
+  pollImap() {
+    return request<{
+      ok: boolean;
+      processed: number;
+      skipped: number;
+      errors: number;
+      reason?: string;
+    }>('/integrations/email/imap/poll', { method: 'POST' });
+  },
+  webhookEvents() {
+    return request<{ enabled: boolean; events: string[] }>('/webhooks/events');
+  },
+  webhookEndpoints() {
+    return request<WebhookEndpoint[]>('/webhooks/endpoints');
+  },
+  createWebhookEndpoint(body: {
+    name: string;
+    url: string;
+    eventTypes: string[];
+    isActive?: boolean;
+  }) {
+    return request<WebhookEndpoint & { secret?: string }>(
+      '/webhooks/endpoints',
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+      },
+    );
+  },
+  updateWebhookEndpoint(
+    id: string,
+    body: {
+      name?: string;
+      url?: string;
+      eventTypes?: string[];
+      isActive?: boolean;
+      rotateSecret?: boolean;
+    },
+  ) {
+    return request<WebhookEndpoint & { secret?: string }>(
+      `/webhooks/endpoints/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      },
+    );
+  },
+  deleteWebhookEndpoint(id: string) {
+    return request<{ ok: true }>(
+      `/webhooks/endpoints/${encodeURIComponent(id)}`,
+      { method: 'DELETE' },
+    );
+  },
+  testWebhookEndpoint(id: string) {
+    return request<{
+      ok: boolean;
+      deliveryId: string;
+      statusCode: number | null;
+      error: string | null;
+    }>(`/webhooks/endpoints/${encodeURIComponent(id)}/test`, {
+      method: 'POST',
+    });
+  },
+  webhookDeliveries(id: string) {
+    return request<
+      Array<{
+        id: string;
+        eventType: string;
+        statusCode: number | null;
+        success: boolean;
+        error: string | null;
+        createdAt: string;
+      }>
+    >(`/webhooks/endpoints/${encodeURIComponent(id)}/deliveries`);
   },
   audit(params: {
     limit?: number;

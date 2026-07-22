@@ -13,8 +13,13 @@ import { AssignmentService } from '../assignment/assignment.service';
 import { ApprovalsService } from '../approvals/approvals.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import {
+  statusChangeEventType,
+  statusChangeLabel,
+} from '../notifications/notification-events';
 import { PresenceService } from '../presence/presence.service';
 import { SlaService } from '../sla/sla.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
 import {
   AddCommentDto,
   AddWorkLogDto,
@@ -32,6 +37,7 @@ export class TicketsService {
     private readonly notifications: NotificationsService,
     private readonly sla: SlaService,
     private readonly presence: PresenceService,
+    private readonly webhooks: WebhooksService,
   ) {}
 
   private canStaffTickets(user: AuthUserView) {
@@ -50,15 +56,97 @@ export class TicketsService {
     );
   }
 
-  private canReadAll(user: AuthUserView) {
+  /** Managers / admins / auditors — full organization ticket visibility. */
+  private canReadOrgTickets(user: AuthUserView) {
     return (
       user.permissions.includes(PERMISSIONS.TICKETS_READ_ALL) ||
+      user.permissions.includes(PERMISSIONS.SETTINGS_MANAGE)
+    );
+  }
+
+  /**
+   * Agents with queue rights (but not org-wide read) only see tickets assigned
+   * to them, plus any they requested or watch.
+   */
+  private canReadAssignedQueue(user: AuthUserView) {
+    return (
+      !this.canReadOrgTickets(user) &&
       user.permissions.includes(PERMISSIONS.TICKETS_READ_QUEUE)
     );
   }
 
+  /** Staff who can work tickets (org-wide or assigned queue). */
+  private canBrowseStaffTickets(user: AuthUserView) {
+    return this.canStaffTickets(user);
+  }
+
+  /** @deprecated Prefer canReadOrgTickets / visibilityWhere. */
+  private canReadAll(user: AuthUserView) {
+    return this.canBrowseStaffTickets(user);
+  }
+
   private canInternalNote(user: AuthUserView) {
     return user.permissions.includes(PERMISSIONS.TICKETS_INTERNAL_NOTE);
+  }
+
+  private personalTicketWhere(userId: string): Prisma.TicketWhereInput {
+    return {
+      OR: [
+        { requesterId: userId },
+        { assigneeId: userId },
+        { watchers: { some: { userId } } },
+      ],
+    };
+  }
+
+  /** Prisma filter for ticket lists / exports based on role. */
+  private visibilityWhere(user: AuthUserView): Prisma.TicketWhereInput {
+    if (this.canReadOrgTickets(user)) {
+      return {};
+    }
+    // Agents: only tickets assigned to them.
+    if (this.canReadAssignedQueue(user)) {
+      return { assigneeId: user.id };
+    }
+    // End users: requested, assigned, or watching.
+    return this.personalTicketWhere(user.id);
+  }
+
+  private async assertTicketVisible(
+    user: AuthUserView,
+    ticket: {
+      id: string;
+      requesterId: string;
+      assigneeId: string | null;
+    },
+  ) {
+    if (this.canReadOrgTickets(user)) return;
+
+    // Agents may open assigned work; also their own requests / watches.
+    if (this.canReadAssignedQueue(user)) {
+      if (ticket.assigneeId === user.id) return;
+      if (ticket.requesterId === user.id) return;
+      const watching = await this.prisma.ticketWatcher.findUnique({
+        where: {
+          ticketId_userId: { ticketId: ticket.id, userId: user.id },
+        },
+      });
+      if (watching) return;
+      throw new ForbiddenException('Ticket not found');
+    }
+
+    if (ticket.requesterId === user.id || ticket.assigneeId === user.id) {
+      return;
+    }
+
+    const watching = await this.prisma.ticketWatcher.findUnique({
+      where: {
+        ticketId_userId: { ticketId: ticket.id, userId: user.id },
+      },
+    });
+    if (watching) return;
+
+    throw new ForbiddenException('Ticket not found');
   }
 
   async nextNumber(prefix: string) {
@@ -130,26 +218,52 @@ export class TicketsService {
     const priority = await this.resolvePriority(impact, urgency);
     const number = await this.nextNumber(type.prefix);
 
-    /** Ticket origin site: explicit override, else requester home location. */
-    let locationId: string | null = user.locationId;
-    if (dto.locationId !== undefined) {
-      const trimmed = dto.locationId.trim();
-      if (!trimmed) {
-        locationId = null;
-      } else {
-        const loc = await this.prisma.location.findFirst({
-          where: { id: trimmed, deletedAt: null, isActive: true },
+    /** Always resolve from DB so we don't rely on a stale session profile. */
+    const requester = await this.prisma.user.findFirst({
+      where: { id: user.id, deletedAt: null },
+      select: { locationId: true, departmentId: true },
+    });
+
+    /**
+     * Ticket origin site: explicit active location override, else the
+     * requester's home location (even if later deactivated — still stamped).
+     */
+    let locationId: string | null = requester?.locationId ?? null;
+    if (dto.locationId !== undefined && String(dto.locationId).trim()) {
+      const trimmed = String(dto.locationId).trim();
+      const loc = await this.prisma.location.findFirst({
+        where: { id: trimmed, deletedAt: null, isActive: true },
+      });
+      if (!loc) throw new BadRequestException('Location not found');
+      locationId = loc.id;
+    } else if (locationId) {
+      // Prefer an active home location; if home was soft-deleted, keep the id
+      // so history stays accurate, but try to map to an active site by code.
+      const home = await this.prisma.location.findFirst({
+        where: { id: locationId },
+      });
+      if (home && (home.deletedAt || !home.isActive)) {
+        const replacement = await this.prisma.location.findFirst({
+          where: {
+            deletedAt: null,
+            isActive: true,
+            OR: [{ code: home.code }, { name: home.name }],
+          },
+          orderBy: { createdAt: 'asc' },
         });
-        if (!loc) throw new BadRequestException('Location not found');
-        locationId = loc.id;
+        if (replacement) locationId = replacement.id;
       }
     }
 
-    const teamId = await this.assignment.resolveTeamId({
+    const departmentId = requester?.departmentId ?? user.departmentId;
+
+    const routing = await this.assignment.resolveRouting({
       categoryId,
       typeId: type.id,
       locationId,
     });
+    const teamId = routing.teamId;
+    const assigneeId = routing.assigneeId;
 
     let parentId: string | undefined;
     if (dto.parentNumber) {
@@ -182,9 +296,10 @@ export class TicketsService {
         impact,
         urgency,
         requesterId: user.id,
-        departmentId: user.departmentId,
+        departmentId,
         locationId,
         teamId: teamId ?? undefined,
+        assigneeId: assigneeId ?? undefined,
         parentId,
         majorIncident,
         cabRequired: type.code === 'change',
@@ -201,6 +316,15 @@ export class TicketsService {
                     actorId: user.id,
                     field: 'team',
                     newValue: teamId,
+                  },
+                ]
+              : []),
+            ...(assigneeId
+              ? [
+                  {
+                    actorId: user.id,
+                    field: 'assignee',
+                    newValue: assigneeId,
                   },
                 ]
               : []),
@@ -242,6 +366,17 @@ export class TicketsService {
     }
 
     const notified = new Set<string>();
+    if (assigneeId) {
+      await this.notifications.notify({
+        userId: assigneeId,
+        eventType: 'ticket.assigned',
+        title: `Assigned ${number}`,
+        body: ticket.title,
+        link: `/app/tickets/${ticket.number}`,
+        email: { ticketNumber: number, eventLabel: 'Assigned to you' },
+      });
+      notified.add(assigneeId);
+    }
     if (teamId) {
       const members = await this.prisma.teamMember.findMany({
         where: { teamId },
@@ -249,6 +384,7 @@ export class TicketsService {
         take: 20,
       });
       for (const m of members) {
+        if (notified.has(m.userId)) continue;
         await this.notifications.notify({
           userId: m.userId,
           eventType: 'ticket.created',
@@ -265,10 +401,38 @@ export class TicketsService {
       await this.notifications.notify({
         userId: ticket.requesterId,
         eventType: 'ticket.created',
-        title: `Ticket created ${number}`,
+        title: `Ticket opened ${number}`,
         body: ticket.title,
         link: `/app/tickets/${ticket.number}`,
-        email: { ticketNumber: number, eventLabel: 'Ticket created' },
+        email: { ticketNumber: number, eventLabel: 'Ticket opened' },
+      });
+    }
+
+    this.webhooks.emit('ticket.created', {
+      ticket: {
+        id: ticket.id,
+        number: ticket.number,
+        title: ticket.title,
+        statusCode: ticket.status?.code ?? null,
+        priorityCode: ticket.priority?.code ?? null,
+        typeCode: ticket.type?.code ?? null,
+        requesterId: ticket.requesterId,
+        assigneeId: ticket.assigneeId,
+        teamId: ticket.teamId,
+        isMajorIncident: ticket.majorIncident,
+      },
+      actorId: user.id,
+    });
+    if (assigneeId) {
+      this.webhooks.emit('ticket.assigned', {
+        ticket: {
+          id: ticket.id,
+          number: ticket.number,
+          title: ticket.title,
+          assigneeId,
+        },
+        actorId: user.id,
+        previousAssigneeId: null,
       });
     }
 
@@ -290,13 +454,15 @@ export class TicketsService {
       majorIncident?: boolean;
     } = {},
   ) {
-    const where: Prisma.TicketWhereInput = { deletedAt: null };
-    if (!this.canReadAll(user)) {
-      where.requesterId = user.id;
-    }
+    const where: Prisma.TicketWhereInput = {
+      deletedAt: null,
+      ...this.visibilityWhere(user),
+    };
 
     const staff = this.canStaffTickets(user);
-    if (opts.locationId && staff) {
+    const orgWide = this.canReadOrgTickets(user);
+
+    if (opts.locationId && orgWide) {
       where.locationId = opts.locationId;
     }
     if (opts.typeCode) {
@@ -308,14 +474,16 @@ export class TicketsService {
     if (opts.majorIncident !== undefined && staff) {
       where.majorIncident = opts.majorIncident;
     }
-    if (staff && opts.queue === 'mine') {
+
+    // Org-wide staff can filter queues; agents are already limited to their work.
+    if (orgWide && opts.queue === 'mine') {
       where.assigneeId = user.id;
-    } else if (staff && opts.queue === 'unassigned') {
+    } else if (orgWide && opts.queue === 'unassigned') {
       where.assigneeId = null;
       if (!opts.statusCode) {
         where.status = { isTerminal: false };
       }
-    } else if (opts.assigneeId && staff) {
+    } else if (orgWide && opts.assigneeId) {
       where.assigneeId = opts.assigneeId;
     }
 
@@ -338,7 +506,13 @@ export class TicketsService {
       throw new ForbiddenException('Queue board requires agent access');
     }
 
-    const scope = opts.scope ?? 'all';
+    const orgWide = this.canReadOrgTickets(user);
+    let scope = opts.scope ?? (orgWide ? 'all' : 'mine');
+    // Agents without org-wide read are limited to their assignments.
+    if (!orgWide) {
+      scope = 'mine';
+    }
+
     const where: Prisma.TicketWhereInput = {
       deletedAt: null,
       status: { isTerminal: false },
@@ -427,7 +601,11 @@ export class TicketsService {
     const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
 
     const tickets = await this.prisma.ticket.findMany({
-      where: { deletedAt: null, majorIncident: true },
+      where: {
+        deletedAt: null,
+        majorIncident: true,
+        ...this.visibilityWhere(user),
+      },
       orderBy: [{ createdAt: 'desc' }],
       take: 100,
       include: {
@@ -529,10 +707,10 @@ export class TicketsService {
 
   /** CSV of the same ticket visibility as list (scoped for employees). */
   async exportCsv(user: AuthUserView, ipAddress?: string | null) {
-    const where: Prisma.TicketWhereInput = { deletedAt: null };
-    if (!this.canReadAll(user)) {
-      where.requesterId = user.id;
-    }
+    const where: Prisma.TicketWhereInput = {
+      deletedAt: null,
+      ...this.visibilityWhere(user),
+    };
 
     const tickets = await this.prisma.ticket.findMany({
       where,
@@ -841,16 +1019,25 @@ export class TicketsService {
       if (!this.canStaffTickets(user)) {
         throw new ForbiddenException('Cannot change ticket location');
       }
-      const nextLoc =
+      let nextLoc: string | null =
         dto.locationId === null || dto.locationId.trim() === ''
           ? null
           : dto.locationId.trim();
+      // Empty selection → fall back to the requester's home location.
+      if (!nextLoc) {
+        const requester = await this.prisma.user.findFirst({
+          where: { id: existing.requesterId },
+          select: { locationId: true },
+        });
+        nextLoc = requester?.locationId ?? null;
+      }
       if (nextLoc) {
         const loc = await this.prisma.location.findFirst({
           where: { id: nextLoc, deletedAt: null },
         });
         if (!loc) throw new BadRequestException('Location not found');
         data.location = { connect: { id: loc.id } };
+        nextLoc = loc.id;
       } else {
         data.location = { disconnect: true };
       }
@@ -1038,19 +1225,21 @@ export class TicketsService {
     }
 
     if (dto.statusCode && dto.statusCode !== existing.status.code) {
+      const eventType = statusChangeEventType(dto.statusCode);
+      const eventLabel = statusChangeLabel(dto.statusCode);
       const statusRecipients = new Set<string>([ticket.requesterId]);
       if (ticket.assigneeId) statusRecipients.add(ticket.assigneeId);
       statusRecipients.delete(user.id);
       for (const userId of statusRecipients) {
         await this.notifications.notify({
           userId,
-          eventType: 'ticket.status',
-          title: `${ticket.number} status → ${dto.statusCode}`,
+          eventType,
+          title: `${ticket.number} · ${eventLabel}`,
           body: `${ticket.title} (${existing.status.code} → ${dto.statusCode})`,
           link: `/app/tickets/${ticket.number}`,
           email: {
             ticketNumber: ticket.number,
-            eventLabel: `Status: ${dto.statusCode}`,
+            eventLabel,
           },
         });
       }
@@ -1058,14 +1247,47 @@ export class TicketsService {
         ticketId: ticket.id,
         actorId: user.id,
         alreadyNotified: statusRecipients,
-        eventType: 'ticket.status',
-        title: `${ticket.number} status → ${dto.statusCode}`,
+        eventType,
+        title: `${ticket.number} · ${eventLabel}`,
         body: `${ticket.title} (${existing.status.code} → ${dto.statusCode})`,
         link: `/app/tickets/${ticket.number}`,
         email: {
           ticketNumber: ticket.number,
-          eventLabel: `Status: ${dto.statusCode}`,
+          eventLabel,
         },
+      });
+    }
+
+    const changedFields = history.map((h) => h.field);
+    if (changedFields.length > 0) {
+      this.webhooks.emit('ticket.updated', {
+        ticket: {
+          id: ticket.id,
+          number: ticket.number,
+          title: ticket.title,
+          statusCode: ticket.status?.code ?? null,
+          priorityCode: ticket.priority?.code ?? null,
+          typeCode: ticket.type?.code ?? null,
+          requesterId: ticket.requesterId,
+          assigneeId: ticket.assigneeId,
+          teamId: ticket.teamId,
+          isMajorIncident: ticket.majorIncident,
+        },
+        actorId: user.id,
+        changedFields,
+        previousStatusCode: existing.status.code,
+      });
+    }
+    if (dto.assigneeId && dto.assigneeId !== existing.assigneeId) {
+      this.webhooks.emit('ticket.assigned', {
+        ticket: {
+          id: ticket.id,
+          number: ticket.number,
+          title: ticket.title,
+          assigneeId: dto.assigneeId,
+        },
+        actorId: user.id,
+        previousAssigneeId: existing.assigneeId,
       });
     }
 
@@ -1161,6 +1383,20 @@ export class TicketsService {
           ticketNumber: ticket.number,
           eventLabel: 'New comment',
         },
+      });
+      this.webhooks.emit('ticket.commented', {
+        ticket: {
+          id: ticket.id,
+          number: ticket.number,
+          title: ticket.title,
+        },
+        comment: {
+          id: comment.id,
+          body: preview,
+          isInternal: false,
+          authorId: user.id,
+        },
+        actorId: user.id,
       });
     }
 
@@ -1934,10 +2170,7 @@ export class TicketsService {
 
     if (!ticket) throw new NotFoundException('Ticket not found');
 
-    const allowed =
-      ticket.requesterId === user.id || this.canReadAll(user);
-    if (!allowed) throw new ForbiddenException('Ticket not found');
-
+    await this.assertTicketVisible(user, ticket);
     return ticket;
   }
 
