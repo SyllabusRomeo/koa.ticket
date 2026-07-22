@@ -32,6 +32,10 @@ model User {
   lastLoginAt        DateTime? @map("last_login_at")
   mfaEnabled         Boolean   @default(false) @map("mfa_enabled")
   mfaSecret          String?   @map("mfa_secret")
+  /** local | entra */
+  authProvider       String    @default("local") @map("auth_provider")
+  /** IdP subject (e.g. Entra oid) when linked via SSO */
+  externalSubject    String?   @map("external_subject")
   departmentId       String?   @map("department_id")
   locationId         String?   @map("location_id")
   deletedAt          DateTime? @map("deleted_at")
@@ -46,6 +50,7 @@ model User {
   sessions   Session[]
   teamMembers TeamMember[]
   passwordResetTokens PasswordResetToken[]
+  authChallenges AuthChallenge[]
   requestedTickets Ticket[] @relation("TicketRequester")
   assignedTickets  Ticket[] @relation("TicketAssignee")
   ticketComments   TicketComment[]
@@ -156,6 +161,25 @@ model LoginAttempt {
 
   @@index([email, createdAt])
   @@map("login_attempts")
+}
+
+/** Short-lived MFA login / OAuth CSRF challenges */
+model AuthChallenge {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique @map("token_hash")
+  /// mfa_login | entra_oauth
+  kind      String
+  userId    String?   @map("user_id")
+  /// Optional JSON blob (e.g. OAuth nonce meta)
+  meta      String?
+  expiresAt DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([kind, expiresAt])
+  @@map("auth_challenges")
 }
 
 model PasswordResetToken {

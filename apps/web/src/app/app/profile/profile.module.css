@@ -134,3 +134,28 @@
   font-size: 0.78rem;
   font-weight: 600;
 }
+
+.mfaQr {
+  width: 220px;
+  height: 220px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(15, 74, 64, 0.12);
+  background: #fff;
+}
+
+.mfaSecret {
+  margin: 0;
+  font-size: 0.88rem;
+  word-break: break-all;
+}
+
+.mfaSecret code {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.mfaStatusOn {
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-primary);
+}

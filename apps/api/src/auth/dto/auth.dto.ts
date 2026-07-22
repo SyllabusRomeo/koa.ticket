@@ -76,3 +76,29 @@ export class ResetPasswordDto {
   })
   newPassword!: string;
 }
+
+export class MfaCodeDto {
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'Authenticator code must be 6 digits' })
+  code!: string;
+}
+
+export class MfaVerifyLoginDto {
+  @IsString()
+  @MinLength(1)
+  mfaToken!: string;
+
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'Authenticator code must be 6 digits' })
+  code!: string;
+}
+
+export class MfaDisableDto {
+  @IsString()
+  @MinLength(1)
+  password!: string;
+
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'Authenticator code must be 6 digits' })
+  code!: string;
+}

@@ -339,10 +339,52 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   login(email: string, password: string) {
-    return request<{ user: AuthUser }>('/auth/login', {
+    return request<{
+      user?: AuthUser;
+      mfaRequired?: boolean;
+      mfaToken?: string;
+    }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+  },
+  verifyMfaLogin(mfaToken: string, code: string) {
+    return request<{ user: AuthUser }>('/auth/mfa/verify-login', {
+      method: 'POST',
+      body: JSON.stringify({ mfaToken, code }),
+    });
+  },
+  mfaSetup() {
+    return request<{
+      secret: string;
+      otpauthUrl: string;
+      qrDataUrl: string;
+    }>('/auth/mfa/setup', { method: 'POST' });
+  },
+  mfaConfirm(code: string) {
+    return request<{ ok: boolean; mfaEnabled: boolean }>('/auth/mfa/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+  },
+  mfaCancelSetup() {
+    return request<{ ok: boolean }>('/auth/mfa/cancel-setup', {
+      method: 'POST',
+    });
+  },
+  mfaDisable(password: string, code: string) {
+    return request<{ ok: boolean; mfaEnabled: boolean }>('/auth/mfa/disable', {
+      method: 'POST',
+      body: JSON.stringify({ password, code }),
+    });
+  },
+  ssoProviders() {
+    return request<{ providers: Array<{ id: string; label: string }> }>(
+      '/auth/sso/providers',
+    );
+  },
+  ssoEntraStartUrl() {
+    return `${API_BASE}/auth/sso/entra`;
   },
   logout() {
     return request<{ ok: boolean }>('/auth/logout', { method: 'POST' });

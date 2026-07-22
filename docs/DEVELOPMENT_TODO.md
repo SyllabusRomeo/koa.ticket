@@ -38,7 +38,7 @@ Update statuses here as work lands. Principle: **capture data → workflows → 
 | H3 | Problem management workflow | `[x]` | `/app/problems`, RCA fields, Under investigation / Known error, Raise problem |
 | H4 | Change management / CAB | `[x]` | `/app/changes`, plan/rollback/schedule, Submit to CAB → Approvals → Scheduled |
 | H5 | Major-incident ops dashboard | `[x]` | `/app/major-incidents` KPIs + active MI cards with related work |
-| H6 | SSO / MFA (Entra/SAML) | `[ ]` | Session + Argon2 today |
+| H6 | SSO / MFA (Entra/SAML) | `[x]` | TOTP MFA + optional Microsoft Entra OIDC |
 | H7 | Stage-duration / bottleneck analytics | `[x]` | Reports → Stage bottlenecks + stuck list; detail bars |
 
 ---

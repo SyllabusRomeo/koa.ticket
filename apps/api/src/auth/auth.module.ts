@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { AuthChallengeService } from './auth-challenge.service';
+import { MfaService } from './mfa.service';
+import { SsoService } from './sso.service';
 import { PasswordService } from './password.service';
 import { SessionService } from './session.service';
 import { SessionAuthGuard } from './guards/session-auth.guard';
@@ -10,6 +13,9 @@ import { RolesGuard } from './guards/roles.guard';
   controllers: [AuthController],
   providers: [
     AuthService,
+    AuthChallengeService,
+    MfaService,
+    SsoService,
     PasswordService,
     SessionService,
     SessionAuthGuard,
@@ -17,6 +23,9 @@ import { RolesGuard } from './guards/roles.guard';
   ],
   exports: [
     AuthService,
+    AuthChallengeService,
+    MfaService,
+    SsoService,
     PasswordService,
     SessionService,
     SessionAuthGuard,

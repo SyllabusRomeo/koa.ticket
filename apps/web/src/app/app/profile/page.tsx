@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { KeyRound, Save } from 'lucide-react';
+import { KeyRound, Save, ShieldCheck, ShieldOff } from 'lucide-react';
 import { api, type AuthUser } from '@/lib/api';
 import { roleLabel } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
@@ -47,6 +47,15 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
+
+  const [mfaSetup, setMfaSetup] = useState<{
+    secret: string;
+    qrDataUrl: string;
+  } | null>(null);
+  const [mfaConfirmCode, setMfaConfirmCode] = useState('');
+  const [mfaDisablePassword, setMfaDisablePassword] = useState('');
+  const [mfaDisableCode, setMfaDisableCode] = useState('');
+  const [mfaBusy, setMfaBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -138,6 +147,75 @@ export default function ProfilePage() {
     }
   }
 
+  async function onBeginMfaSetup() {
+    setError(null);
+    setMessage(null);
+    setMfaBusy(true);
+    try {
+      const setup = await api.mfaSetup();
+      setMfaSetup({ secret: setup.secret, qrDataUrl: setup.qrDataUrl });
+      setMfaConfirmCode('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start MFA setup');
+    } finally {
+      setMfaBusy(false);
+    }
+  }
+
+  async function onConfirmMfa(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+    setMfaBusy(true);
+    try {
+      await api.mfaConfirm(mfaConfirmCode.replace(/\s+/g, ''));
+      setUser((u) => (u ? { ...u, mfaEnabled: true } : u));
+      setMfaSetup(null);
+      setMfaConfirmCode('');
+      setMessage('Two-factor authentication is enabled.');
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Could not confirm MFA setup',
+      );
+    } finally {
+      setMfaBusy(false);
+    }
+  }
+
+  async function onCancelMfaSetup() {
+    setMfaBusy(true);
+    try {
+      await api.mfaCancelSetup();
+    } catch {
+      /* ignore */
+    } finally {
+      setMfaSetup(null);
+      setMfaConfirmCode('');
+      setMfaBusy(false);
+    }
+  }
+
+  async function onDisableMfa(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+    setMfaBusy(true);
+    try {
+      await api.mfaDisable(
+        mfaDisablePassword,
+        mfaDisableCode.replace(/\s+/g, ''),
+      );
+      setUser((u) => (u ? { ...u, mfaEnabled: false } : u));
+      setMfaDisablePassword('');
+      setMfaDisableCode('');
+      setMessage('Two-factor authentication has been disabled.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not disable MFA');
+    } finally {
+      setMfaBusy(false);
+    }
+  }
+
   if (loading || !user) {
     return (
       <main className={appStyles.page}>
@@ -152,8 +230,8 @@ export default function ProfilePage() {
         <header className={styles.hero}>
           <p className={styles.eyebrow}>Account</p>
           <p className={styles.intro}>
-            Update how you appear in LogIT, set your home location, and change
-            your password.
+            Update how you appear in LogIT, set your home location, change your
+            password, and manage two-factor authentication.
           </p>
         </header>
 
@@ -303,6 +381,106 @@ export default function ProfilePage() {
               </Button>
             </div>
           </form>
+        </section>
+
+        <section className={styles.panel}>
+          <h2 className={styles.sectionTitle}>Two-factor authentication</h2>
+          <p className={styles.sectionHint}>
+            Protect your account with an authenticator app (TOTP). Recommended
+            for privileged roles.
+          </p>
+          {user.mfaEnabled ? (
+            <form className={styles.form} onSubmit={onDisableMfa}>
+              <p className={styles.mfaStatusOn}>MFA is enabled on this account.</p>
+              <label className={styles.field}>
+                <span>Current password</span>
+                <input
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={mfaDisablePassword}
+                  onChange={(e) => setMfaDisablePassword(e.target.value)}
+                />
+              </label>
+              <label className={styles.field}>
+                <span>Authenticator code</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  required
+                  maxLength={6}
+                  autoComplete="one-time-code"
+                  value={mfaDisableCode}
+                  onChange={(e) =>
+                    setMfaDisableCode(
+                      e.target.value.replace(/\D/g, '').slice(0, 6),
+                    )
+                  }
+                />
+              </label>
+              <div className={styles.actions}>
+                <Button type="submit" variant="secondary" disabled={mfaBusy}>
+                  <Icon icon={ShieldOff} size="sm" />
+                  {mfaBusy ? 'Disabling…' : 'Disable MFA'}
+                </Button>
+              </div>
+            </form>
+          ) : mfaSetup ? (
+            <form className={styles.form} onSubmit={onConfirmMfa}>
+              <p className={styles.sectionHint}>
+                Scan this QR code in your authenticator app, then enter a code
+                to confirm.
+              </p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className={styles.mfaQr}
+                src={mfaSetup.qrDataUrl}
+                alt="MFA QR code"
+              />
+              <p className={styles.mfaSecret}>
+                Or enter secret manually:{' '}
+                <code>{mfaSetup.secret}</code>
+              </p>
+              <label className={styles.field}>
+                <span>Authenticator code</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  required
+                  maxLength={6}
+                  autoComplete="one-time-code"
+                  value={mfaConfirmCode}
+                  onChange={(e) =>
+                    setMfaConfirmCode(
+                      e.target.value.replace(/\D/g, '').slice(0, 6),
+                    )
+                  }
+                  autoFocus
+                />
+              </label>
+              <div className={styles.actions}>
+                <Button type="submit" disabled={mfaBusy}>
+                  <Icon icon={ShieldCheck} size="sm" />
+                  {mfaBusy ? 'Confirming…' : 'Confirm and enable'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={mfaBusy}
+                  onClick={onCancelMfaSetup}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className={styles.actions}>
+              <Button type="button" disabled={mfaBusy} onClick={onBeginMfaSetup}>
+                <Icon icon={ShieldCheck} size="sm" />
+                {mfaBusy ? 'Preparing…' : 'Set up MFA'}
+              </Button>
+            </div>
+          )}
         </section>
       </div>
     </AppShell>

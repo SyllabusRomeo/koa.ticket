@@ -4,6 +4,7 @@ import {
   Get,
   Patch,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -12,9 +13,14 @@ import { ConfigService } from '@nestjs/config';
 import { SESSION_COOKIE } from '@logit/shared';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
+import { MfaService } from './mfa.service';
+import { SsoService } from './sso.service';
 import {
   ChangePasswordDto,
   LoginDto,
+  MfaCodeDto,
+  MfaDisableDto,
+  MfaVerifyLoginDto,
   RequestPasswordResetDto,
   ResetPasswordDto,
   UpdateProfileDto,
@@ -29,6 +35,8 @@ export class AuthController {
 
   constructor(
     private readonly auth: AuthService,
+    private readonly mfa: MfaService,
+    private readonly sso: SsoService,
     config: ConfigService,
   ) {
     this.cookieName = config.get('SESSION_COOKIE') ?? SESSION_COOKIE;
@@ -45,6 +53,30 @@ export class AuthController {
       userAgent: req.headers['user-agent'],
     });
 
+    if (result.mfaRequired) {
+      return { mfaRequired: true, mfaToken: result.mfaToken };
+    }
+
+    res.cookie(
+      this.cookieName,
+      result.sessionToken,
+      this.auth.cookieOptions(result.expiresAt),
+    );
+
+    return { user: result.user, mfaRequired: false };
+  }
+
+  @Post('mfa/verify-login')
+  async verifyMfaLogin(
+    @Body() dto: MfaVerifyLoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.auth.verifyMfaLogin(dto.mfaToken, dto.code, {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+
     res.cookie(
       this.cookieName,
       result.sessionToken,
@@ -52,6 +84,82 @@ export class AuthController {
     );
 
     return { user: result.user };
+  }
+
+  @Post('mfa/setup')
+  @UseGuards(SessionAuthGuard)
+  setupMfa(@CurrentUser() user: AuthUserView) {
+    return this.mfa.beginSetup(user.id);
+  }
+
+  @Post('mfa/confirm')
+  @UseGuards(SessionAuthGuard)
+  confirmMfa(@CurrentUser() user: AuthUserView, @Body() dto: MfaCodeDto) {
+    return this.mfa.confirmSetup(user.id, dto.code);
+  }
+
+  @Post('mfa/cancel-setup')
+  @UseGuards(SessionAuthGuard)
+  cancelMfaSetup(@CurrentUser() user: AuthUserView) {
+    return this.mfa.cancelSetup(user.id);
+  }
+
+  @Post('mfa/disable')
+  @UseGuards(SessionAuthGuard)
+  disableMfa(@CurrentUser() user: AuthUserView, @Body() dto: MfaDisableDto) {
+    return this.mfa.disable(user.id, dto.password, dto.code);
+  }
+
+  @Get('sso/providers')
+  ssoProviders() {
+    return this.sso.providers();
+  }
+
+  @Get('sso/entra')
+  async entraStart(@Res() res: Response) {
+    const { authorizeUrl } = await this.sso.beginEntra();
+    return res.redirect(authorizeUrl);
+  }
+
+  @Get('sso/entra/callback')
+  async entraCallback(
+    @Query('code') code: string | undefined,
+    @Query('state') state: string | undefined,
+    @Query('error') error: string | undefined,
+    @Query('error_description') errorDescription: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const web = this.sso.webOrigin().replace(/\/$/, '');
+    if (error) {
+      const msg = encodeURIComponent(
+        errorDescription || error || 'SSO failed',
+      );
+      return res.redirect(`${web}/login?ssoError=${msg}`);
+    }
+    if (!code || !state) {
+      return res.redirect(
+        `${web}/login?ssoError=${encodeURIComponent('Missing SSO code')}`,
+      );
+    }
+
+    try {
+      const result = await this.sso.completeEntra(code, state, {
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+      res.cookie(
+        this.cookieName,
+        result.sessionToken,
+        this.auth.cookieOptions(result.expiresAt),
+      );
+      return res.redirect(result.redirectTo);
+    } catch (err) {
+      const msg = encodeURIComponent(
+        err instanceof Error ? err.message : 'SSO failed',
+      );
+      return res.redirect(`${web}/login?ssoError=${msg}`);
+    }
   }
 
   @Post('logout')

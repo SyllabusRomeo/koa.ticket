@@ -6,6 +6,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthChallengeService } from './auth-challenge.service';
+import { MfaService } from './mfa.service';
 import { PasswordService } from './password.service';
 import { SessionService } from './session.service';
 
@@ -31,6 +33,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
     private readonly sessions: SessionService,
+    private readonly challenges: AuthChallengeService,
+    private readonly mfa: MfaService,
     private readonly config: ConfigService,
   ) {}
 
@@ -148,6 +152,18 @@ export class AuthService {
       },
     });
 
+    if (user!.mfaEnabled && user!.mfaSecret) {
+      const challenge = await this.challenges.create({
+        kind: 'mfa_login',
+        userId: user!.id,
+        ttlMinutes: 10,
+      });
+      return {
+        mfaRequired: true as const,
+        mfaToken: challenge.token,
+      };
+    }
+
     const session = await this.sessions.create({
       userId: user!.id,
       ipAddress: meta.ipAddress,
@@ -155,7 +171,53 @@ export class AuthService {
     });
 
     return {
+      mfaRequired: false as const,
       user: this.toAuthUser(user!),
+      sessionToken: session.token,
+      expiresAt: session.expiresAt,
+    };
+  }
+
+  async verifyMfaLogin(
+    mfaToken: string,
+    code: string,
+    meta: { ipAddress?: string; userAgent?: string },
+  ) {
+    const challenge = await this.challenges.consume(mfaToken, 'mfa_login');
+    if (!challenge?.userId) {
+      throw new UnauthorizedException('Invalid or expired MFA challenge');
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { id: challenge.userId, deletedAt: null, isActive: true },
+      include: {
+        roles: {
+          include: {
+            role: {
+              include: { permissions: { include: { permission: true } } },
+            },
+          },
+        },
+        extraPermissions: { include: { permission: true } },
+      },
+    });
+
+    if (!user?.mfaEnabled || !user.mfaSecret) {
+      throw new UnauthorizedException('MFA is not enabled for this account');
+    }
+
+    if (!this.mfa.verifyCode(user.mfaSecret, code, user.email)) {
+      throw new UnauthorizedException('Invalid authenticator code');
+    }
+
+    const session = await this.sessions.create({
+      userId: user.id,
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+    });
+
+    return {
+      user: this.toAuthUser(user),
       sessionToken: session.token,
       expiresAt: session.expiresAt,
     };
