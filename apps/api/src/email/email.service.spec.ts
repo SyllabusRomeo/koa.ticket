@@ -6,7 +6,14 @@ describe('EmailService', () => {
     const config = {
       get: (key: string) => env[key],
     } as unknown as ConfigService;
-    return new EmailService(config);
+    const prisma = {
+      ticket: { findFirst: jest.fn().mockResolvedValue(null) },
+      emailMessage: {
+        findMany: jest.fn().mockResolvedValue([]),
+        upsert: jest.fn().mockResolvedValue({}),
+      },
+    };
+    return new EmailService(config, prisma as never);
   }
 
   it('reports not configured when SMTP_HOST missing', () => {
@@ -30,7 +37,18 @@ describe('EmailService', () => {
     expect(status.outbound.configured).toBe(true);
     expect(status.outbound.from).toBe('noreply@logit.local');
     expect(status.inbound.webhookUrl).toContain('/integrations/email/inbound');
-    expect(status.imap.implemented).toBe(false);
+    expect(status.imap.implemented).toBe(true);
+    expect(status.imap.configured).toBe(false);
+  });
+
+  it('reports IMAP configured when IMAP_* set', () => {
+    const email = make({
+      IMAP_HOST: 'imap.example.com',
+      IMAP_USER: 'desk@logit.local',
+      IMAP_PASS: 'secret',
+    });
+    expect(email.status().imap.configured).toBe(true);
+    expect(email.status().imap.host).toContain('imap.example.com');
   });
 
   it('skips send gracefully when SMTP not configured', async () => {
@@ -56,10 +74,5 @@ describe('EmailService', () => {
     expect(email.isConfigured()).toBe(true);
     expect(email.smtpPass()).toBe('secret');
     expect(email.fromAddress()).toBe('old@logit.local');
-  });
-
-  it('imap stub returns not implemented', () => {
-    const email = make({});
-    expect(email.pollImapOnce().ok).toBe(false);
   });
 });

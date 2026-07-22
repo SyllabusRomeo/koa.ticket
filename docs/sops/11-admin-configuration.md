@@ -81,9 +81,11 @@ Admins should extend categories via DB/admin APIs as the catalog grows — avoid
 
 ## Assignment rules
 
-**Admin UI (preferred):** `/app/admin/routing` — create/list assignment rules (`org:manage`) and SLA policies (`settings:manage`).
+**Admin UI (preferred):** `/app/admin/routing` — create/list assignment rules (`org:manage`), skills, and SLA policies (`settings:manage`).
 
-API: `GET/POST /api/v1/assignment-rules` (`org:manage`)
+API:
+- `GET/POST /api/v1/assignment-rules` (`org:read` / `org:manage`)
+- `GET/POST /api/v1/skills` · `GET/PUT /api/v1/skills/users/:userId` (`org:read` / `org:manage`)
 
 Rule matching order: lowest `priority` number first. Match optional filters:
 
@@ -92,7 +94,24 @@ Rule matching order: lowest `priority` number first. Match optional filters:
 - locationId  
 → target `teamId`
 
-Seed example: Network → Service Desk.
+Optional second stage (opt-in per rule):
+
+- `autoAssignAssignee` — pick the team member with the fewest open (non-terminal) tickets
+- `skillId` — when set with auto-assign, only agents who have that skill are eligible (if none qualify, team is still set and assignee stays empty)
+
+Seed example: Network → Service Desk with Networking skill + auto-assign.
+
+## Approval policies (multi-step)
+
+**Admin UI:** `/app/admin/approvals` (`settings:manage`)
+
+API: `GET/POST /api/v1/approvals/policies`
+
+- Match optional `ticketTypeId` / `categoryId` / `changeRisk` (lowest priority wins).
+- Ordered steps with role target (`approver`, `it_manager`, …) and mode `any` | `all`.
+- Only the current step creates pending rows; approving the last step opens/schedules the ticket.
+
+Approver queue remains `/app/approvals`.
 
 ## SLA policies
 
@@ -121,12 +140,14 @@ Logo: png/jpg/webp/svg (2 MB). Banner: jpg/png/webp (5 MB). When unset, `/login`
 
 Expand further over time for attachment limits, password policy.
 
-## Integrations (Slack / Teams / Email)
+## Integrations (Slack / Teams / Email / Outbound webhooks)
 
-Sysadmin UI: `/app/admin/integrations` — webhook URLs, env status (Slack, Teams, SMTP), chat ticket simulate, email inbound URL.  
-Docs: [INTEGRATIONS_SLACK_TEAMS.md](../INTEGRATIONS_SLACK_TEAMS.md) · [INTEGRATIONS_EMAIL.md](../INTEGRATIONS_EMAIL.md) · Roadmap: [ENTERPRISE_ROADMAP.md](../ENTERPRISE_ROADMAP.md).
+Sysadmin UI: `/app/admin/integrations` — webhook URLs, env status (Slack, Teams, SMTP), chat ticket simulate, email inbound URL, **outbound signed webhooks**.  
+Docs: [INTEGRATIONS_SLACK_TEAMS.md](../INTEGRATIONS_SLACK_TEAMS.md) · [INTEGRATIONS_EMAIL.md](../INTEGRATIONS_EMAIL.md) · [INTEGRATIONS_OUTBOUND_WEBHOOKS.md](../INTEGRATIONS_OUTBOUND_WEBHOOKS.md) · Roadmap: [ENTERPRISE_ROADMAP.md](../ENTERPRISE_ROADMAP.md).
 
-Outbound email uses `SMTP_*` / `EMAIL_FROM` (skipped gracefully when unset). Inbound: `POST /api/v1/integrations/email/inbound` with optional `EMAIL_INBOUND_SECRET`.
+Outbound email uses `SMTP_*` / `EMAIL_FROM` (skipped gracefully when unset). Inbound: `POST /api/v1/integrations/email/inbound` with optional `EMAIL_INBOUND_SECRET`. Threading uses Message-ID / In-Reply-To (plus subject tokens). Optional IMAP poller: `IMAP_HOST` / `IMAP_USER` / `IMAP_PASS` — see [INTEGRATIONS_EMAIL.md](../INTEGRATIONS_EMAIL.md).
+
+Outbound webhooks: HMAC-SHA256 signed POSTs on `ticket.created` / `updated` / `assigned` / `commented`. Toggle with `WEBHOOKS_ENABLED` (default true). Manage endpoints under Integrations — see [INTEGRATIONS_OUTBOUND_WEBHOOKS.md](../INTEGRATIONS_OUTBOUND_WEBHOOKS.md).
 
 ## Seed vs production
 

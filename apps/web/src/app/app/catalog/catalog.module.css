@@ -1,0 +1,350 @@
+.layout {
+  display: grid;
+  gap: 1.25rem;
+}
+
+@media (min-width: 900px) {
+  .layoutSplit {
+    grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+    align-items: start;
+  }
+}
+
+.intro {
+  margin: 0 0 1rem;
+  max-width: 42rem;
+  line-height: 1.45;
+  opacity: 0.88;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.searchWrap {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.search {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(15, 74, 64, 0.22);
+  background: #fff;
+  font: inherit;
+}
+
+.search:focus {
+  outline: 2px solid var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+.typeFilter {
+  min-height: 2.5rem;
+  padding: 0 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(15, 74, 64, 0.22);
+  background: #fff;
+  font: inherit;
+}
+
+.browse {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.35rem 0.75rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: rgba(15, 74, 64, 0.035);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.item:hover {
+  background: rgba(15, 74, 64, 0.07);
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+.itemActive {
+  border-color: rgba(15, 74, 64, 0.35);
+  background: rgba(237, 244, 172, 0.45);
+  transform: translateX(2px);
+}
+
+.itemTitle {
+  margin: 0;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.itemMeta {
+  margin: 0.15rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  opacity: 0.8;
+}
+
+.itemCode {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  align-self: start;
+  justify-self: end;
+}
+
+.typeChip {
+  display: inline-block;
+  margin-top: 0.35rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: rgba(15, 74, 64, 0.08);
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.detail {
+  position: sticky;
+  top: 1rem;
+  padding: 1.15rem 1.2rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(15, 74, 64, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow-soft);
+  animation: detailIn 0.22s ease both;
+}
+
+@keyframes detailIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.detailEmpty {
+  padding: 1.5rem 1.2rem;
+  border-radius: var(--radius-md);
+  border: 1px dashed rgba(15, 74, 64, 0.2);
+  background: rgba(15, 74, 64, 0.02);
+  color: inherit;
+  opacity: 0.75;
+  text-align: center;
+}
+
+.detailEmpty p {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+}
+
+.detailEyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.detailTitle {
+  margin: 0.25rem 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  color: var(--color-primary);
+}
+
+.detailDesc {
+  margin: 0 0 1rem;
+  line-height: 1.45;
+  opacity: 0.88;
+}
+
+.detailForm {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.detailForm label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.detailForm textarea {
+  width: 100%;
+  min-height: 5.5rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(15, 74, 64, 0.22);
+  background: #fff;
+  font: inherit;
+  resize: vertical;
+}
+
+.detailForm input,
+.detailForm select {
+  width: 100%;
+  min-height: 2.4rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(15, 74, 64, 0.22);
+  background: #fff;
+  font: inherit;
+}
+
+.detailForm textarea:focus,
+.detailForm input:focus,
+.detailForm select:focus {
+  outline: 2px solid var(--color-primary-light);
+  border-color: var(--color-primary);
+}
+
+.helpText {
+  display: block;
+  margin-top: 0.2rem;
+  font-weight: 400;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.checkLabel {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 0.55rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.checkLabel input[type='checkbox'] {
+  width: auto;
+  min-height: 0;
+  margin-top: 0.2rem;
+}
+
+.fieldBuilder {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid rgba(15, 74, 64, 0.12);
+}
+
+.fieldBuilderHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.fieldRow {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(15, 74, 64, 0.12);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.fieldRowTitle {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.fieldRowGrid {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.detailActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.createPanel {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(15, 74, 64, 0.12);
+  background: rgba(15, 74, 64, 0.03);
+}
+
+.createForm {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 520px;
+}
+
+.createForm label {
+  display: grid;
+  gap: 0.3rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.createForm input,
+.createForm textarea,
+.createForm select {
+  width: 100%;
+  min-height: 2.4rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(15, 74, 64, 0.22);
+  background: #fff;
+  font: inherit;
+}
+
+.createForm textarea {
+  min-height: 4.5rem;
+  resize: vertical;
+}
+
+.resultCount {
+  margin: 0 0 0.65rem;
+  font-size: 0.82rem;
+  opacity: 0.7;
+}
+
+@media (max-width: 899px) {
+  .detail {
+    position: static;
+  }
+}

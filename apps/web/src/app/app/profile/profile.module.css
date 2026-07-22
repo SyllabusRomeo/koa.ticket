@@ -159,3 +159,47 @@
   font-weight: 600;
   color: var(--color-primary);
 }
+
+.prefList {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.prefRow {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.65rem 0.7rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-warm, #fbf1da) 55%, #fff);
+  border: 1px solid rgba(15, 74, 64, 0.1);
+}
+
+.prefRow strong {
+  display: block;
+  color: var(--color-primary);
+}
+
+.prefRow span {
+  display: block;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.prefToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-right: 0.85rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+@media (min-width: 640px) {
+  .prefRow {
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+  }
+}

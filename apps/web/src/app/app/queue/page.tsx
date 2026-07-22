@@ -14,7 +14,7 @@ import {
   type AuthUser,
   type TicketSummary,
 } from '@/lib/api';
-import { can, showAgentWorkspace } from '@/lib/access';
+import { can, canSeeOrgTickets, showAgentWorkspace } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import { EmptyState } from '@/components/EmptyState';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -26,7 +26,8 @@ import styles from './queue.module.css';
 
 type Scope = 'all' | 'mine' | 'unassigned';
 
-function parseScope(raw: string | null): Scope {
+function parseScope(raw: string | null, orgWide: boolean): Scope {
+  if (!orgWide) return 'mine';
   if (raw === 'mine' || raw === 'unassigned') return raw;
   return 'all';
 }
@@ -57,8 +58,9 @@ function personLabel(
 function QueueBoardInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const scope = parseScope(searchParams.get('scope'));
   const [user, setUser] = useState<AuthUser | null>(null);
+  const orgWide = canSeeOrgTickets(user);
+  const scope = parseScope(searchParams.get('scope'), orgWide);
   const [board, setBoard] = useState<BoardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +86,14 @@ function QueueBoardInner() {
           return;
         }
         setUser(me);
-        await load(scope);
+        const nextScope = parseScope(
+          searchParams.get('scope'),
+          canSeeOrgTickets(me),
+        );
+        if (!canSeeOrgTickets(me) && searchParams.get('scope') !== 'mine') {
+          router.replace('/app/queue?scope=mine');
+        }
+        await load(nextScope);
       } catch {
         if (!cancelled) router.replace('/login');
       } finally {
@@ -94,9 +103,10 @@ function QueueBoardInner() {
     return () => {
       cancelled = true;
     };
-  }, [router, load, scope]);
+  }, [router, load, searchParams]);
 
   function changeScope(next: Scope) {
+    if (!orgWide && next !== 'mine') return;
     const qs = next === 'all' ? '' : `?scope=${next}`;
     router.replace(`/app/queue${qs}`);
   }
@@ -213,6 +223,15 @@ function QueueBoardInner() {
   if (!user) return null;
 
   const canWrite = can(user, 'tickets:write');
+  const scopeOptions = (
+    orgWide
+      ? ([
+          ['all', 'All open'],
+          ['mine', 'Mine'],
+          ['unassigned', 'Unassigned'],
+        ] as const)
+      : ([['mine', 'Assigned to me']] as const)
+  );
 
   return (
     <AppShell user={user} onLogout={logout} title="Queue board">
@@ -222,8 +241,9 @@ function QueueBoardInner() {
             <p className={styles.eyebrow}>Agent workspace</p>
             <h1>Queue board</h1>
             <p className={styles.lede}>
-              Pipeline view of open work — drag cards to advance status
-              {canWrite ? '' : ' (read-only)'}.
+              {orgWide
+                ? `Pipeline view of open work — drag cards to advance status${canWrite ? '' : ' (read-only)'}.`
+                : `Your assigned open tickets — drag cards to advance status${canWrite ? '' : ' (read-only)'}.`}
             </p>
           </div>
           <div className={styles.topActions}>
@@ -232,13 +252,7 @@ function QueueBoardInner() {
               role="tablist"
               aria-label="Queue scope"
             >
-              {(
-                [
-                  ['all', 'All open'],
-                  ['mine', 'Mine'],
-                  ['unassigned', 'Unassigned'],
-                ] as const
-              ).map(([value, label]) => (
+              {scopeOptions.map(([value, label]) => (
                 <button
                   key={value}
                   type="button"

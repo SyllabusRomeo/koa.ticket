@@ -142,11 +142,37 @@ async function main() {
         create: { roleId: saved.id, permissionId: perm.id },
       });
     }
+
+    // Keep role grants aligned with ROLE_DEFS (drop extras from earlier experiments).
+    const allowed = new Set<string>(role.permissions);
+    const existing = await prisma.rolePermission.findMany({
+      where: { roleId: saved.id },
+      include: { permission: true },
+    });
+    for (const row of existing) {
+      if (!allowed.has(row.permission.code)) {
+        await prisma.rolePermission.delete({
+          where: {
+            roleId_permissionId: {
+              roleId: saved.id,
+              permissionId: row.permissionId,
+            },
+          },
+        });
+      }
+    }
   }
 
   const hq = await prisma.location.upsert({
     where: { code: 'HQ-ACC' },
-    update: {},
+    update: {
+      name: 'Head Office — Accra',
+      country: 'GH',
+      site: 'Accra HQ',
+      timezone: 'Africa/Accra',
+      isActive: true,
+      deletedAt: null,
+    },
     create: {
       code: 'HQ-ACC',
       name: 'Head Office — Accra',
@@ -246,7 +272,12 @@ async function main() {
   });
   const employee = await prisma.user.upsert({
     where: { email: demoEmail },
-    update: { passwordHash: demoHash, isActive: true, deletedAt: null },
+    update: {
+      passwordHash: demoHash,
+      isActive: true,
+      deletedAt: null,
+      locationId: hq.id,
+    },
     create: {
       email: demoEmail,
       firstName: 'Ama',
@@ -659,7 +690,57 @@ async function main() {
     }));
   void sla;
 
-  // Phase 6 — assignment Network → Service Desk
+  // Phase 6 — skills + assignment Network → Service Desk (auto-assign)
+  const skillDefs = [
+    {
+      code: 'NETWORK',
+      name: 'Networking',
+      description: 'LAN/WAN, VPN, firewall, Wi-Fi',
+    },
+    {
+      code: 'ENDPOINT',
+      name: 'Endpoint support',
+      description: 'Laptops, desktops, peripherals',
+    },
+    {
+      code: 'IDENTITY',
+      name: 'Identity & access',
+      description: 'Accounts, MFA, SSO, AD/Entra',
+    },
+  ];
+  const skillsByCode: Record<string, { id: string }> = {};
+  for (const s of skillDefs) {
+    const skill = await prisma.skill.upsert({
+      where: { code: s.code },
+      update: {
+        name: s.name,
+        description: s.description,
+        isActive: true,
+      },
+      create: s,
+    });
+    skillsByCode[s.code] = skill;
+  }
+
+  // Agent: network + endpoint; Senior: all three; Manager: identity lead
+  for (const [user, codes] of [
+    [agent, ['NETWORK', 'ENDPOINT']],
+    [senior, ['NETWORK', 'ENDPOINT', 'IDENTITY']],
+    [manager, ['IDENTITY', 'NETWORK']],
+  ] as const) {
+    for (const code of codes) {
+      const skill = skillsByCode[code];
+      if (!skill) continue;
+      await prisma.userSkill.upsert({
+        where: {
+          userId_skillId: { userId: user.id, skillId: skill.id },
+        },
+        update: {},
+        create: { userId: user.id, skillId: skill.id },
+      });
+    }
+  }
+
   const networkCat = await prisma.category.findUnique({
     where: { code: 'NETWORK' },
   });
@@ -673,7 +754,18 @@ async function main() {
           name: 'Network to Service Desk',
           categoryId: networkCat.id,
           teamId: serviceDesk.id,
+          skillId: skillsByCode.NETWORK?.id,
+          autoAssignAssignee: true,
           priority: 10,
+        },
+      });
+    } else {
+      await prisma.assignmentRule.update({
+        where: { id: existingRule.id },
+        data: {
+          skillId: skillsByCode.NETWORK?.id ?? existingRule.skillId,
+          autoAssignAssignee: true,
+          isActive: true,
         },
       });
     }
@@ -700,6 +792,51 @@ async function main() {
     },
   });
 
+  const laptopFormSchema = [
+    {
+      name: 'justification',
+      label: 'Business justification',
+      type: 'textarea',
+      required: true,
+      placeholder: 'Why is a laptop needed?',
+    },
+    {
+      name: 'neededBy',
+      label: 'Needed by',
+      type: 'text',
+      required: true,
+      placeholder: 'YYYY-MM-DD',
+      helpText: 'Target date for delivery',
+    },
+    {
+      name: 'formFactor',
+      label: 'Form factor',
+      type: 'select',
+      required: true,
+      options: [
+        { value: 'laptop_14', label: '14" laptop' },
+        { value: 'laptop_16', label: '16" laptop' },
+        { value: 'ultrabook', label: 'Ultrabook' },
+      ],
+      defaultValue: 'laptop_14',
+    },
+    {
+      name: 'quantity',
+      label: 'Quantity',
+      type: 'number',
+      required: true,
+      min: 1,
+      max: 10,
+      defaultValue: 1,
+    },
+    {
+      name: 'remoteSetup',
+      label: 'Remote setup required',
+      type: 'checkbox',
+      helpText: 'Ship and configure for remote / WFH use',
+    },
+  ];
+
   await prisma.serviceCatalogItem.upsert({
     where: { code: 'REQ-LAPTOP' },
     update: {
@@ -708,6 +845,7 @@ async function main() {
       ticketTypeCode: 'service_request',
       categoryCode: 'HARDWARE',
       teamId: serviceDesk.id,
+      formSchema: laptopFormSchema,
       isActive: true,
     },
     create: {
@@ -717,6 +855,7 @@ async function main() {
       ticketTypeCode: 'service_request',
       categoryCode: 'HARDWARE',
       teamId: serviceDesk.id,
+      formSchema: laptopFormSchema,
     },
   });
 
@@ -907,7 +1046,7 @@ async function main() {
     statusCode: 'in_progress',
     priorityCode: 'p1_critical',
     categoryCode: 'SOFTWARE',
-    requesterId: employee.id,
+    requesterId: manager.id,
     assigneeId: manager.id,
     majorIncident: true,
     impact: 'high',
@@ -923,7 +1062,7 @@ async function main() {
     statusCode: 'assigned',
     priorityCode: 'p2_high',
     categoryCode: 'SOFTWARE',
-    requesterId: employee.id,
+    requesterId: agent.id,
     assigneeId: agent.id,
     parentNumber: `INC-${year}-000001`,
     impact: 'medium',
@@ -1137,13 +1276,109 @@ async function main() {
     scheduledEnd: hours(1),
   });
 
-  // Approvals for pending items
-  if (reqLaptop) {
+  // M3 — approval policies (multi-step)
+  const reqType = await prisma.ticketType.findUnique({
+    where: { code: 'service_request' },
+  });
+  const accType = await prisma.ticketType.findUnique({
+    where: { code: 'access_request' },
+  });
+  const chgType = await prisma.ticketType.findUnique({
+    where: { code: 'change' },
+  });
+
+  let reqPolicy = await prisma.approvalPolicy.findFirst({
+    where: { name: 'Service / access — single approver' },
+    include: { steps: true },
+  });
+  if (!reqPolicy && reqType) {
+    reqPolicy = await prisma.approvalPolicy.create({
+      data: {
+        name: 'Service / access — single approver',
+        ticketTypeId: reqType.id,
+        priority: 20,
+        steps: {
+          create: [
+            {
+              stepOrder: 1,
+              name: 'Business approver',
+              approverRoleCode: ROLES.APPROVER,
+              mode: 'any',
+            },
+          ],
+        },
+      },
+      include: { steps: true },
+    });
+  }
+  // Mirror for access requests if a separate policy is useful
+  let accPolicy = await prisma.approvalPolicy.findFirst({
+    where: { name: 'Access request — single approver' },
+    include: { steps: true },
+  });
+  if (!accPolicy && accType) {
+    accPolicy = await prisma.approvalPolicy.create({
+      data: {
+        name: 'Access request — single approver',
+        ticketTypeId: accType.id,
+        priority: 20,
+        steps: {
+          create: [
+            {
+              stepOrder: 1,
+              name: 'Access owner',
+              approverRoleCode: ROLES.APPROVER,
+              mode: 'any',
+            },
+          ],
+        },
+      },
+      include: { steps: true },
+    });
+  }
+
+  let cabPolicy = await prisma.approvalPolicy.findFirst({
+    where: { name: 'Change CAB — manager then approver' },
+    include: { steps: { orderBy: { stepOrder: 'asc' } } },
+  });
+  if (!cabPolicy && chgType) {
+    cabPolicy = await prisma.approvalPolicy.create({
+      data: {
+        name: 'Change CAB — manager then approver',
+        ticketTypeId: chgType.id,
+        priority: 10,
+        steps: {
+          create: [
+            {
+              stepOrder: 1,
+              name: 'IT Manager review',
+              approverRoleCode: ROLES.IT_MANAGER,
+              mode: 'any',
+            },
+            {
+              stepOrder: 2,
+              name: 'CAB / business approver',
+              approverRoleCode: ROLES.APPROVER,
+              mode: 'any',
+            },
+          ],
+        },
+      },
+      include: { steps: { orderBy: { stepOrder: 'asc' } } },
+    });
+  }
+
+  // Approvals for pending items (only current step pending)
+  if (reqLaptop && reqPolicy?.steps[0]) {
+    const step = reqPolicy.steps[0];
     await prisma.approval.deleteMany({ where: { ticketId: reqLaptop.id } });
     await prisma.approval.create({
       data: {
         ticketId: reqLaptop.id,
         approverId: approver.id,
+        policyId: reqPolicy.id,
+        stepId: step.id,
+        stepOrder: step.stepOrder,
         status: 'pending',
       },
     });
@@ -1151,12 +1386,17 @@ async function main() {
   const acc = await prisma.ticket.findUnique({
     where: { number: `ACC-${year}-000001` },
   });
-  if (acc) {
+  if (acc && (accPolicy ?? reqPolicy)?.steps[0]) {
+    const policy = accPolicy ?? reqPolicy!;
+    const step = policy.steps[0];
     await prisma.approval.deleteMany({ where: { ticketId: acc.id } });
     await prisma.approval.create({
       data: {
         ticketId: acc.id,
         approverId: approver.id,
+        policyId: policy.id,
+        stepId: step.id,
+        stepOrder: step.stepOrder,
         status: 'pending',
       },
     });
@@ -1164,19 +1404,17 @@ async function main() {
   const chgCab = await prisma.ticket.findUnique({
     where: { number: `CHG-${year}-000001` },
   });
-  if (chgCab) {
+  if (chgCab && cabPolicy?.steps[0]) {
+    const step1 = cabPolicy.steps[0];
     await prisma.approval.deleteMany({ where: { ticketId: chgCab.id } });
-    await prisma.approval.create({
-      data: {
-        ticketId: chgCab.id,
-        approverId: approver.id,
-        status: 'pending',
-      },
-    });
+    // Only step 1 is active; manager must approve before approver sees step 2.
     await prisma.approval.create({
       data: {
         ticketId: chgCab.id,
         approverId: manager.id,
+        policyId: cabPolicy.id,
+        stepId: step1.id,
+        stepOrder: step1.stepOrder,
         status: 'pending',
       },
     });
@@ -1335,6 +1573,48 @@ async function main() {
     },
   });
 
+  const softwareFormSchema = [
+    {
+      name: 'softwareName',
+      label: 'Software name',
+      type: 'text',
+      required: true,
+      placeholder: 'e.g. Adobe Acrobat',
+    },
+    {
+      name: 'licenseNeeded',
+      label: 'New license needed',
+      type: 'checkbox',
+    },
+    {
+      name: 'businessReason',
+      label: 'Business reason',
+      type: 'textarea',
+      required: true,
+    },
+  ];
+
+  const vpnFormSchema = [
+    {
+      name: 'deviceType',
+      label: 'Device type',
+      type: 'select',
+      required: true,
+      options: [
+        { value: 'corporate', label: 'Corporate laptop' },
+        { value: 'byod', label: 'Personal (BYOD)' },
+      ],
+    },
+    {
+      name: 'duration',
+      label: 'Access duration',
+      type: 'select',
+      required: true,
+      options: ['30 days', '90 days', 'Ongoing'],
+      defaultValue: 'Ongoing',
+    },
+  ];
+
   await prisma.serviceCatalogItem.upsert({
     where: { code: 'REQ-SOFTWARE' },
     update: {
@@ -1343,6 +1623,7 @@ async function main() {
       ticketTypeCode: 'service_request',
       categoryCode: 'SOFTWARE',
       teamId: serviceDesk.id,
+      formSchema: softwareFormSchema,
       isActive: true,
     },
     create: {
@@ -1352,6 +1633,7 @@ async function main() {
       ticketTypeCode: 'service_request',
       categoryCode: 'SOFTWARE',
       teamId: serviceDesk.id,
+      formSchema: softwareFormSchema,
     },
   });
   await prisma.serviceCatalogItem.upsert({
@@ -1381,6 +1663,7 @@ async function main() {
       ticketTypeCode: 'access_request',
       categoryCode: 'NETWORK',
       teamId: serviceDesk.id,
+      formSchema: vpnFormSchema,
       isActive: true,
     },
     create: {
@@ -1390,6 +1673,7 @@ async function main() {
       ticketTypeCode: 'access_request',
       categoryCode: 'NETWORK',
       teamId: serviceDesk.id,
+      formSchema: vpnFormSchema,
     },
   });
 
@@ -1489,6 +1773,28 @@ async function main() {
       },
     ],
   });
+
+  // Inactive example outbound webhook (no live URL — enable after pointing at a real receiver)
+  const exampleWebhookName = 'Example outbound (inactive)';
+  const existingHook = await prisma.webhookEndpoint.findFirst({
+    where: { name: exampleWebhookName },
+  });
+  if (!existingHook) {
+    await prisma.webhookEndpoint.create({
+      data: {
+        name: exampleWebhookName,
+        url: 'https://example.com/logit-hooks',
+        secret: 'seed-example-secret-replace-me-xxxxxxxx',
+        isActive: false,
+        eventTypes: [
+          'ticket.created',
+          'ticket.updated',
+          'ticket.assigned',
+          'ticket.commented',
+        ],
+      },
+    });
+  }
 
   console.log('LogIT seed complete (Phase 1–11 MVP + demo sample data).');
   console.log('Demo accounts (development only — never use in production):');

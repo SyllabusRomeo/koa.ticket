@@ -104,12 +104,12 @@ See also [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md) for module matrix and honest P
 - [x] Summary metrics API
 - [x] CSV export with audit
 
-## Phase 11 — Production (Hetzner) (done — scaffold)
+## Phase 11 — Production (Hetzner) (done — scaffold + TLS/CI)
 
 - [x] `docker-compose.prod.yml`
 - [x] Hetzner checklist + backup script
 - [x] Health endpoints retained
-- [ ] Full CI pipeline / TLS cert automation on live host
+- [x] Full CI pipeline (GitHub Actions) + TLS cert bootstrap (`scripts/init-letsencrypt.sh`, `infra/nginx/tls.conf`)
 
 ---
 
@@ -128,4 +128,4 @@ Functional + server authz + validation + migration + audit (if needed) + errors 
 
 See **[GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md)** for the live shipped-vs-pending matrix.
 
-Notable remaining: watchers/worklogs UI, major-incident ops dashboard, collision/presence, queue boards, Problem/Change workflows, IMAP polish, Entra SSO/MFA, CMDB depth, AI assists, signed outbound webhooks, prod TLS/CI automation.
+Notable remaining: Slack/Teams Bot JWT polish, notification digests, reporting heatmaps / scheduled exports, omnichannel metadata, CMDB depth, AI assists, knowledge deflection analytics.

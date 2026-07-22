@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api, type AuthUser, type LocationRef, type TicketSummary } from '@/lib/api';
-import { can } from '@/lib/access';
+import { can, canSeeOrgTickets, canWorkTicketQueue } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import { PendingAttachments } from '@/components/TicketAttachments';
 import { LocationSelect } from '@/components/LocationSelect';
@@ -181,21 +181,50 @@ function TicketsPageInner() {
   }
 
   const canWrite = can(user, 'tickets:write');
-  const showQueueChips =
-    can(user, 'tickets:read_all') || can(user, 'tickets:read_queue');
+  const showQueueChips = canSeeOrgTickets(user);
+  const isAgentScoped =
+    canWorkTicketQueue(user) && !canSeeOrgTickets(user);
   const unassignedCount = tickets.filter((t) => !t.assignee).length;
   const mineCount = tickets.filter((t) => t.assignee?.id === user.id).length;
 
   return (
-    <AppShell user={user} onLogout={logout} title="Tickets">
+    <AppShell
+      user={user}
+      onLogout={logout}
+      title={
+        showQueueChips
+          ? 'Tickets'
+          : isAgentScoped
+            ? 'My assignments'
+            : 'My tickets'
+      }
+    >
       <section className={styles.grid}>
         {canWrite ? (
           <form className={styles.form} onSubmit={onCreate}>
-            <h2>Create ticket</h2>
+            <h2>
+              {showQueueChips || isAgentScoped
+                ? 'Create ticket'
+                : 'Report an issue'}
+            </h2>
             <p className={styles.hint}>
-              Service and access requests go to <strong>Pending Approval</strong>{' '}
-              for approvers. Prefer browsing first?{' '}
-              <a href="/app/catalog">Open Catalog</a>
+              {showQueueChips ? (
+                <>
+                  Service and access requests go to{' '}
+                  <strong>Pending Approval</strong> for approvers. Prefer
+                  browsing first? <a href="/app/catalog">Open Catalog</a>
+                </>
+              ) : isAgentScoped ? (
+                <>
+                  You see tickets <strong>assigned to you</strong>. Managers
+                  with org-wide access can view the full queue.
+                </>
+              ) : (
+                <>
+                  You only see tickets you opened (or watch). Prefer a catalog
+                  item? <a href="/app/catalog">Browse the catalog</a>
+                </>
+              )}
             </p>
             <label>
               Title
@@ -284,7 +313,13 @@ function TicketsPageInner() {
 
         <div className={styles.list}>
           <div className={styles.listHead}>
-            <h2>Your ticket view</h2>
+            <h2>
+              {showQueueChips
+                ? 'Ticket queue'
+                : isAgentScoped
+                  ? 'Assigned to you'
+                  : 'Your requests'}
+            </h2>
             <Button
               type="button"
               variant="secondary"
@@ -295,6 +330,13 @@ function TicketsPageInner() {
               {exporting ? 'Exporting…' : 'Export CSV'}
             </Button>
           </div>
+          {!showQueueChips ? (
+            <p className={styles.hint} style={{ marginTop: 0 }}>
+              {isAgentScoped
+                ? 'Showing only tickets currently assigned to you — not the full organization queue.'
+                : 'Showing only tickets you requested, are assigned, or watch — not the full organization queue.'}
+            </p>
+          ) : null}
           {showQueueChips ? (
             <div
               className={styles.filterChips}

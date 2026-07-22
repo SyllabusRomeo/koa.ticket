@@ -1,8 +1,8 @@
-# Email inbound / outbound — LogIT omnichannel Phase 2
+# Email inbound / outbound — LogIT omnichannel
 
-LogIT sends ticket event emails over SMTP (nodemailer) and accepts inbound parse webhooks to create tickets or add comments.
+LogIT sends ticket event emails over SMTP (nodemailer), accepts inbound parse webhooks, and can poll IMAP for new mail. Threading uses **Message-ID / In-Reply-To / References** plus subject ticket tokens.
 
-**Admin UI:** `/app/admin/integrations` (sysadmin) — Email (SMTP) status card + inbound webhook URL  
+**Admin UI:** `/app/admin/integrations` (sysadmin) — Email (SMTP) + IMAP status, inbound webhook URL, manual IMAP poll  
 **Related:** [INTEGRATIONS_SLACK_TEAMS.md](./INTEGRATIONS_SLACK_TEAMS.md) · [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md)
 
 ---
@@ -20,6 +20,12 @@ LogIT sends ticket event emails over SMTP (nodemailer) and accepts inbound parse
 | `API_PUBLIC_URL` | Public API base for inbound webhook URL display |
 | `EMAIL_INBOUND_SECRET` | Optional Bearer secret for inbound webhook |
 | `INTEGRATION_SERVICE_USER_EMAIL` | Fallback requester when From email is unknown |
+| `IMAP_HOST` | IMAP server (enables poller when set with user/pass) |
+| `IMAP_PORT` | Default `993` |
+| `IMAP_USER` / `IMAP_PASS` | Mailbox credentials (`IMAP_PASSWORD` alias) |
+| `IMAP_MAILBOX` | Folder to poll (default `INBOX`) |
+| `IMAP_POLL_MINUTES` | Poll interval (default `5`, max `60`) |
+| `IMAP_TLS` | Set `false` only for non-TLS lab servers |
 
 When `SMTP_HOST` or from-address is **absent**, outbound sends are **logged and skipped** (no hard failure). In-app notifications still work.
 
@@ -35,6 +41,8 @@ Notifications (`NotificationsService.notify`) create in-app rows and, when SMTP 
 - Status changes (requester / assignee, excluding actor)
 
 Subject format: `[INC-2026-000123] Event label: title`
+
+When the ticket already has inbound email messages, outbound mail sets **In-Reply-To** / **References** so client threads stay together. Outbound Message-IDs are stored in `email_messages`.
 
 ---
 
@@ -54,11 +62,16 @@ Compatible with SendGrid Inbound Parse / Mailgun-style routes:
 | `subject` | Used for ticket token + new-ticket title |
 | `text` / `plain` / `body-plain` | Preferred body |
 | `html` / `body-html` | Used if text missing (tags stripped) |
+| `messageId` / `Message-ID` | Dedupes repeats; stored for threading |
+| `inReplyTo` / `In-Reply-To` | Prefer this over subject for reply routing |
+| `references` / `References` | Fallback thread chain |
 
 ### Routing rules
 
-1. If subject contains `[INC-2026-…]` (or bare `INC-2026-…`) → **public comment** on that ticket.
-2. Otherwise → **create** a new incident (title = cleaned subject, body = email text).
+1. Duplicate **Message-ID** → return existing ticket (`action: duplicate`), no new comment.
+2. **In-Reply-To** / **References** match a stored message → **public comment** on that ticket.
+3. Subject contains `[INC-2026-…]` (or bare `INC-2026-…`) → **public comment**.
+4. Otherwise → **create** a new incident (title = cleaned subject, body = email text).
 
 ### Example — create ticket
 
@@ -70,11 +83,12 @@ Authorization: Bearer <EMAIL_INBOUND_SECRET>
 {
   "from": "demo@logit.local",
   "subject": "VPN down in Accra",
-  "text": "Cannot connect since 09:00."
+  "text": "Cannot connect since 09:00.",
+  "messageId": "<vpn-1@mail.example>"
 }
 ```
 
-### Example — comment on existing ticket
+### Example — comment via reply headers
 
 ```http
 POST /api/v1/integrations/email/inbound
@@ -82,14 +96,16 @@ Content-Type: application/json
 
 {
   "from": "demo@logit.local",
-  "subject": "Re: [INC-2026-000042] VPN down in Accra",
-  "text": "Still failing after reboot."
+  "subject": "Re: VPN down in Accra",
+  "text": "Still failing after reboot.",
+  "messageId": "<vpn-2@mail.example>",
+  "inReplyTo": "<vpn-1@mail.example>"
 }
 ```
 
 ### Provider setup (summary)
 
-**SendGrid Inbound Parse:** Host → MX to SendGrid; Destination URL = `{API}/api/v1/integrations/email/inbound`; POST the raw MIME or parsed fields (from, subject, text).
+**SendGrid Inbound Parse:** Host → MX to SendGrid; Destination URL = `{API}/api/v1/integrations/email/inbound`; POST parsed fields (from, subject, text) plus headers when available.
 
 **Mailgun Routes:** Match recipient → forward / store-and-notify to the same URL with `from`, `subject`, `body-plain`.
 
@@ -99,7 +115,13 @@ Optional: send `Authorization: Bearer <EMAIL_INBOUND_SECRET>`.
 
 ## IMAP poller
 
-**Not implemented** in this MVP. Admin status shows an IMAP stub note. Prefer inbound webhooks for production intake.
+When `IMAP_HOST` + `IMAP_USER` + `IMAP_PASS` are set, the API polls **UNSEEN** messages on a timer (`IMAP_POLL_MINUTES`), parses MIME with mailparser, runs the same inbound pipeline, then marks messages **\\Seen**.
+
+| Method | Path | Auth |
+| --- | --- | --- |
+| `POST` | `/api/v1/integrations/email/imap/poll` | Sysadmin session — run one poll now |
+
+Prefer inbound webhooks when your ESP supports them (lower latency). Use IMAP for mailboxes that only expose IMAP.
 
 ---
 
@@ -107,4 +129,4 @@ Optional: send `Authorization: Bearer <EMAIL_INBOUND_SECRET>`.
 
 - Inbound is a public route; set `EMAIL_INBOUND_SECRET` in production.
 - Unknown From addresses use `INTEGRATION_SERVICE_USER_EMAIL`.
-- Do not commit SMTP credentials; use Render env groups / secret managers.
+- Do not commit SMTP/IMAP credentials; use Render env groups / secret managers.

@@ -46,6 +46,7 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   '/app/admin/departments': Building2,
   '/app/admin/locations': MapPin,
   '/app/admin/routing': Route,
+  '/app/admin/approvals': ClipboardCheck,
   '/app/admin/integrations': Plug,
   '/app/admin/branding': Paintbrush,
 };

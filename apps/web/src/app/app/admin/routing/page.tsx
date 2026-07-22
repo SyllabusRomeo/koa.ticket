@@ -6,13 +6,14 @@ import {
   api,
   type AssignmentRule,
   type AuthUser,
+  type Skill,
   type TeamWithMembers,
 } from '@/lib/api';
 import { can } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import { EmptyState } from '@/components/EmptyState';
 import { Icon } from '@/components/Icon';
-import { GitBranch, Timer } from 'lucide-react';
+import { GitBranch, Timer, Wrench } from 'lucide-react';
 import appStyles from '../../app.module.css';
 import styles from './routing.module.css';
 
@@ -34,13 +35,22 @@ type Priority = { id: string; code: string; name: string };
 type Category = { id: string; code: string; name: string };
 type TicketType = { id: string; code: string; name: string };
 type Location = { id: string; code: string; name: string };
+type DirectoryUser = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  isActive: boolean;
+};
 
 export default function RoutingAdminPage() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [policies, setPolicies] = useState<SlaPolicy[]>([]);
   const [rules, setRules] = useState<AssignmentRule[]>([]);
+  const [skills, setSkills] = useState<Skill[]>([]);
   const [teams, setTeams] = useState<TeamWithMembers[]>([]);
+  const [directory, setDirectory] = useState<DirectoryUser[]>([]);
   const [priorities, setPriorities] = useState<Priority[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [types, setTypes] = useState<TicketType[]>([]);
@@ -60,11 +70,22 @@ export default function RoutingAdminPage() {
   const [ruleCategoryId, setRuleCategoryId] = useState('');
   const [ruleTypeId, setRuleTypeId] = useState('');
   const [ruleLocationId, setRuleLocationId] = useState('');
+  const [ruleSkillId, setRuleSkillId] = useState('');
+  const [ruleAutoAssign, setRuleAutoAssign] = useState(false);
   const [rulePriority, setRulePriority] = useState(100);
+
+  const [skillCode, setSkillCode] = useState('');
+  const [skillName, setSkillName] = useState('');
+  const [skillDesc, setSkillDesc] = useState('');
+
+  const [agentUserId, setAgentUserId] = useState('');
+  const [agentSkillIds, setAgentSkillIds] = useState<string[]>([]);
 
   const canSla = !!user && can(user, 'settings:manage');
   const canRules = !!user && can(user, 'org:manage');
-  const canReadRules = !!user && (can(user, 'org:read') || can(user, 'org:manage'));
+  const canReadRules =
+    !!user && (can(user, 'org:read') || can(user, 'org:manage'));
+  const canUsers = !!user && can(user, 'users:read');
 
   useEffect(() => {
     let cancelled = false;
@@ -86,18 +107,38 @@ export default function RoutingAdminPage() {
           if (!cancelled) setPolicies(p);
         }
         if (can(user, 'org:read') || can(user, 'org:manage')) {
-          const [r, t] = await Promise.all([
+          const [r, t, s] = await Promise.all([
             api.assignmentRules(),
             api.listTeams(),
+            api.listSkills(),
           ]);
           if (!cancelled) {
             setRules(r);
             setTeams(t);
+            setSkills(s);
           }
         }
         if (can(user, 'org:manage')) {
           const locs = await api.listLocations();
           if (!cancelled) setLocations(locs);
+        }
+        if (can(user, 'users:read')) {
+          try {
+            const users = await api.listUsers();
+            if (!cancelled) {
+              setDirectory(
+                users.filter((u) => u.isActive).map((u) => ({
+                  id: u.id,
+                  email: u.email,
+                  firstName: u.firstName,
+                  lastName: u.lastName,
+                  isActive: u.isActive,
+                })),
+              );
+            }
+          } catch {
+            /* optional */
+          }
         }
         try {
           const meta = await api.ticketMeta();
@@ -166,6 +207,8 @@ export default function RoutingAdminPage() {
         categoryId: ruleCategoryId || undefined,
         ticketTypeId: ruleTypeId || undefined,
         locationId: ruleLocationId || undefined,
+        skillId: ruleSkillId || undefined,
+        autoAssignAssignee: ruleAutoAssign,
         priority: rulePriority,
       });
       setRuleName('');
@@ -173,6 +216,8 @@ export default function RoutingAdminPage() {
       setRuleCategoryId('');
       setRuleTypeId('');
       setRuleLocationId('');
+      setRuleSkillId('');
+      setRuleAutoAssign(false);
       setMessage('Assignment rule created.');
       setRules(await api.assignmentRules());
     } catch (err) {
@@ -180,6 +225,67 @@ export default function RoutingAdminPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onCreateSkill(e: FormEvent) {
+    e.preventDefault();
+    if (!canRules) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await api.createSkill({
+        code: skillCode.trim(),
+        name: skillName.trim(),
+        description: skillDesc.trim() || undefined,
+      });
+      setSkillCode('');
+      setSkillName('');
+      setSkillDesc('');
+      setMessage('Skill created.');
+      setSkills(await api.listSkills());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create skill');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onLoadAgentSkills(userId: string) {
+    setAgentUserId(userId);
+    setAgentSkillIds([]);
+    if (!userId) return;
+    try {
+      const owned = await api.getUserSkills(userId);
+      setAgentSkillIds(owned.map((s) => s.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load skills');
+    }
+  }
+
+  async function onSaveAgentSkills(e: FormEvent) {
+    e.preventDefault();
+    if (!canRules || !agentUserId) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await api.setUserSkills(agentUserId, agentSkillIds);
+      setMessage('Agent skills updated.');
+      setSkills(await api.listSkills());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save skills');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function toggleAgentSkill(skillId: string) {
+    setAgentSkillIds((prev) =>
+      prev.includes(skillId)
+        ? prev.filter((id) => id !== skillId)
+        : [...prev, skillId],
+    );
   }
 
   if (loading || !user) {
@@ -193,8 +299,9 @@ export default function RoutingAdminPage() {
   return (
     <AppShell user={user} onLogout={logout} title="Routing & SLA">
       <p className={appStyles.mission}>
-        Configure SLA targets and automatic team routing. Sysadmins manage SLA
-        policies; org managers manage assignment rules.
+        Configure SLA targets, skills, and automatic routing. Rules can send
+        tickets to a team and optionally auto-assign the least-loaded skilled
+        agent.
       </p>
       {error ? (
         <p className={appStyles.error} role="alert">
@@ -306,6 +413,9 @@ export default function RoutingAdminPage() {
                       {r.location ? ` · ${r.location.name}` : ''}
                       {' → '}
                       {r.team?.name ?? 'team'}
+                      {r.autoAssignAssignee
+                        ? ` · auto-assign${r.skill ? ` (${r.skill.name})` : ' (least open)'}`
+                        : ''}
                     </em>
                   </li>
                 ))}
@@ -380,6 +490,30 @@ export default function RoutingAdminPage() {
                     ))}
                   </select>
                 </label>
+                <label className={styles.checkLabel}>
+                  <input
+                    type="checkbox"
+                    checked={ruleAutoAssign}
+                    onChange={(e) => setRuleAutoAssign(e.target.checked)}
+                  />
+                  Auto-assign least-loaded agent on the team
+                </label>
+                {ruleAutoAssign ? (
+                  <label>
+                    Required skill (optional)
+                    <select
+                      value={ruleSkillId}
+                      onChange={(e) => setRuleSkillId(e.target.value)}
+                    >
+                      <option value="">Any team member</option>
+                      {skills.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
                 <label>
                   Match priority (lower runs first)
                   <input
@@ -397,6 +531,131 @@ export default function RoutingAdminPage() {
                   Create assignment rule
                 </button>
               </form>
+            ) : null}
+          </section>
+        ) : null}
+
+        {canReadRules ? (
+          <section className={styles.panel}>
+            <h2>
+              <Icon icon={Wrench} size="sm" />
+              Skills
+            </h2>
+            {skills.length === 0 ? (
+              <EmptyState icon={Wrench}>
+                No skills yet. Create skills, assign them to agents, then use
+                them on auto-assign rules.
+              </EmptyState>
+            ) : (
+              <ul className={styles.list}>
+                {skills.map((s) => (
+                  <li key={s.id}>
+                    <strong>
+                      {s.name} <code>{s.code}</code>
+                    </strong>
+                    <em>
+                      {s.description || 'No description'}
+                      {typeof s._count?.users === 'number'
+                        ? ` · ${s._count.users} agent${s._count.users === 1 ? '' : 's'}`
+                        : ''}
+                    </em>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {canRules ? (
+              <>
+                <form className={styles.form} onSubmit={onCreateSkill}>
+                  <h3>Add skill</h3>
+                  <label>
+                    Code
+                    <input
+                      value={skillCode}
+                      onChange={(e) => setSkillCode(e.target.value)}
+                      required
+                      minLength={2}
+                      placeholder="NETWORK"
+                    />
+                  </label>
+                  <label>
+                    Name
+                    <input
+                      value={skillName}
+                      onChange={(e) => setSkillName(e.target.value)}
+                      required
+                      minLength={2}
+                    />
+                  </label>
+                  <label>
+                    Description
+                    <input
+                      value={skillDesc}
+                      onChange={(e) => setSkillDesc(e.target.value)}
+                    />
+                  </label>
+                  <button type="submit" className={appStyles.btn} disabled={busy}>
+                    Create skill
+                  </button>
+                </form>
+
+                {canUsers || directory.length > 0 ? (
+                  <form className={styles.form} onSubmit={onSaveAgentSkills}>
+                    <h3>Assign skills to agent</h3>
+                    <label>
+                      Agent
+                      <select
+                        value={agentUserId}
+                        onChange={(e) => onLoadAgentSkills(e.target.value)}
+                      >
+                        <option value="">Select agent</option>
+                        {(directory.length
+                          ? directory
+                          : teams.flatMap((t) =>
+                              t.members.map((m) => ({
+                                id: m.user.id,
+                                email: m.user.email,
+                                firstName: m.user.firstName,
+                                lastName: m.user.lastName,
+                                isActive: true,
+                              })),
+                            )
+                        )
+                          .filter(
+                            (u, i, arr) =>
+                              arr.findIndex((x) => x.id === u.id) === i,
+                          )
+                          .map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.firstName} {u.lastName} ({u.email})
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    {agentUserId && skills.length > 0 ? (
+                      <fieldset className={styles.skillSet}>
+                        <legend>Skills</legend>
+                        {skills.map((s) => (
+                          <label key={s.id} className={styles.checkLabel}>
+                            <input
+                              type="checkbox"
+                              checked={agentSkillIds.includes(s.id)}
+                              onChange={() => toggleAgentSkill(s.id)}
+                            />
+                            {s.name}
+                          </label>
+                        ))}
+                      </fieldset>
+                    ) : null}
+                    <button
+                      type="submit"
+                      className={appStyles.btn}
+                      disabled={busy || !agentUserId}
+                    >
+                      Save agent skills
+                    </button>
+                  </form>
+                ) : null}
+              </>
             ) : null}
           </section>
         ) : null}

@@ -1,5 +1,24 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  IsArray,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 import { PERMISSIONS } from '@logit/shared';
 import { CurrentUser, RequirePermissions } from '../auth/decorators';
 import type { AuthUserView } from '../auth/auth.service';
@@ -17,10 +36,68 @@ class DecideDto {
   comment?: string;
 }
 
+class StepDto {
+  @IsString()
+  @MinLength(2)
+  name!: string;
+
+  @IsString()
+  approverRoleCode!: string;
+
+  @IsOptional()
+  @IsIn(['any', 'all'])
+  mode?: 'any' | 'all';
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  stepOrder?: number;
+}
+
+class CreatePolicyDto {
+  @IsString()
+  @MinLength(2)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  ticketTypeId?: string;
+
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  changeRisk?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  priority?: number;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => StepDto)
+  steps!: StepDto[];
+}
+
 @Controller('approvals')
 @UseGuards(SessionAuthGuard, RolesGuard)
 export class ApprovalsController {
   constructor(private readonly approvals: ApprovalsService) {}
+
+  @Get('policies')
+  @RequirePermissions(PERMISSIONS.SETTINGS_MANAGE)
+  listPolicies() {
+    return this.approvals.listPolicies();
+  }
+
+  @Post('policies')
+  @RequirePermissions(PERMISSIONS.SETTINGS_MANAGE)
+  createPolicy(@Body() dto: CreatePolicyDto) {
+    return this.approvals.createPolicy(dto);
+  }
 
   @Get()
   @RequirePermissions(PERMISSIONS.APPROVALS_READ)

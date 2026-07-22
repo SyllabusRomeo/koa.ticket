@@ -39,6 +39,7 @@ Also see product docs:
 - [Enterprise roadmap](../ENTERPRISE_ROADMAP.md) — now / next / later
 - [Gap assessment](../GAP_ASSESSMENT.md) — **shipped vs pending** matrix
 - [Development to-do](../DEVELOPMENT_TODO.md) — live checklist for remaining work
+- [Production TLS + CI](../PRODUCTION.md)
 - [Slack / Teams integrations](../INTEGRATIONS_SLACK_TEAMS.md)
 - [Email integrations](../INTEGRATIONS_EMAIL.md)
 

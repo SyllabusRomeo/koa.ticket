@@ -12,6 +12,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthService, type AuthUserView } from '../auth/auth.service';
 import { EmailService } from '../email/email.service';
 import {
+  normalizeMessageId,
+  parseReferencesHeader,
+} from '../email/email-headers';
+import {
   cleanEmailSubjectTitle,
   extractTicketNumberFromSubject,
 } from '../email/email-subject.parser';
@@ -28,13 +32,22 @@ export type ChatTicketResult = {
   confirmation: string;
 };
 
-export type EmailInboundResult = {
-  ok: true;
-  action: 'comment' | 'create';
-  ticketNumber: string;
-  ticketId: string;
-  url: string;
-};
+export type EmailInboundResult =
+  | {
+      ok: true;
+      action: 'comment' | 'create';
+      ticketNumber: string;
+      ticketId: string;
+      url: string;
+      threadedBy?: 'subject' | 'in_reply_to' | 'references';
+    }
+  | {
+      ok: true;
+      action: 'duplicate';
+      ticketNumber: string;
+      ticketId: string;
+      url: string;
+    };
 
 @Injectable()
 export class IntegrationsService {
@@ -268,9 +281,12 @@ export class IntegrationsService {
 
   /**
    * Accept SendGrid/Mailgun-style inbound parse payloads (JSON or form fields).
-   * Subject containing [INC-2026-…] → public comment; otherwise create incident.
+   * Threading: Message-ID / In-Reply-To / References first, then subject token.
+   * Dedupe on Message-ID when present.
    */
-  async handleInboundEmail(raw: Record<string, unknown>): Promise<EmailInboundResult> {
+  async handleInboundEmail(
+    raw: Record<string, unknown>,
+  ): Promise<EmailInboundResult> {
     const from = pickString(raw, [
       'from',
       'sender',
@@ -285,58 +301,155 @@ export class IntegrationsService {
       );
     const body = (text || '(empty email body)').trim();
 
+    const messageId = normalizeMessageId(
+      pickString(raw, [
+        'messageId',
+        'message-id',
+        'Message-Id',
+        'Message-ID',
+        'MessageID',
+      ]),
+    );
+    const inReplyTo = normalizeMessageId(
+      pickString(raw, [
+        'inReplyTo',
+        'in-reply-to',
+        'In-Reply-To',
+        'InReplyTo',
+      ]),
+    );
+    const references = parseReferencesHeader(
+      pickString(raw, ['references', 'References']),
+    );
+
+    if (messageId) {
+      const existingMsg = await this.prisma.emailMessage.findUnique({
+        where: { messageId },
+        include: { ticket: { select: { id: true, number: true } } },
+      });
+      if (existingMsg?.ticket) {
+        return {
+          ok: true,
+          action: 'duplicate',
+          ticketNumber: existingMsg.ticket.number,
+          ticketId: existingMsg.ticket.id,
+          url: this.ticketUrl(existingMsg.ticket.number),
+        };
+      }
+    }
+
     const fromEmail = extractEmailAddress(from);
     const actor = await this.resolveActor({
       email: fromEmail,
       displayName: from,
     });
 
-    const ticketNumber = extractTicketNumberFromSubject(subject);
-    if (ticketNumber) {
-      const existing = await this.prisma.ticket.findFirst({
-        where: { number: ticketNumber, deletedAt: null },
-        select: { id: true, number: true },
+    let ticketId: string | null = null;
+    let ticketNumber: string | null = null;
+    let threadedBy: 'subject' | 'in_reply_to' | 'references' | undefined;
+
+    if (inReplyTo) {
+      const parent = await this.prisma.emailMessage.findUnique({
+        where: { messageId: inReplyTo },
+        include: { ticket: { select: { id: true, number: true, deletedAt: true } } },
       });
-      if (!existing) {
-        throw new NotFoundException(`Ticket ${ticketNumber} not found`);
+      if (parent?.ticket && !parent.ticket.deletedAt) {
+        ticketId = parent.ticket.id;
+        ticketNumber = parent.ticket.number;
+        threadedBy = 'in_reply_to';
       }
-
-      const sourceNote = [
-        `Source: email`,
-        from ? `From: ${from}` : null,
-        subject ? `Subject: ${subject}` : null,
-      ]
-        .filter(Boolean)
-        .join('\n');
-
-      await this.tickets.addComment(actor, existing.id, {
-        body: `${body}\n\n---\n${sourceNote}`,
-        isInternal: false,
-      });
-
-      return {
-        ok: true,
-        action: 'comment',
-        ticketNumber: existing.number,
-        ticketId: existing.id,
-        url: this.ticketUrl(existing.number),
-      };
     }
 
-    const title = cleanEmailSubjectTitle(subject);
+    if (!ticketId && references.length) {
+      for (let i = references.length - 1; i >= 0; i--) {
+        const ref = references[i]!;
+        const parent = await this.prisma.emailMessage.findUnique({
+          where: { messageId: ref },
+          include: {
+            ticket: { select: { id: true, number: true, deletedAt: true } },
+          },
+        });
+        if (parent?.ticket && !parent.ticket.deletedAt) {
+          ticketId = parent.ticket.id;
+          ticketNumber = parent.ticket.number;
+          threadedBy = 'references';
+          break;
+        }
+      }
+    }
+
+    if (!ticketId) {
+      const fromSubject = extractTicketNumberFromSubject(subject);
+      if (fromSubject) {
+        const existing = await this.prisma.ticket.findFirst({
+          where: { number: fromSubject, deletedAt: null },
+          select: { id: true, number: true },
+        });
+        if (!existing) {
+          throw new NotFoundException(`Ticket ${fromSubject} not found`);
+        }
+        ticketId = existing.id;
+        ticketNumber = existing.number;
+        threadedBy = 'subject';
+      }
+    }
+
     const sourceNote = [
       `Source: email`,
       from ? `From: ${from}` : null,
       subject ? `Subject: ${subject}` : null,
+      messageId ? `Message-ID: ${messageId}` : null,
     ]
       .filter(Boolean)
       .join('\n');
 
+    if (ticketId && ticketNumber) {
+      const comment = await this.tickets.addComment(actor, ticketId, {
+        body: `${body}\n\n---\n${sourceNote}`,
+        isInternal: false,
+      });
+
+      if (messageId) {
+        await this.recordEmailMessage({
+          messageId,
+          inReplyTo,
+          references,
+          direction: 'inbound',
+          ticketId,
+          commentId: (comment as { id?: string })?.id,
+          subject,
+          fromAddress: fromEmail,
+        });
+      }
+
+      return {
+        ok: true,
+        action: 'comment',
+        ticketNumber,
+        ticketId,
+        url: this.ticketUrl(ticketNumber),
+        threadedBy,
+      };
+    }
+
+    const title = cleanEmailSubjectTitle(subject);
     const ticket = (await this.tickets.create(actor, {
       title,
       description: `${body}\n\n---\n${sourceNote}`,
       typeCode: 'incident',
     })) as unknown as { id: string; number: string };
+
+    if (messageId) {
+      await this.recordEmailMessage({
+        messageId,
+        inReplyTo,
+        references,
+        direction: 'inbound',
+        ticketId: ticket.id,
+        subject,
+        fromAddress: fromEmail,
+      });
+    }
 
     return {
       ok: true,
@@ -345,6 +458,73 @@ export class IntegrationsService {
       ticketId: ticket.id,
       url: this.ticketUrl(ticket.number),
     };
+  }
+
+  async recordEmailMessage(opts: {
+    messageId: string;
+    inReplyTo?: string | null;
+    references?: string[];
+    direction: 'inbound' | 'outbound';
+    ticketId: string;
+    commentId?: string | null;
+    subject?: string | null;
+    fromAddress?: string | null;
+    toAddress?: string | null;
+  }) {
+    const messageId = normalizeMessageId(opts.messageId);
+    if (!messageId) return null;
+
+    try {
+      return await this.prisma.emailMessage.upsert({
+        where: { messageId },
+        create: {
+          messageId,
+          inReplyTo: opts.inReplyTo ? normalizeMessageId(opts.inReplyTo) : null,
+          references: opts.references?.length
+            ? opts.references.map((r) => normalizeMessageId(r) ?? r).join(' ')
+            : null,
+          direction: opts.direction,
+          ticketId: opts.ticketId,
+          commentId: opts.commentId ?? null,
+          subject: opts.subject ?? null,
+          fromAddress: opts.fromAddress ?? null,
+          toAddress: opts.toAddress ?? null,
+        },
+        update: {},
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  /** Latest inbound Message-ID for a ticket (for outbound In-Reply-To). */
+  async latestInboundMessageId(ticketNumber: string): Promise<string | null> {
+    const ticket = await this.prisma.ticket.findFirst({
+      where: { number: ticketNumber, deletedAt: null },
+      select: { id: true },
+    });
+    if (!ticket) return null;
+    const row = await this.prisma.emailMessage.findFirst({
+      where: { ticketId: ticket.id, direction: 'inbound' },
+      orderBy: { createdAt: 'desc' },
+      select: { messageId: true },
+    });
+    return row?.messageId ?? null;
+  }
+
+  async referenceChainForTicket(ticketNumber: string): Promise<string[]> {
+    const ticket = await this.prisma.ticket.findFirst({
+      where: { number: ticketNumber, deletedAt: null },
+      select: { id: true },
+    });
+    if (!ticket) return [];
+    const rows = await this.prisma.emailMessage.findMany({
+      where: { ticketId: ticket.id },
+      orderBy: { createdAt: 'asc' },
+      select: { messageId: true },
+      take: 40,
+    });
+    return rows.map((r) => r.messageId);
   }
 }
 

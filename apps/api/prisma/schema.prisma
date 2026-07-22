@@ -65,6 +65,7 @@ model User {
   approvals        Approval[] @relation("ApprovalApprover")
   ticketWatchers   TicketWatcher[]
   ticketWorkLogs   TicketWorkLog[]
+  skills           UserSkill[]
 
   @@index([email])
   @@index([deletedAt])
@@ -421,6 +422,10 @@ model Ticket {
   scheduledEnd    DateTime? @map("scheduled_end")
   /** When true, change should go through CAB / approvers before implement. */
   cabRequired     Boolean   @default(false) @map("cab_required")
+  /** Catalog item this ticket was requested from (optional). */
+  catalogItemId   String?   @map("catalog_item_id")
+  /** Validated answers from the catalog item form schema (JSON). */
+  catalogAnswers  Json?     @map("catalog_answers")
   version         Int       @default(1)
   firstResponseAt DateTime? @map("first_response_at")
   resolvedAt      DateTime? @map("resolved_at")
@@ -452,6 +457,7 @@ model Ticket {
   approvals   Approval[]
   watchers    TicketWatcher[]
   workLogs    TicketWorkLog[]
+  emailMessages EmailMessage[]
 
   @@index([requesterId])
   @@index([assigneeId])
@@ -460,6 +466,7 @@ model Ticket {
   @@index([parentId])
   @@index([mergedIntoId])
   @@index([majorIncident])
+  @@index([catalogItemId])
   @@index([createdAt])
   @@map("tickets")
 }
@@ -506,9 +513,34 @@ model TicketComment {
 
   ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   author User   @relation(fields: [authorId], references: [id])
+  emailMessages EmailMessage[]
 
   @@index([ticketId])
   @@map("ticket_comments")
+}
+
+/** Inbound/outbound email Message-ID index for threading + dedupe */
+model EmailMessage {
+  id          String   @id @default(cuid())
+  /// Normalized Message-ID (angle brackets stripped, lowercased)
+  messageId   String   @unique @map("message_id")
+  inReplyTo   String?  @map("in_reply_to")
+  /// Space-separated normalized Message-IDs from References header
+  references  String?
+  direction   String
+  ticketId    String   @map("ticket_id")
+  commentId   String?  @map("comment_id")
+  subject     String?
+  fromAddress String?  @map("from_address")
+  toAddress   String?  @map("to_address")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  ticket  Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  comment TicketComment? @relation(fields: [commentId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@index([inReplyTo])
+  @@map("email_messages")
 }
 
 model TicketHistory {
@@ -642,17 +674,51 @@ model SlaEscalationRule {
 
 // Phase 6 — Assignment & notifications
 
+model Skill {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  users UserSkill[]
+  rules AssignmentRule[]
+
+  @@map("skills")
+}
+
+model UserSkill {
+  userId     String   @map("user_id")
+  skillId    String   @map("skill_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([userId, skillId])
+  @@index([skillId])
+  @@map("user_skills")
+}
+
 model AssignmentRule {
-  id           String  @id @default(cuid())
-  name         String
-  categoryId   String? @map("category_id")
-  ticketTypeId String? @map("ticket_type_id")
-  locationId   String? @map("location_id")
-  teamId       String  @map("team_id")
-  priority     Int     @default(100)
-  isActive     Boolean @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id                 String  @id @default(cuid())
+  name               String
+  categoryId         String? @map("category_id")
+  ticketTypeId       String? @map("ticket_type_id")
+  locationId         String? @map("location_id")
+  teamId             String  @map("team_id")
+  /** Optional skill required when auto-assigning an agent. */
+  skillId            String? @map("skill_id")
+  /** When true, also pick a least-loaded team member (optionally skill-filtered). */
+  autoAssignAssignee Boolean @default(false) @map("auto_assign_assignee")
+  priority           Int     @default(100)
+  isActive           Boolean @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  skill Skill? @relation(fields: [skillId], references: [id])
 
   @@index([priority])
   @@map("assignment_rules")
@@ -729,14 +795,16 @@ model KnowledgeAttachment {
 }
 
 model ServiceCatalogItem {
-  id             String  @id @default(cuid())
-  code           String  @unique
+  id             String   @id @default(cuid())
+  code           String   @unique
   name           String
   description    String
-  ticketTypeCode String  @map("ticket_type_code")
-  categoryCode   String? @map("category_code")
-  teamId         String? @map("team_id")
-  isActive       Boolean @default(true) @map("is_active")
+  ticketTypeCode String   @map("ticket_type_code")
+  categoryCode   String?  @map("category_code")
+  teamId         String?  @map("team_id")
+  /// Dynamic request form fields (JSON array of CatalogFormField)
+  formSchema     Json?    @map("form_schema")
+  isActive       Boolean  @default(true) @map("is_active")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -797,20 +865,97 @@ model TicketAsset {
   @@map("ticket_assets")
 }
 
+model ApprovalPolicy {
+  id           String  @id @default(cuid())
+  name         String
+  ticketTypeId String? @map("ticket_type_id")
+  categoryId   String? @map("category_id")
+  /** Optional change risk match: low | medium | high | critical */
+  changeRisk   String? @map("change_risk")
+  priority     Int     @default(100)
+  isActive     Boolean @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  steps     ApprovalStep[]
+  approvals Approval[]
+
+  @@index([priority])
+  @@map("approval_policies")
+}
+
+model ApprovalStep {
+  id               String @id @default(cuid())
+  policyId         String @map("policy_id")
+  stepOrder        Int    @map("step_order")
+  name             String
+  /** Role code that must approve this step (e.g. approver, it_manager). */
+  approverRoleCode String @map("approver_role_code")
+  /** any = first approval completes step; all = every assignee must approve */
+  mode             String @default("any")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  policy    ApprovalPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  approvals Approval[]
+
+  @@unique([policyId, stepOrder])
+  @@map("approval_steps")
+}
+
 model Approval {
   id         String    @id @default(cuid())
   ticketId   String    @map("ticket_id")
   approverId String    @map("approver_id")
+  policyId   String?   @map("policy_id")
+  stepId     String?   @map("step_id")
+  stepOrder  Int?      @map("step_order")
   status     String    @default("pending")
   comment    String?
   decidedAt  DateTime? @map("decided_at")
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
 
-  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  approver User   @relation("ApprovalApprover", fields: [approverId], references: [id])
+  ticket   Ticket          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  approver User            @relation("ApprovalApprover", fields: [approverId], references: [id])
+  policy   ApprovalPolicy? @relation(fields: [policyId], references: [id], onDelete: SetNull)
+  step     ApprovalStep?   @relation(fields: [stepId], references: [id], onDelete: SetNull)
 
   @@index([approverId, status])
   @@index([ticketId])
+  @@index([ticketId, stepOrder, status])
   @@map("approvals")
+}
+
+/** Outbound signed webhook endpoints (M5). */
+model WebhookEndpoint {
+  id         String   @id @default(cuid())
+  name       String
+  url        String
+  secret     String
+  isActive   Boolean  @default(true) @map("is_active")
+  /** JSON string array of event types, e.g. ["ticket.created","ticket.assigned"] */
+  eventTypes Json     @map("event_types")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  deliveries WebhookDelivery[]
+
+  @@map("webhook_endpoints")
+}
+
+model WebhookDelivery {
+  id         String   @id @default(cuid())
+  endpointId String   @map("endpoint_id")
+  eventType  String   @map("event_type")
+  payload    String
+  statusCode Int?     @map("status_code")
+  success    Boolean  @default(false)
+  error      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([endpointId, createdAt])
+  @@map("webhook_deliveries")
 }

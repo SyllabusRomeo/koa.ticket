@@ -54,7 +54,7 @@ export default function AppHomePage() {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    async function loadHome() {
       try {
         const { user } = await api.me();
         if (cancelled) return;
@@ -107,9 +107,15 @@ export default function AppHomePage() {
       } finally {
         if (!cancelled) setLoading(false);
       }
-    })();
+    }
+
+    void loadHome();
+    const refresh = window.setInterval(() => {
+      void loadHome();
+    }, 60_000);
     return () => {
       cancelled = true;
+      window.clearInterval(refresh);
     };
   }, [router]);
 

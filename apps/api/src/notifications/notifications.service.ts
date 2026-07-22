@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
+import { NOTIFICATION_EVENTS } from './notification-events';
 
 @Injectable()
 export class NotificationsService {
@@ -9,13 +10,16 @@ export class NotificationsService {
     private readonly email: EmailService,
   ) {}
 
+  eventCatalog() {
+    return NOTIFICATION_EVENTS;
+  }
+
   async notify(params: {
     userId: string;
     title: string;
     body: string;
     link?: string;
     eventType?: string;
-    /** Optional structured email fields (falls back to title/body/link). */
     email?: {
       ticketNumber?: string;
       eventLabel?: string;
@@ -102,6 +106,12 @@ export class NotificationsService {
     });
   }
 
+  unreadCount(userId: string) {
+    return this.prisma.notification.count({
+      where: { userId, readAt: null },
+    });
+  }
+
   async markRead(userId: string, id: string) {
     return this.prisma.notification.updateMany({
       where: { id, userId, readAt: null },
@@ -109,8 +119,28 @@ export class NotificationsService {
     });
   }
 
+  async markAllRead(userId: string) {
+    return this.prisma.notification.updateMany({
+      where: { userId, readAt: null },
+      data: { readAt: new Date() },
+    });
+  }
+
   async getPreferences(userId: string) {
-    return this.prisma.notificationPreference.findMany({ where: { userId } });
+    const rows = await this.prisma.notificationPreference.findMany({
+      where: { userId },
+    });
+    const byType = new Map(rows.map((r) => [r.eventType, r]));
+    return NOTIFICATION_EVENTS.map((ev) => {
+      const row = byType.get(ev.type);
+      return {
+        eventType: ev.type,
+        label: ev.label,
+        description: ev.description,
+        inAppEnabled: row?.inAppEnabled ?? true,
+        emailEnabled: row?.emailEnabled ?? true,
+      };
+    });
   }
 
   async upsertPreference(

@@ -75,3 +75,29 @@
   border-radius: 8px;
   border: 1px solid color-mix(in srgb, var(--color-primary, #0f4a40) 25%, #ccc);
 }
+
+.checkLabel {
+  display: flex !important;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500 !important;
+}
+
+.checkLabel input {
+  width: auto;
+  padding: 0;
+}
+
+.skillSet {
+  border: 1px solid color-mix(in srgb, var(--color-primary, #0f4a40) 18%, #ccc);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.skillSet legend {
+  padding: 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}

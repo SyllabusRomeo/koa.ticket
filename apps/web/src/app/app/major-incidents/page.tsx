@@ -151,7 +151,10 @@ export default function MajorIncidentsPage() {
             </p>
           </div>
           <div className={styles.ctaRow}>
-            <a href="/app/tickets?queue=major" className={styles.ctaSolid}>
+            <a
+              href="/app/tickets?queue=major"
+              className={`${styles.cta} ${styles.ctaSolid}`}
+            >
               Tickets · Major filter
             </a>
             <button type="button" className={styles.cta} onClick={() => void refresh()}>

@@ -19,6 +19,7 @@ import { ReportsModule } from './reports/reports.module';
 import { SlaModule } from './sla/sla.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { UsersModule } from './users/users.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { UsersModule } from './users/users.module';
     ApprovalsModule,
     IntegrationsModule,
     BrandingModule,
+    WebhooksModule,
   ],
 })
 export class AppModule {}
