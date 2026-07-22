@@ -18,6 +18,22 @@ import { Suspense } from 'react';
 
 type QueueFilter = 'all' | 'unassigned' | 'mine' | 'major';
 
+const CHANNEL_OPTIONS = [
+  { value: '', label: 'All channels' },
+  { value: 'web', label: 'Web' },
+  { value: 'email', label: 'Email' },
+  { value: 'slack', label: 'Slack' },
+  { value: 'teams', label: 'Teams' },
+  { value: 'chat', label: 'Chat' },
+  { value: 'api', label: 'API' },
+] as const;
+
+function channelLabel(channel?: string | null) {
+  const code = (channel ?? 'web').toLowerCase();
+  const match = CHANNEL_OPTIONS.find((o) => o.value === code);
+  return match?.label ?? code;
+}
+
 function parseQueue(raw: string | null): QueueFilter {
   if (raw === 'unassigned' || raw === 'mine' || raw === 'major') return raw;
   return 'all';
@@ -39,6 +55,7 @@ function TicketsPageInner() {
   const [categoryCode, setCategoryCode] = useState('');
   const [locationId, setLocationId] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
+  const [filterChannel, setFilterChannel] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,12 +75,14 @@ function TicketsPageInner() {
     setQueueFilterState(parseQueue(searchParams.get('queue')));
   }, [searchParams]);
 
-  async function load(locFilter?: string) {
+  async function load(locFilter?: string, channelFilter?: string) {
     const locationFilter = locFilter ?? filterLocation;
+    const channel = channelFilter ?? filterChannel;
     const [list, meta] = await Promise.all([
-      api.listTickets(
-        locationFilter ? { locationId: locationFilter } : undefined,
-      ),
+      api.listTickets({
+        ...(locationFilter ? { locationId: locationFilter } : {}),
+        ...(channel ? { channel } : {}),
+      }),
       api.ticketMeta(),
     ]);
     setTickets(list);
@@ -414,6 +433,31 @@ function TicketsPageInner() {
               />
             </label>
           ) : null}
+          {showQueueChips ? (
+            <label className={styles.locationFilter}>
+              Channel
+              <select
+                value={filterChannel}
+                aria-label="Filter tickets by intake channel"
+                onChange={async (e) => {
+                  const next = e.target.value;
+                  setFilterChannel(next);
+                  setLoading(true);
+                  try {
+                    await load(undefined, next);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+              >
+                {CHANNEL_OPTIONS.map((o) => (
+                  <option key={o.value || 'all'} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           {filteredTickets.length === 0 ? (
             <EmptyState icon={Ticket} className={styles.empty}>
               {tickets.length === 0 ? (
@@ -467,6 +511,12 @@ function TicketsPageInner() {
                               Major
                             </span>
                           ) : null}
+                          <span
+                            className={styles.channelBadge}
+                            title="Intake channel"
+                          >
+                            {channelLabel(t.channel)}
+                          </span>
                           <SlaTimer
                             dueAt={t.dueAt}
                             slaDueAt={t.slaDueAt}

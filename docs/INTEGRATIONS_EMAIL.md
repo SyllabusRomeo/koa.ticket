@@ -25,6 +25,10 @@ LogIT sends ticket event emails over SMTP (nodemailer), accepts inbound parse we
 | `IMAP_USER` / `IMAP_PASS` | Mailbox credentials (`IMAP_PASSWORD` alias) |
 | `IMAP_MAILBOX` | Folder to poll (default `INBOX`) |
 | `IMAP_POLL_MINUTES` | Poll interval (default `5`, max `60`) |
+| `DIGEST_ENABLED` | Notification digests on by default; `false` / `0` / `off` disables |
+| `DIGEST_POLL_MINUTES` | Digest tick interval (default `60`, max `180`) |
+| `DIGEST_SEND_HOUR` | Local hour after which digests may send (default `8`) |
+| `DIGEST_WEEKDAY` | ISO weekday for weekly digests (default `1` = Monday) |
 | `IMAP_TLS` | Set `false` only for non-TLS lab servers |
 
 When `SMTP_HOST` or from-address is **absent**, outbound sends are **logged and skipped** (no hard failure). In-app notifications still work.
@@ -122,6 +126,8 @@ When `IMAP_HOST` + `IMAP_USER` + `IMAP_PASS` are set, the API polls **UNSEEN** m
 | `POST` | `/api/v1/integrations/email/imap/poll` | Sysadmin session — run one poll now |
 
 Prefer inbound webhooks when your ESP supports them (lower latency). Use IMAP for mailboxes that only expose IMAP.
+
+New tickets from inbound/IMAP are stamped `channel=email` with optional `channelMeta` (Message-ID, In-Reply-To, From). See DEVELOPMENT_TODO M10.
 
 ---
 

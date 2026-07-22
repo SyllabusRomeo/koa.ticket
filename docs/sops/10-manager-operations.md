@@ -23,6 +23,8 @@ From workspace / reports (requires `reports:read`):
 3. Spot category hotspots (recurring issues → problem candidates).
 4. Review agent workload distribution.
 5. Export CSV or PDF for leadership packs from **Reports** (`Download CSV` / `Download PDF`, or `GET /api/v1/reports/export.csv` · `export.pdf`). Exports are audited.
+6. Review the **volume heatmap** (weekday × hour for created or resolved tickets) on Reports — useful for staffing / on-call patterns.
+7. Optionally create a **scheduled export** (daily/weekly CSV or PDF emailed to you). Requires SMTP. Use **Run now** to test. API: `GET/POST /reports/schedules`, `POST /reports/schedules/:id/run`.
 
 ## Escalation handling
 

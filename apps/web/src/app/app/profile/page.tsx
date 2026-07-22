@@ -67,6 +67,18 @@ export default function ProfilePage() {
   const [prefs, setPrefs] = useState<PrefRow[]>([]);
   const [prefsBusy, setPrefsBusy] = useState(false);
 
+  type DigestFrequency = 'none' | 'daily' | 'weekly';
+  const [digestFrequency, setDigestFrequency] =
+    useState<DigestFrequency>('none');
+  const [digestQuietStart, setDigestQuietStart] = useState('');
+  const [digestQuietEnd, setDigestQuietEnd] = useState('');
+  const [digestTimezone, setDigestTimezone] = useState('Africa/Accra');
+  const [digestTimezoneSource, setDigestTimezoneSource] = useState<
+    'location' | 'default'
+  >('default');
+  const [digestLastAt, setDigestLastAt] = useState<string | null>(null);
+  const [digestBusy, setDigestBusy] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -83,6 +95,23 @@ export default function ProfilePage() {
         try {
           const p = await api.notificationPreferences();
           if (!cancelled) setPrefs(p);
+        } catch {
+          /* optional */
+        }
+        try {
+          const d = await api.notificationDigestSettings();
+          if (!cancelled) {
+            setDigestFrequency(d.frequency);
+            setDigestQuietStart(
+              d.quietStartHour != null ? String(d.quietStartHour) : '',
+            );
+            setDigestQuietEnd(
+              d.quietEndHour != null ? String(d.quietEndHour) : '',
+            );
+            setDigestTimezone(d.timezone);
+            setDigestTimezoneSource(d.timezoneSource);
+            setDigestLastAt(d.lastDigestAt);
+          }
         } catch {
           /* optional */
         }
@@ -249,6 +278,52 @@ export default function ProfilePage() {
       );
     } finally {
       setPrefsBusy(false);
+    }
+  }
+
+  async function onSaveDigest(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+    const quietStartHour =
+      digestQuietStart === '' ? null : Number(digestQuietStart);
+    const quietEndHour =
+      digestQuietEnd === '' ? null : Number(digestQuietEnd);
+    if (
+      (quietStartHour != null &&
+        (!Number.isInteger(quietStartHour) ||
+          quietStartHour < 0 ||
+          quietStartHour > 23)) ||
+      (quietEndHour != null &&
+        (!Number.isInteger(quietEndHour) ||
+          quietEndHour < 0 ||
+          quietEndHour > 23))
+    ) {
+      setError('Quiet hours must be integers from 0 to 23, or blank.');
+      return;
+    }
+    setDigestBusy(true);
+    try {
+      const d = await api.setNotificationDigestSettings({
+        frequency: digestFrequency,
+        quietStartHour,
+        quietEndHour,
+      });
+      setDigestFrequency(d.frequency);
+      setDigestQuietStart(
+        d.quietStartHour != null ? String(d.quietStartHour) : '',
+      );
+      setDigestQuietEnd(d.quietEndHour != null ? String(d.quietEndHour) : '');
+      setDigestTimezone(d.timezone);
+      setDigestTimezoneSource(d.timezoneSource);
+      setDigestLastAt(d.lastDigestAt);
+      setMessage('Digest preferences saved.');
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Could not save digest settings',
+      );
+    } finally {
+      setDigestBusy(false);
     }
   }
 
@@ -425,7 +500,8 @@ export default function ProfilePage() {
           </h2>
           <p className={styles.sectionHint}>
             Choose which ticket and approval events reach you in-app and by
-            email. Defaults are on for every event.
+            email. Defaults are on for every event. Digests below roll up unread
+            items without changing these real-time prefs.
           </p>
           {prefs.length === 0 ? (
             <p className={styles.sectionHint}>Preferences unavailable.</p>
@@ -467,6 +543,68 @@ export default function ProfilePage() {
               ))}
             </ul>
           )}
+
+          <h3 className={styles.subsectionTitle}>Email digest</h3>
+          <p className={styles.sectionHint}>
+            Optional daily or weekly summary of unread notifications. Timezone
+            comes from your home location
+            {digestTimezoneSource === 'location'
+              ? ` (${digestTimezone})`
+              : ` (default ${digestTimezone})`}
+            . In-app items stay unread after a digest is sent.
+            {digestLastAt
+              ? ` Last digest: ${new Date(digestLastAt).toLocaleString()}.`
+              : ''}
+          </p>
+          <form className={styles.form} onSubmit={onSaveDigest}>
+            <label className={styles.field}>
+              <span>Frequency</span>
+              <select
+                value={digestFrequency}
+                aria-label="Digest frequency"
+                disabled={digestBusy}
+                onChange={(e) =>
+                  setDigestFrequency(e.target.value as DigestFrequency)
+                }
+              >
+                <option value="none">Off</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+              </select>
+            </label>
+            <div className={styles.row}>
+              <label className={styles.field}>
+                <span>Quiet start hour (0–23)</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={23}
+                  placeholder="Optional"
+                  value={digestQuietStart}
+                  disabled={digestBusy}
+                  onChange={(e) => setDigestQuietStart(e.target.value)}
+                />
+              </label>
+              <label className={styles.field}>
+                <span>Quiet end hour (0–23)</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={23}
+                  placeholder="Optional"
+                  value={digestQuietEnd}
+                  disabled={digestBusy}
+                  onChange={(e) => setDigestQuietEnd(e.target.value)}
+                />
+              </label>
+            </div>
+            <div className={styles.actions}>
+              <Button type="submit" variant="secondary" disabled={digestBusy}>
+                <Icon icon={Bell} size="sm" />
+                {digestBusy ? 'Saving…' : 'Save digest settings'}
+              </Button>
+            </div>
+          </form>
         </section>
 
         <section className={styles.panel}>

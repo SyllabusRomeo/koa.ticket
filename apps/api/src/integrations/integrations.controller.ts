@@ -101,6 +101,9 @@ export class IntegrationsController {
           bot_id?: string;
           text?: string;
           user?: string;
+          channel?: string;
+          ts?: string;
+          thread_ts?: string;
         }
       | undefined;
 
@@ -115,6 +118,12 @@ export class IntegrationsController {
         channel: 'slack',
         text,
         displayName: event.user ? `slack:${event.user}` : null,
+        channelMeta: {
+          slackUserId: event.user ?? undefined,
+          slackChannelId: event.channel ?? undefined,
+          slackTs: event.ts ?? undefined,
+          slackThreadTs: event.thread_ts ?? undefined,
+        },
       });
       return {
         ok: true,
@@ -161,6 +170,13 @@ export class IntegrationsController {
         : req.body?.user_id
           ? `slack:${req.body.user_id}`
           : null,
+      channelMeta: {
+        slackUserId: req.body?.user_id ?? undefined,
+        slackUserName: req.body?.user_name ?? undefined,
+        slackChannelId: req.body?.channel_id ?? undefined,
+        slackTeamId: req.body?.team_id ?? undefined,
+        command: req.body?.command ?? undefined,
+      },
     });
 
     return {
@@ -196,6 +212,10 @@ export class IntegrationsController {
     const from = (body.from ?? {}) as {
       name?: string;
       email?: string;
+      id?: string;
+    };
+    const conversation = (body.conversation ?? {}) as {
+      id?: string;
     };
 
     const result = await this.integrations.createFromChat({
@@ -203,6 +223,14 @@ export class IntegrationsController {
       text,
       email: from.email,
       displayName: from.name ?? null,
+      channelMeta: {
+        teamsUserId: from.id ?? undefined,
+        conversationId: conversation.id ?? undefined,
+        activityId:
+          typeof body.id === 'string' ? body.id : undefined,
+        serviceUrl:
+          typeof body.serviceUrl === 'string' ? body.serviceUrl : undefined,
+      },
     });
 
     return {

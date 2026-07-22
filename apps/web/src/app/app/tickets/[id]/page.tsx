@@ -85,6 +85,23 @@ function personName(p?: { firstName: string; lastName: string } | null) {
   return `${p.firstName} ${p.lastName}`;
 }
 
+function channelLabel(channel?: string | null) {
+  switch ((channel ?? 'web').toLowerCase()) {
+    case 'email':
+      return 'Email';
+    case 'slack':
+      return 'Slack';
+    case 'teams':
+      return 'Teams';
+    case 'chat':
+      return 'Chat';
+    case 'api':
+      return 'API';
+    default:
+      return 'Web';
+  }
+}
+
 export default function TicketDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -852,6 +869,9 @@ export default function TicketDetailPage() {
                   Major incident
                 </span>
               ) : null}
+              <span className={styles.channelBadge} title="Intake channel">
+                {channelLabel(ticket.channel)}
+              </span>
               {ticket.priority ? (
                 <span className={styles.metaChip}>
                   {ticket.priority.name}

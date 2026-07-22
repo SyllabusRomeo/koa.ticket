@@ -54,9 +54,9 @@ Update statuses here as work lands. Principle: **capture data → workflows → 
 | M5 | Signed outbound webhooks | `[x]` | HMAC endpoints + Admin → Integrations |
 | M6 | Prod TLS / CI automation | `[x]` | GitHub Actions CI; Nginx TLS + Let's Encrypt script; `docs/PRODUCTION.md` |
 | M7 | Slack/Teams Bot Framework JWT polish | `[x]` | Slack HMAC + Bot Framework JWT (JWKS) + shared-secret fallback |
-| M8 | Notification digests | `[ ]` | Real-time alerts + prefs shipped; digests later |
-| M9 | Reporting heatmaps / scheduled exports | `[ ]` | Summary + CSV shipped |
-| M10 | Omnichannel channel metadata on tickets | `[ ]` | Web + chat + email intake |
+| M8 | Notification digests | `[x]` | Daily/weekly email + quiet hours; leave in-app unread; `lastDigestAt` |
+| M9 | Reporting heatmaps / scheduled exports | `[x]` | Heatmap (dow×hour) + ReportSchedule email exports |
+| M10 | Omnichannel channel metadata on tickets | `[x]` | Web + chat + email intake; `Ticket.channel` + badge/filter |
 
 ---
 
@@ -74,13 +74,17 @@ Update statuses here as work lands. Principle: **capture data → workflows → 
 
 ## Sprint alignment (recommended order)
 
-1. **Near-term:** N1–N5 (this pass)  
-2. **Sprint 1–2:** H7 stage/timeline analytics depth  
-3. **Sprint 4–5:** H1 collision/presence, H2 queue boards  
-4. **Sprint 6–7:** Ops/SLA heatmaps (M9 + H7)  
-5. **Sprint 8–9:** H5 MI dashboard, duplicate detection  
-6. **Sprint 10–11:** M1–M2 routing/email polish  
-7. **Sprint 12+:** L2–L3 AI / deflection  
+**Shipped:** Near-term N1–N5 · High H1–H7 · Medium M1–M10.
+
+**What’s next (Later / strategic):**
+
+1. **L1** — CMDB discovery / CI relationships  
+2. **L2** — AI assists (classify, summarize, duplicate, SLA risk)  
+3. **L3** — Knowledge deflection analytics  
+4. **L4** — Portal themes  
+5. **L5** — Immutable audit export schedules  
+
+Optional polish: outbound webhook retry worker, bot outbound replies, board presets, SAML / more IdPs.
 
 ---
 
@@ -99,3 +103,10 @@ Update statuses here as work lands. Principle: **capture data → workflows → 
 - [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)  
 - [PRODUCTION.md](./PRODUCTION.md) — TLS + CI  
 - [sops/11-admin-configuration.md](./sops/11-admin-configuration.md)  
+- [INTEGRATIONS_EMAIL.md](./INTEGRATIONS_EMAIL.md) — email + omnichannel channel stamp  
+
+---
+
+## Org note — Omnichannel channel (M10)
+
+Tickets carry `channel` (`web` | `email` | `slack` | `teams` | `chat` | `api`) and optional `channelMeta` (JSON). Portal/API creates default to **web**; Slack/Teams/chat simulate and email inbound stamp their channel. List/detail show a channel badge; staff can filter by channel; CSV exports include `channel`.

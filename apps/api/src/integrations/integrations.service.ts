@@ -307,6 +307,7 @@ export class IntegrationsService {
     text: string;
     email?: string | null;
     displayName?: string | null;
+    channelMeta?: Record<string, unknown>;
   }): Promise<ChatTicketResult> {
     const parsed = parseChatTicketMessage(opts.text);
     const actor = await this.resolveActor({
@@ -322,12 +323,23 @@ export class IntegrationsService {
       .filter(Boolean)
       .join('\n');
 
+    /** Persist simulate intake as `chat`; Slack/Teams keep their codes. */
+    const ticketChannel =
+      opts.channel === 'simulate' ? 'chat' : opts.channel;
+
     const ticket = (await this.tickets.create(actor, {
       title: parsed.title,
       description: `${parsed.description}\n\n---\n${sourceNote}`,
       typeCode: parsed.typeCode,
       impact: parsed.impact,
       urgency: parsed.urgency,
+      channel: ticketChannel,
+      channelMeta: {
+        intake: opts.channel,
+        ...(opts.displayName ? { displayName: opts.displayName } : {}),
+        ...(opts.email ? { email: opts.email } : {}),
+        ...(opts.channelMeta ?? {}),
+      },
     })) as unknown as { id: string; number: string; title: string };
 
     const url = this.ticketUrl(ticket.number);
@@ -524,6 +536,13 @@ export class IntegrationsService {
       title,
       description: `${body}\n\n---\n${sourceNote}`,
       typeCode: 'incident',
+      channel: 'email',
+      channelMeta: {
+        messageId: messageId ?? undefined,
+        inReplyTo: inReplyTo ?? undefined,
+        from: fromEmail ?? from ?? undefined,
+        subject: subject || undefined,
+      },
     })) as unknown as { id: string; number: string };
 
     if (messageId) {
