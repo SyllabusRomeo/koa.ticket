@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsIn,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   Max,
@@ -14,6 +15,15 @@ import {
 
 const IMPACT = ['high', 'medium', 'low'] as const;
 const URGENCY = ['high', 'medium', 'low'] as const;
+export const TICKET_CHANNELS = [
+  'web',
+  'email',
+  'slack',
+  'teams',
+  'chat',
+  'api',
+] as const;
+export type TicketChannel = (typeof TICKET_CHANNELS)[number];
 
 export class CreateTicketDto {
   @IsString()
@@ -62,6 +72,19 @@ export class CreateTicketDto {
   @IsOptional()
   @IsBoolean()
   majorIncident?: boolean;
+
+  /**
+   * Intake channel. Defaults to `web` for portal / API creates.
+   * Integrations set email | slack | teams | chat.
+   */
+  @IsOptional()
+  @IsIn(TICKET_CHANNELS)
+  channel?: TicketChannel;
+
+  /** Optional intake metadata (message id, thread id, chat user, etc.). */
+  @IsOptional()
+  @IsObject()
+  channelMeta?: Record<string, unknown>;
 }
 
 export class LinkChildDto {

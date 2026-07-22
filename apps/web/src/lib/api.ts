@@ -109,6 +109,9 @@ export type TicketSummary = {
   location?: LocationRef | null;
   locationId?: string | null;
   requester?: PersonRef;
+  /** Intake channel: web | email | slack | teams | chat | api */
+  channel?: string | null;
+  channelMeta?: Record<string, unknown> | null;
   majorIncident?: boolean;
   createdAt: string;
   /** Resolution target (ticket.dueAt or active resolution SLA). */
@@ -504,6 +507,7 @@ export const api = {
     queue?: string;
     statusCode?: string;
     typeCode?: string;
+    channel?: string;
   } = {}) {
     const qs = new URLSearchParams();
     if (params.locationId) qs.set('locationId', params.locationId);
@@ -512,6 +516,7 @@ export const api = {
     if (params.queue) qs.set('queue', params.queue);
     if (params.statusCode) qs.set('statusCode', params.statusCode);
     if (params.typeCode) qs.set('typeCode', params.typeCode);
+    if (params.channel) qs.set('channel', params.channel);
     const query = qs.toString();
     return request<TicketSummary[]>(`/tickets${query ? `?${query}` : ''}`);
   },
@@ -1006,6 +1011,84 @@ export const api = {
       generatedAt: string;
     }>(`/reports/stages${query ? `?${query}` : ''}`);
   },
+  reportHeatmap(
+    params: {
+      from?: string;
+      to?: string;
+      metric?: 'created' | 'resolved';
+    } = {},
+  ) {
+    const qs = new URLSearchParams();
+    if (params.from) qs.set('from', params.from);
+    if (params.to) qs.set('to', params.to);
+    if (params.metric) qs.set('metric', params.metric);
+    const query = qs.toString();
+    return request<{
+      metric: 'created' | 'resolved';
+      from: string | null;
+      to: string | null;
+      sampleSize: number;
+      max: number;
+      days: string[];
+      cells: Array<{ dayOfWeek: number; hour: number; count: number }>;
+      generatedAt: string;
+    }>(`/reports/heatmap${query ? `?${query}` : ''}`);
+  },
+  listReportSchedules() {
+    return request<
+      Array<{
+        id: string;
+        userId: string;
+        cadence: 'daily' | 'weekly';
+        format: 'csv' | 'pdf';
+        email: string;
+        filters: { rangeDays: number };
+        lastRunAt: string | null;
+        isActive: boolean;
+        createdAt: string;
+        updatedAt: string;
+      }>
+    >('/reports/schedules');
+  },
+  createReportSchedule(body: {
+    cadence: 'daily' | 'weekly';
+    format: 'csv' | 'pdf';
+    email: string;
+    rangeDays?: number;
+    isActive?: boolean;
+  }) {
+    return request('/reports/schedules', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  updateReportSchedule(
+    id: string,
+    body: {
+      cadence?: 'daily' | 'weekly';
+      format?: 'csv' | 'pdf';
+      email?: string;
+      rangeDays?: number;
+      isActive?: boolean;
+    },
+  ) {
+    return request(`/reports/schedules/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  },
+  deleteReportSchedule(id: string) {
+    return request<{ ok: boolean }>(
+      `/reports/schedules/${encodeURIComponent(id)}`,
+      { method: 'DELETE' },
+    );
+  },
+  runReportSchedule(id: string) {
+    return request<{ ok: boolean; result: 'ok' | 'skipped' }>(
+      `/reports/schedules/${encodeURIComponent(id)}/run`,
+      { method: 'POST' },
+    );
+  },
   async downloadExport(path: string, fallbackFilename: string) {
     const res = await fetch(`${API_BASE}${path}`, { credentials: 'include' });
     if (!res.ok) {
@@ -1148,6 +1231,35 @@ export const api = {
     emailEnabled?: boolean;
   }) {
     return request('/notifications/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  },
+  notificationDigestSettings() {
+    return request<{
+      frequency: 'none' | 'daily' | 'weekly';
+      lastDigestAt: string | null;
+      quietStartHour: number | null;
+      quietEndHour: number | null;
+      timezone: string;
+      timezoneSource: 'location' | 'default';
+      locationName?: string | null;
+    }>('/notifications/digest');
+  },
+  setNotificationDigestSettings(body: {
+    frequency?: 'none' | 'daily' | 'weekly';
+    quietStartHour?: number | null;
+    quietEndHour?: number | null;
+  }) {
+    return request<{
+      frequency: 'none' | 'daily' | 'weekly';
+      lastDigestAt: string | null;
+      quietStartHour: number | null;
+      quietEndHour: number | null;
+      timezone: string;
+      timezoneSource: 'location' | 'default';
+      locationName?: string | null;
+    }>('/notifications/digest', {
       method: 'PATCH',
       body: JSON.stringify(body),
     });

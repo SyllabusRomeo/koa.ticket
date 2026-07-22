@@ -145,6 +145,11 @@ export class EmailService {
     inReplyTo?: string | null;
     references?: string[];
     ticketId?: string;
+    attachments?: Array<{
+      filename: string;
+      content: Buffer | string;
+      contentType?: string;
+    }>;
   }): Promise<EmailSendResult> {
     if (!this.isConfigured()) {
       this.logger.log(
@@ -165,6 +170,7 @@ export class EmailService {
         subject: opts.subject,
         text: opts.text,
         html: opts.html,
+        attachments: opts.attachments,
         inReplyTo: opts.inReplyTo
           ? formatMessageIdHeader(opts.inReplyTo)
           : undefined,

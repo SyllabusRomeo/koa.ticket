@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, type AuthUser } from '@/lib/api';
 import { can } from '@/lib/access';
@@ -67,6 +67,24 @@ type StageReport = {
   stuckOpen: StuckRow[];
 };
 
+type HeatmapReport = {
+  metric: 'created' | 'resolved';
+  sampleSize: number;
+  max: number;
+  days: string[];
+  cells: Array<{ dayOfWeek: number; hour: number; count: number }>;
+};
+
+type ReportSchedule = {
+  id: string;
+  cadence: 'daily' | 'weekly';
+  format: 'csv' | 'pdf';
+  email: string;
+  filters: { rangeDays: number };
+  lastRunAt: string | null;
+  isActive: boolean;
+};
+
 function BreakdownList({
   title,
   rows,
@@ -102,25 +120,59 @@ function BreakdownList({
   );
 }
 
+function cellIntensity(count: number, max: number) {
+  if (count <= 0 || max <= 0) return 0.06;
+  const t = Math.sqrt(count / max);
+  return 0.12 + t * 0.83;
+}
+
 export default function ReportsPage() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [summary, setSummary] = useState<ReportSummary | null>(null);
   const [stages, setStages] = useState<StageReport | null>(null);
+  const [heatmap, setHeatmap] = useState<HeatmapReport | null>(null);
+  const [heatmapMetric, setHeatmapMetric] = useState<'created' | 'resolved'>(
+    'created',
+  );
+  const [schedules, setSchedules] = useState<ReportSchedule[]>([]);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
+  const [schedCadence, setSchedCadence] = useState<'daily' | 'weekly'>('weekly');
+  const [schedFormat, setSchedFormat] = useState<'csv' | 'pdf'>('csv');
+  const [schedEmail, setSchedEmail] = useState('');
+  const [schedRangeDays, setSchedRangeDays] = useState(7);
+  const [schedBusy, setSchedBusy] = useState(false);
 
-  async function load(range: { from?: string; to?: string } = {}) {
-    const [summaryData, stagesData] = await Promise.all([
+  const cellMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const c of heatmap?.cells ?? []) {
+      map.set(`${c.dayOfWeek}:${c.hour}`, c.count);
+    }
+    return map;
+  }, [heatmap]);
+
+  async function loadSchedules() {
+    const rows = await api.listReportSchedules();
+    setSchedules(rows);
+  }
+
+  async function load(
+    range: { from?: string; to?: string } = {},
+    metric: 'created' | 'resolved' = heatmapMetric,
+  ) {
+    const [summaryData, stagesData, heatmapData] = await Promise.all([
       api.reportSummary(range),
       api.reportStages(range),
+      api.reportHeatmap({ ...range, metric }),
     ]);
     setSummary(summaryData);
     setStages(stagesData);
+    setHeatmap(heatmapData);
   }
 
   useEffect(() => {
@@ -132,7 +184,8 @@ export default function ReportsPage() {
           return;
         }
         setUser(user);
-        await load();
+        setSchedEmail(user.email);
+        await Promise.all([load(), loadSchedules()]);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed');
         router.replace('/login');
@@ -155,6 +208,19 @@ export default function ReportsPage() {
     }
   }
 
+  async function onMetricChange(metric: 'created' | 'resolved') {
+    setHeatmapMetric(metric);
+    setRefreshing(true);
+    setError(null);
+    try {
+      await load({ from: from || undefined, to: to || undefined }, metric);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not refresh heatmap');
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   async function onExport(format: 'csv' | 'pdf') {
     setExporting(format);
     setError(null);
@@ -166,6 +232,25 @@ export default function ReportsPage() {
       setError(err instanceof Error ? err.message : 'Export failed');
     } finally {
       setExporting(null);
+    }
+  }
+
+  async function onCreateSchedule(e: FormEvent) {
+    e.preventDefault();
+    setSchedBusy(true);
+    setError(null);
+    try {
+      await api.createReportSchedule({
+        cadence: schedCadence,
+        format: schedFormat,
+        email: schedEmail.trim(),
+        rangeDays: schedRangeDays,
+      });
+      await loadSchedules();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create schedule');
+    } finally {
+      setSchedBusy(false);
     }
   }
 
@@ -192,8 +277,8 @@ export default function ReportsPage() {
         <section className={styles.hero}>
           <p className={styles.eyebrow}>LogIT reporting hub</p>
           <p className={styles.lede}>
-            Operational snapshot for IT managers — KPIs, breakdowns, and
-            exports for leadership packs.
+            Operational snapshot for IT managers — KPIs, heatmaps, breakdowns,
+            and scheduled exports for leadership packs.
           </p>
         </section>
 
@@ -326,6 +411,84 @@ export default function ReportsPage() {
               </div>
             </div>
 
+            {heatmap ? (
+              <section className={styles.heatmapPanel}>
+                <div className={styles.heatmapHead}>
+                  <div>
+                    <h2 className={styles.breakdownTitle}>
+                      Volume heatmap
+                    </h2>
+                    <p className={styles.muted}>
+                      Ticket {heatmap.metric} volume by weekday × hour (
+                      {heatmap.sampleSize} ticket
+                      {heatmap.sampleSize === 1 ? '' : 's'} in sample).
+                    </p>
+                  </div>
+                  <div className={styles.metricToggle}>
+                    <Button
+                      type="button"
+                      variant={
+                        heatmapMetric === 'created' ? 'primary' : 'secondary'
+                      }
+                      disabled={refreshing}
+                      onClick={() => onMetricChange('created')}
+                    >
+                      Created
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={
+                        heatmapMetric === 'resolved' ? 'primary' : 'secondary'
+                      }
+                      disabled={refreshing}
+                      onClick={() => onMetricChange('resolved')}
+                    >
+                      Resolved
+                    </Button>
+                  </div>
+                </div>
+                <div className={styles.heatmapScroll}>
+                  <div
+                    className={styles.heatmapGrid}
+                    role="img"
+                    aria-label={`Heatmap of tickets ${heatmap.metric} by day and hour`}
+                  >
+                    <div className={styles.heatmapCorner} />
+                    {Array.from({ length: 24 }, (_, hour) => (
+                      <div key={`h-${hour}`} className={styles.heatmapHour}>
+                        {hour % 3 === 0 ? hour : ''}
+                      </div>
+                    ))}
+                    {heatmap.days.map((day, dayOfWeek) => (
+                      <div key={day} style={{ display: 'contents' }}>
+                        <div className={styles.heatmapDay}>{day}</div>
+                        {Array.from({ length: 24 }, (_, hour) => {
+                          const count =
+                            cellMap.get(`${dayOfWeek}:${hour}`) ?? 0;
+                          const alpha = cellIntensity(count, heatmap.max);
+                          return (
+                            <div
+                              key={`${day}-${hour}`}
+                              className={styles.heatmapCell}
+                              title={`${day} ${String(hour).padStart(2, '0')}:00 — ${count}`}
+                              style={{
+                                background: `rgba(15, 74, 64, ${alpha})`,
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className={styles.heatmapLegend}>
+                  <span>Low</span>
+                  <div className={styles.heatmapLegendSwatch} aria-hidden />
+                  <span>High (max {heatmap.max})</span>
+                </div>
+              </section>
+            ) : null}
+
             <div className={styles.grid}>
               <BreakdownList title="By status" rows={summary.byStatus} />
               <BreakdownList title="By priority" rows={summary.byPriority} />
@@ -413,6 +576,177 @@ export default function ReportsPage() {
                 ) : null}
               </section>
             ) : null}
+
+            <section className={styles.schedulePanel}>
+              <div className={styles.scheduleHead}>
+                <div>
+                  <h2 className={styles.breakdownTitle}>Scheduled exports</h2>
+                  <p className={styles.muted}>
+                    Email a rolling CSV or PDF on a daily or weekly cadence.
+                    Requires SMTP. Use Run now to test immediately.
+                  </p>
+                </div>
+              </div>
+
+              <form className={styles.scheduleForm} onSubmit={onCreateSchedule}>
+                <label className={styles.field}>
+                  <span>Cadence</span>
+                  <select
+                    value={schedCadence}
+                    onChange={(e) =>
+                      setSchedCadence(e.target.value as 'daily' | 'weekly')
+                    }
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                  </select>
+                </label>
+                <label className={styles.field}>
+                  <span>Format</span>
+                  <select
+                    value={schedFormat}
+                    onChange={(e) =>
+                      setSchedFormat(e.target.value as 'csv' | 'pdf')
+                    }
+                  >
+                    <option value="csv">CSV</option>
+                    <option value="pdf">PDF</option>
+                  </select>
+                </label>
+                <label className={styles.field}>
+                  <span>Range (days)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={schedRangeDays}
+                    onChange={(e) =>
+                      setSchedRangeDays(
+                        Math.max(1, Math.min(365, Number(e.target.value) || 1)),
+                      )
+                    }
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>Email</span>
+                  <input
+                    type="email"
+                    required
+                    value={schedEmail}
+                    onChange={(e) => setSchedEmail(e.target.value)}
+                    style={{ minWidth: '14rem' }}
+                  />
+                </label>
+                <Button type="submit" disabled={schedBusy}>
+                  {schedBusy ? 'Saving…' : 'Add schedule'}
+                </Button>
+              </form>
+
+              {schedules.length === 0 ? (
+                <p className={styles.muted}>No schedules yet.</p>
+              ) : (
+                <ul className={styles.scheduleList}>
+                  {schedules.map((s) => (
+                    <li key={s.id} className={styles.scheduleItem}>
+                      <div className={styles.scheduleMeta}>
+                        <strong>
+                          {s.cadence} · {s.format.toUpperCase()}
+                          {!s.isActive ? (
+                            <span className={styles.inactiveBadge}>
+                              paused
+                            </span>
+                          ) : null}
+                        </strong>
+                        <span>
+                          {s.email} · last {s.filters.rangeDays} day
+                          {s.filters.rangeDays === 1 ? '' : 's'}
+                          {s.lastRunAt
+                            ? ` · last run ${new Date(s.lastRunAt).toLocaleString()}`
+                            : ' · never run'}
+                        </span>
+                      </div>
+                      <div className={styles.scheduleActions}>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          disabled={schedBusy}
+                          onClick={async () => {
+                            setSchedBusy(true);
+                            setError(null);
+                            try {
+                              const res = await api.runReportSchedule(s.id);
+                              await loadSchedules();
+                              if (res.result === 'skipped') {
+                                setError(
+                                  'Export generated but email was skipped (SMTP not configured).',
+                                );
+                              }
+                            } catch (err) {
+                              setError(
+                                err instanceof Error
+                                  ? err.message
+                                  : 'Run failed',
+                              );
+                            } finally {
+                              setSchedBusy(false);
+                            }
+                          }}
+                        >
+                          Run now
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          disabled={schedBusy}
+                          onClick={async () => {
+                            setSchedBusy(true);
+                            try {
+                              await api.updateReportSchedule(s.id, {
+                                isActive: !s.isActive,
+                              });
+                              await loadSchedules();
+                            } catch (err) {
+                              setError(
+                                err instanceof Error
+                                  ? err.message
+                                  : 'Update failed',
+                              );
+                            } finally {
+                              setSchedBusy(false);
+                            }
+                          }}
+                        >
+                          {s.isActive ? 'Pause' : 'Resume'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="tertiary"
+                          disabled={schedBusy}
+                          onClick={async () => {
+                            if (!confirm('Delete this schedule?')) return;
+                            setSchedBusy(true);
+                            try {
+                              await api.deleteReportSchedule(s.id);
+                              await loadSchedules();
+                            } catch (err) {
+                              setError(
+                                err instanceof Error
+                                  ? err.message
+                                  : 'Delete failed',
+                              );
+                            } finally {
+                              setSchedBusy(false);
+                            }
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           </>
         )}
       </div>

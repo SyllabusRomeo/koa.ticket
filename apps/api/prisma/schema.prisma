@@ -38,6 +38,12 @@ model User {
   externalSubject    String?   @map("external_subject")
   departmentId       String?   @map("department_id")
   locationId         String?   @map("location_id")
+  /** none | daily | weekly — email rollup of unread notifications (M8) */
+  digestFrequency    String    @default("none") @map("digest_frequency")
+  lastDigestAt       DateTime? @map("last_digest_at")
+  /** Optional quiet-hours window in local TZ (0–23). Null = no quiet hours. */
+  digestQuietStartHour Int?    @map("digest_quiet_start_hour")
+  digestQuietEndHour   Int?    @map("digest_quiet_end_hour")
   deletedAt          DateTime? @map("deleted_at")
   createdAt          DateTime  @default(now()) @map("created_at")
   updatedAt          DateTime  @updatedAt @map("updated_at")
@@ -66,9 +72,11 @@ model User {
   ticketWatchers   TicketWatcher[]
   ticketWorkLogs   TicketWorkLog[]
   skills           UserSkill[]
+  reportSchedules  ReportSchedule[]
 
   @@index([email])
   @@index([deletedAt])
+  @@index([digestFrequency])
   @@map("users")
 }
 
@@ -426,6 +434,13 @@ model Ticket {
   catalogItemId   String?   @map("catalog_item_id")
   /** Validated answers from the catalog item form schema (JSON). */
   catalogAnswers  Json?     @map("catalog_answers")
+  /**
+   * Intake channel: web | email | slack | teams | chat | api.
+   * Null treated as web for legacy rows until backfilled.
+   */
+  channel         String?
+  /** Optional intake metadata (thread id, message id, chat user, etc.). */
+  channelMeta     Json?     @map("channel_meta")
   version         Int       @default(1)
   firstResponseAt DateTime? @map("first_response_at")
   resolvedAt      DateTime? @map("resolved_at")
@@ -466,6 +481,7 @@ model Ticket {
   @@index([parentId])
   @@index([mergedIntoId])
   @@index([majorIncident])
+  @@index([channel])
   @@index([catalogItemId])
   @@index([createdAt])
   @@map("tickets")
@@ -925,6 +941,32 @@ model Approval {
   @@index([ticketId])
   @@index([ticketId, stepOrder, status])
   @@map("approvals")
+}
+
+/** Scheduled report email exports (M9). */
+model ReportSchedule {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  /** daily | weekly */
+  cadence   String
+  /** csv | pdf */
+  format    String
+  email     String
+  /**
+   * JSON filters, e.g. { "rangeDays": 7 }.
+   * Rolling window ending at run time (createdAt filter).
+   */
+  filters   Json      @default("{}")
+  lastRunAt DateTime? @map("last_run_at")
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@index([isActive, lastRunAt])
+  @@map("report_schedules")
 }
 
 /** Outbound signed webhook endpoints (M5). */

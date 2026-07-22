@@ -968,6 +968,8 @@ async function main() {
     urgency?: string;
     dueAt?: Date;
     resolvedAt?: Date;
+    channel?: string;
+    channelMeta?: Record<string, unknown>;
   }) {
     const type = typeByCode[opts.typeCode];
     const status = statusByCode[opts.statusCode];
@@ -998,6 +1000,8 @@ async function main() {
       locationId: hq.id,
       parentId: parentId ?? null,
       majorIncident: opts.majorIncident ?? false,
+      channel: opts.channel ?? 'web',
+      channelMeta: opts.channelMeta ?? undefined,
       rootCause: opts.rootCause ?? null,
       workaround: opts.workaround ?? null,
       changeRisk: opts.changeRisk ?? null,
@@ -1052,6 +1056,8 @@ async function main() {
     impact: 'high',
     urgency: 'high',
     dueAt: hours(2),
+    channel: 'email',
+    channelMeta: { messageId: 'seed-mi-email@logit.local', from: 'noc@example.com' },
   });
 
   await upsertTicket({
@@ -1083,6 +1089,8 @@ async function main() {
     impact: 'medium',
     urgency: 'high',
     dueAt: hours(8),
+    channel: 'slack',
+    channelMeta: { slackChannelId: 'C-SEED-VPN', slackUserId: 'U-SEED' },
   });
 
   await upsertTicket({
@@ -1097,6 +1105,8 @@ async function main() {
     assigneeId: null,
     impact: 'low',
     urgency: 'medium',
+    channel: 'teams',
+    channelMeta: { conversationId: 'seed-teams-printer' },
   });
 
   await upsertTicket({

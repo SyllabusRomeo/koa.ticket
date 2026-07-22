@@ -80,6 +80,8 @@ Give developers/integrators a map of MVP HTTP APIs.
 | POST | `/notifications/read-all` |
 | POST | `/notifications/:id/read` |
 | GET/PATCH | `/notifications/preferences` |
+| GET/PATCH | `/notifications/digest` |
+| GET | `/notifications/digest/status` |
 | GET/POST | `/approvals` · `/approvals/:id/decide` |
 | GET/POST | `/approvals/policies` |
 
@@ -99,7 +101,10 @@ Give developers/integrators a map of MVP HTTP APIs.
 | GET | `/assets/types` |
 | POST | `/assets/tickets/:ticketId/link` |
 | GET | `/reports/summary?from=&to=` · `/reports/workspace` (agent KPIs) |
+| GET | `/reports/heatmap?from=&to=&metric=created\|resolved` (`reports:read`) |
+| GET | `/reports/stages?from=&to=` (stage bottlenecks) |
 | GET | `/reports/export.csv?from=&to=` · `/reports/export.pdf?from=&to=` (`reports:read`) |
+| GET/POST | `/reports/schedules` · `PATCH/DELETE /reports/schedules/:id` · `POST …/:id/run` (`reports:read` or `settings:manage`) |
 | GET | `/tickets/export.csv` (same visibility as ticket list) |
 | GET | `/audit/export.csv?…` (same filters as `/audit`, `audit:read`) |
 

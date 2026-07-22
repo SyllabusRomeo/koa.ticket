@@ -8,7 +8,8 @@ Explain how users are notified and how preferences work.
 
 - **In-app notifications** (primary)
 - **Email** — SMTP outbound via nodemailer for key ticket events (see [INTEGRATIONS_EMAIL.md](../INTEGRATIONS_EMAIL.md))
-- Future: digests, watcher fan-out polish, Microsoft Teams bot replies, SMS, push
+- **Digests** — optional daily/weekly email rollup of unread notifications (Profile → Email digest); see [NOTIFICATIONS.md](../NOTIFICATIONS.md)
+- Future: Microsoft Teams bot replies, SMS, push
 
 ## Common events
 
@@ -41,6 +42,20 @@ PATCH /api/v1/notifications/preferences
 ```
 
 **Policy:** Critical security/admin alerts must remain non-suppressible where required (enforce as event types are finalized).
+
+### Digests
+
+```http
+GET /api/v1/notifications/digest
+PATCH /api/v1/notifications/digest
+{
+  "frequency": "daily",
+  "quietStartHour": 22,
+  "quietEndHour": 7
+}
+```
+
+`frequency`: `none` | `daily` | `weekly`. Digests leave in-app rows unread and set `lastDigestAt`.
 
 ## Related SOPs
 

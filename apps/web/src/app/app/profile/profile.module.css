@@ -47,6 +47,12 @@
   font-size: 1.25rem;
 }
 
+.subsectionTitle {
+  margin: 1.35rem 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
 .sectionHint {
   margin: 0 0 1rem;
   font-size: 0.9rem;

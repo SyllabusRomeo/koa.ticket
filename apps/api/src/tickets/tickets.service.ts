@@ -283,6 +283,11 @@ export class TicketsService {
       (type.code === 'incident' || type.code === 'security_incident') &&
       this.canStaffTickets(user);
 
+    const channel = dto.channel ?? 'web';
+    const channelMeta = dto.channelMeta
+      ? (dto.channelMeta as Prisma.InputJsonValue)
+      : undefined;
+
     const ticket = await this.prisma.ticket.create({
       data: {
         number,
@@ -302,6 +307,8 @@ export class TicketsService {
         assigneeId: assigneeId ?? undefined,
         parentId,
         majorIncident,
+        channel,
+        channelMeta,
         cabRequired: type.code === 'change',
         history: {
           create: [
@@ -309,6 +316,11 @@ export class TicketsService {
               actorId: user.id,
               field: 'created',
               newValue: number,
+            },
+            {
+              actorId: user.id,
+              field: 'channel',
+              newValue: channel,
             },
             ...(teamId
               ? [
@@ -452,6 +464,7 @@ export class TicketsService {
       assigneeId?: string;
       queue?: string;
       majorIncident?: boolean;
+      channel?: string;
     } = {},
   ) {
     const where: Prisma.TicketWhereInput = {
@@ -473,6 +486,9 @@ export class TicketsService {
     }
     if (opts.majorIncident !== undefined && staff) {
       where.majorIncident = opts.majorIncident;
+    }
+    if (opts.channel?.trim()) {
+      where.channel = opts.channel.trim().toLowerCase();
     }
 
     // Org-wide staff can filter queues; agents are already limited to their work.
@@ -750,6 +766,7 @@ export class TicketsService {
       'status',
       'priority',
       'type',
+      'channel',
       'location',
       'site',
       'requester',
@@ -766,6 +783,7 @@ export class TicketsService {
         escape(t.status.code),
         escape(t.priority?.code ?? ''),
         escape(t.type.code),
+        escape(t.channel ?? 'web'),
         escape(t.location?.name ?? ''),
         escape(t.location?.site ?? ''),
         escape(person(t.requester)),
@@ -1674,6 +1692,11 @@ export class TicketsService {
         locationId: source.locationId,
         teamId: source.teamId ?? undefined,
         assigneeId: source.assigneeId ?? undefined,
+        channel: 'web',
+        channelMeta: {
+          promotedFrom: source.number,
+          sourceChannel: source.channel ?? 'web',
+        },
         history: {
           create: [
             {

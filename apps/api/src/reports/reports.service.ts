@@ -751,6 +751,7 @@ export class ReportsService {
       'status',
       'priority',
       'type',
+      'channel',
       'requester',
       'assignee',
       'team',
@@ -765,6 +766,7 @@ export class ReportsService {
         this.escapeCsv(t.status.code),
         this.escapeCsv(t.priority?.code ?? ''),
         this.escapeCsv(t.type.code),
+        this.escapeCsv(t.channel ?? 'web'),
         this.escapeCsv(this.personLabel(t.requester)),
         this.escapeCsv(this.personLabel(t.assignee)),
         this.escapeCsv(t.team?.name ?? ''),
@@ -871,5 +873,282 @@ export class ReportsService {
 
     doc.end();
     return done;
+  }
+
+  /**
+   * Volume heatmap: day-of-week (0=Sun…6=Sat) × hour (0–23)
+   * for tickets created or resolved in the date range.
+   */
+  async heatmap(
+    range: ReportDateRange = {},
+    metric: 'created' | 'resolved' = 'created',
+  ) {
+    const dateFilter = this.parseCreatedAtFilter(range);
+    const where: Prisma.TicketWhereInput =
+      metric === 'created'
+        ? {
+            deletedAt: null,
+            ...(dateFilter ? { createdAt: dateFilter } : {}),
+          }
+        : {
+            deletedAt: null,
+            resolvedAt: dateFilter ?? { not: null },
+          };
+
+    const tickets = await this.prisma.ticket.findMany({
+      where,
+      select: {
+        createdAt: true,
+        resolvedAt: true,
+      },
+      take: 20_000,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const cells = new Map<string, number>();
+    let max = 0;
+    for (const t of tickets) {
+      const at = metric === 'resolved' ? t.resolvedAt : t.createdAt;
+      if (!at) continue;
+      const dayOfWeek = at.getDay();
+      const hour = at.getHours();
+      const key = `${dayOfWeek}:${hour}`;
+      const next = (cells.get(key) ?? 0) + 1;
+      cells.set(key, next);
+      if (next > max) max = next;
+    }
+
+    const matrix: Array<{ dayOfWeek: number; hour: number; count: number }> =
+      [];
+    for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+      for (let hour = 0; hour < 24; hour++) {
+        const count = cells.get(`${dayOfWeek}:${hour}`) ?? 0;
+        if (count > 0) {
+          matrix.push({ dayOfWeek, hour, count });
+        }
+      }
+    }
+
+    return {
+      metric,
+      from: range.from?.trim() || null,
+      to: range.to?.trim() || null,
+      sampleSize: tickets.length,
+      max,
+      days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+      cells: matrix,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  canManageSchedules(user: AuthUserView) {
+    return (
+      user.permissions.includes(PERMISSIONS.REPORTS_READ) ||
+      user.permissions.includes(PERMISSIONS.SETTINGS_MANAGE)
+    );
+  }
+
+  private parseScheduleFilters(raw: unknown): {
+    rangeDays: number;
+  } {
+    const obj =
+      raw && typeof raw === 'object' && !Array.isArray(raw)
+        ? (raw as Record<string, unknown>)
+        : {};
+    const n = Number(obj.rangeDays);
+    const rangeDays =
+      Number.isFinite(n) && n >= 1 ? Math.min(Math.floor(n), 365) : 7;
+    return { rangeDays };
+  }
+
+  private rangeFromDays(rangeDays: number): ReportDateRange {
+    const to = new Date();
+    to.setHours(23, 59, 59, 999);
+    const from = new Date(to);
+    from.setDate(from.getDate() - (rangeDays - 1));
+    from.setHours(0, 0, 0, 0);
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    return { from: iso(from), to: iso(to) };
+  }
+
+  private serializeSchedule(row: {
+    id: string;
+    userId: string;
+    cadence: string;
+    format: string;
+    email: string;
+    filters: unknown;
+    lastRunAt: Date | null;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  }) {
+    const filters = this.parseScheduleFilters(row.filters);
+    return {
+      id: row.id,
+      userId: row.userId,
+      cadence: row.cadence as 'daily' | 'weekly',
+      format: row.format as 'csv' | 'pdf',
+      email: row.email,
+      filters,
+      lastRunAt: row.lastRunAt?.toISOString() ?? null,
+      isActive: row.isActive,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  async listSchedules(userId: string) {
+    const rows = await this.prisma.reportSchedule.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return rows.map((r) => this.serializeSchedule(r));
+  }
+
+  async createSchedule(
+    userId: string,
+    input: {
+      cadence: 'daily' | 'weekly';
+      format: 'csv' | 'pdf';
+      email: string;
+      rangeDays?: number;
+      isActive?: boolean;
+    },
+  ) {
+    const rangeDays = this.parseScheduleFilters({
+      rangeDays: input.rangeDays,
+    }).rangeDays;
+    const row = await this.prisma.reportSchedule.create({
+      data: {
+        userId,
+        cadence: input.cadence,
+        format: input.format,
+        email: input.email.trim().toLowerCase(),
+        filters: { rangeDays },
+        isActive: input.isActive ?? true,
+      },
+    });
+    return this.serializeSchedule(row);
+  }
+
+  async updateSchedule(
+    userId: string,
+    id: string,
+    input: {
+      cadence?: 'daily' | 'weekly';
+      format?: 'csv' | 'pdf';
+      email?: string;
+      rangeDays?: number;
+      isActive?: boolean;
+    },
+  ) {
+    const existing = await this.prisma.reportSchedule.findFirst({
+      where: { id, userId },
+    });
+    if (!existing) return null;
+
+    const prev = this.parseScheduleFilters(existing.filters);
+    const rangeDays =
+      input.rangeDays != null
+        ? this.parseScheduleFilters({ rangeDays: input.rangeDays }).rangeDays
+        : prev.rangeDays;
+
+    const row = await this.prisma.reportSchedule.update({
+      where: { id },
+      data: {
+        ...(input.cadence ? { cadence: input.cadence } : {}),
+        ...(input.format ? { format: input.format } : {}),
+        ...(input.email ? { email: input.email.trim().toLowerCase() } : {}),
+        filters: { rangeDays },
+        ...(input.isActive != null ? { isActive: input.isActive } : {}),
+      },
+    });
+    return this.serializeSchedule(row);
+  }
+
+  async deleteSchedule(userId: string, id: string) {
+    const existing = await this.prisma.reportSchedule.findFirst({
+      where: { id, userId },
+    });
+    if (!existing) return false;
+    await this.prisma.reportSchedule.delete({ where: { id } });
+    return true;
+  }
+
+  async getScheduleForUser(userId: string, id: string) {
+    const row = await this.prisma.reportSchedule.findFirst({
+      where: { id, userId },
+    });
+    return row ? this.serializeSchedule(row) : null;
+  }
+
+  async getScheduleRow(userId: string, id: string) {
+    return this.prisma.reportSchedule.findFirst({
+      where: { id, userId },
+    });
+  }
+
+  scheduleIsDue(
+    cadence: string,
+    lastRunAt: Date | null,
+    now = new Date(),
+  ): boolean {
+    if (!lastRunAt) return true;
+    const ms = now.getTime() - lastRunAt.getTime();
+    if (cadence === 'weekly') {
+      return ms >= 7 * 24 * 60 * 60_000;
+    }
+    // daily: once per local calendar day
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+    return lastRunAt < startOfToday;
+  }
+
+  async listDueSchedules(now = new Date()) {
+    const rows = await this.prisma.reportSchedule.findMany({
+      where: { isActive: true },
+    });
+    return rows.filter((r) => this.scheduleIsDue(r.cadence, r.lastRunAt, now));
+  }
+
+  async markScheduleRan(id: string, at = new Date()) {
+    return this.prisma.reportSchedule.update({
+      where: { id },
+      data: { lastRunAt: at },
+    });
+  }
+
+  async buildScheduledExport(schedule: {
+    format: string;
+    filters: unknown;
+  }): Promise<{
+    range: ReportDateRange;
+    filename: string;
+    contentType: string;
+    body: Buffer | string;
+  }> {
+    const { rangeDays } = this.parseScheduleFilters(schedule.filters);
+    const range = this.rangeFromDays(rangeDays);
+    const stamp = new Date().toISOString().slice(0, 10);
+
+    if (schedule.format === 'pdf') {
+      const pdf = await this.buildReportPdf(range);
+      return {
+        range,
+        filename: `logit-report-${stamp}.pdf`,
+        contentType: 'application/pdf',
+        body: pdf,
+      };
+    }
+
+    const tickets = await this.loadExportTickets(range);
+    const csv = this.buildTicketsCsv(tickets);
+    return {
+      range,
+      filename: `logit-report-${stamp}.csv`,
+      contentType: 'text/csv; charset=utf-8',
+      body: csv,
+    };
   }
 }

@@ -7,11 +7,23 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { IsBoolean, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 import { CurrentUser } from '../auth/decorators';
 import type { AuthUserView } from '../auth/auth.service';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { NotificationsService } from './notifications.service';
+import { NotificationDigestService } from './notification-digest.service';
+import { NotificationDigestPoller } from './notification-digest.poller';
+import { DIGEST_FREQUENCIES, type DigestFrequency } from './notification-digest.util';
 
 class PrefDto {
   @IsString()
@@ -26,14 +38,56 @@ class PrefDto {
   inAppEnabled?: boolean;
 }
 
+class DigestSettingsDto {
+  @IsOptional()
+  @IsIn([...DIGEST_FREQUENCIES])
+  frequency?: DigestFrequency;
+
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsInt()
+  @Min(0)
+  @Max(23)
+  quietStartHour?: number | null;
+
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsInt()
+  @Min(0)
+  @Max(23)
+  quietEndHour?: number | null;
+}
+
 @Controller('notifications')
 @UseGuards(SessionAuthGuard)
 export class NotificationsController {
-  constructor(private readonly notifications: NotificationsService) {}
+  constructor(
+    private readonly notifications: NotificationsService,
+    private readonly digests: NotificationDigestService,
+    private readonly digestPoller: NotificationDigestPoller,
+  ) {}
 
   @Get('preferences')
   prefs(@CurrentUser() user: AuthUserView) {
     return this.notifications.getPreferences(user.id);
+  }
+
+  @Get('digest')
+  digestSettings(@CurrentUser() user: AuthUserView) {
+    return this.digests.getSettings(user.id);
+  }
+
+  @Patch('digest')
+  updateDigest(
+    @CurrentUser() user: AuthUserView,
+    @Body() dto: DigestSettingsDto,
+  ) {
+    return this.digests.updateSettings(user.id, dto);
+  }
+
+  @Get('digest/status')
+  digestStatus() {
+    return this.digestPoller.status();
   }
 
   @Get('events')
