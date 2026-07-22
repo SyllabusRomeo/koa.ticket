@@ -171,6 +171,109 @@ export class AuthService {
     return this.toAuthUser(session.user);
   }
 
+  async getAuthUserById(userId: string): Promise<AuthUserView> {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null, isActive: true },
+      include: {
+        roles: {
+          include: {
+            role: {
+              include: { permissions: { include: { permission: true } } },
+            },
+          },
+        },
+        extraPermissions: { include: { permission: true } },
+      },
+    });
+    if (!user) throw new UnauthorizedException('Not authenticated');
+    return this.toAuthUser(user);
+  }
+
+  async profileContext(userId: string) {
+    const [user, locations, departments] = await Promise.all([
+      this.getAuthUserById(userId),
+      this.prisma.location.findMany({
+        where: { deletedAt: null, isActive: true },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          site: true,
+          country: true,
+          timezone: true,
+          isActive: true,
+        },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.department.findMany({
+        where: { deletedAt: null, isActive: true },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          locationId: true,
+          isActive: true,
+        },
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+
+    return { user, locations, departments };
+  }
+
+  async updateProfile(
+    userId: string,
+    dto: {
+      firstName?: string;
+      lastName?: string;
+      locationId?: string | null;
+      departmentId?: string | null;
+    },
+  ) {
+    if (dto.locationId !== undefined && dto.locationId !== null && dto.locationId.trim()) {
+      const loc = await this.prisma.location.findFirst({
+        where: { id: dto.locationId.trim(), deletedAt: null, isActive: true },
+      });
+      if (!loc) throw new BadRequestException('Location not found');
+    }
+    if (
+      dto.departmentId !== undefined &&
+      dto.departmentId !== null &&
+      dto.departmentId.trim()
+    ) {
+      const dept = await this.prisma.department.findFirst({
+        where: {
+          id: dto.departmentId.trim(),
+          deletedAt: null,
+          isActive: true,
+        },
+      });
+      if (!dept) throw new BadRequestException('Department not found');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        firstName: dto.firstName?.trim(),
+        lastName: dto.lastName?.trim(),
+        locationId:
+          dto.locationId === undefined
+            ? undefined
+            : dto.locationId === null || !String(dto.locationId).trim()
+              ? null
+              : String(dto.locationId).trim(),
+        departmentId:
+          dto.departmentId === undefined
+            ? undefined
+            : dto.departmentId === null || !String(dto.departmentId).trim()
+              ? null
+              : String(dto.departmentId).trim(),
+      },
+    });
+
+    return this.getAuthUserById(userId);
+  }
+
   async changePassword(
     userId: string,
     currentPassword: string,

@@ -24,6 +24,24 @@ import styles from './reports.module.css';
 
 type Breakdown = { code: string; name: string; count: number };
 
+type StageRow = {
+  code: string;
+  name: string;
+  ticketCount: number;
+  currentCount: number;
+  avgMs: number;
+  avgLabel: string;
+  totalLabel: string;
+  pctOfAll: number;
+};
+
+type StuckRow = {
+  number: string;
+  title: string;
+  statusName: string;
+  label: string;
+};
+
 type ReportSummary = {
   openTickets: number;
   createdToday: number;
@@ -40,6 +58,13 @@ type ReportSummary = {
   byAssignee: Breakdown[];
   byLocation?: Breakdown[];
   generatedAt: string;
+};
+
+type StageReport = {
+  sampleSize: number;
+  stuckThresholdHours: number;
+  byStatus: StageRow[];
+  stuckOpen: StuckRow[];
 };
 
 function BreakdownList({
@@ -81,6 +106,7 @@ export default function ReportsPage() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [summary, setSummary] = useState<ReportSummary | null>(null);
+  const [stages, setStages] = useState<StageReport | null>(null);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -89,8 +115,12 @@ export default function ReportsPage() {
   const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
 
   async function load(range: { from?: string; to?: string } = {}) {
-    const data = await api.reportSummary(range);
-    setSummary(data);
+    const [summaryData, stagesData] = await Promise.all([
+      api.reportSummary(range),
+      api.reportStages(range),
+    ]);
+    setSummary(summaryData);
+    setStages(stagesData);
   }
 
   useEffect(() => {
@@ -307,6 +337,82 @@ export default function ReportsPage() {
               />
               <BreakdownList title="By assignee" rows={summary.byAssignee} />
             </div>
+
+            {stages ? (
+              <section className={styles.stagePanel}>
+                <div className={styles.stageHead}>
+                  <h2 className={styles.breakdownTitle}>
+                    Stage duration bottlenecks
+                  </h2>
+                  <p className={styles.muted}>
+                    Average time-in-status across {stages.sampleSize} ticket
+                    {stages.sampleSize === 1 ? '' : 's'} (from status history).
+                    Open tickets stuck ≥ {stages.stuckThresholdHours}h in the
+                    current stage are listed below.
+                  </p>
+                </div>
+                {stages.byStatus.length === 0 ? (
+                  <p className={styles.muted}>No stage data in this range.</p>
+                ) : (
+                  <ul className={styles.barList}>
+                    {stages.byStatus.map((row) => {
+                      const maxAvg = Math.max(
+                        1,
+                        ...stages.byStatus.map((r) => r.avgMs),
+                      );
+                      return (
+                        <li key={row.code}>
+                          <div className={styles.barMeta}>
+                            <span>
+                              {row.name}{' '}
+                              <em className={styles.stageMeta}>
+                                · {row.ticketCount} ticket
+                                {row.ticketCount === 1 ? '' : 's'}
+                                {row.currentCount
+                                  ? ` · ${row.currentCount} current`
+                                  : ''}
+                                · {row.pctOfAll}% of time
+                              </em>
+                            </span>
+                            <strong title={`Total ${row.totalLabel}`}>
+                              avg {row.avgLabel}
+                            </strong>
+                          </div>
+                          <div className={styles.barTrack} aria-hidden>
+                            <div
+                              className={styles.barFillAccent}
+                              style={{
+                                width: `${Math.round((row.avgMs / maxAvg) * 100)}%`,
+                              }}
+                            />
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {stages.stuckOpen.length > 0 ? (
+                  <div className={styles.stuckBlock}>
+                    <h3 className={styles.stuckTitle}>Stuck open tickets</h3>
+                    <ul className={styles.stuckList}>
+                      {stages.stuckOpen.map((row) => (
+                        <li key={row.number}>
+                          <a
+                            href={`/app/tickets/${encodeURIComponent(row.number)}`}
+                          >
+                            <strong>{row.number}</strong>
+                          </a>
+                          <span>
+                            {row.statusName} · {row.label}
+                          </span>
+                          <em>{row.title}</em>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
           </>
         )}
       </div>

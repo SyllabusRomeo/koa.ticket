@@ -328,7 +328,7 @@ async function main() {
     return user;
   };
 
-  await upsertDemoUser({
+  const agent = await upsertDemoUser({
     email: 'agent@logit.local',
     password: 'LogIT-Agent-2026!',
     firstName: 'Kojo',
@@ -337,7 +337,7 @@ async function main() {
     departmentId: itDept.id,
     joinServiceDesk: true,
   });
-  await upsertDemoUser({
+  const senior = await upsertDemoUser({
     email: 'senior@logit.local',
     password: 'LogIT-Senior-2026!',
     firstName: 'Efua',
@@ -346,7 +346,7 @@ async function main() {
     departmentId: itDept.id,
     joinServiceDesk: true,
   });
-  await upsertDemoUser({
+  const manager = await upsertDemoUser({
     email: 'manager@logit.local',
     password: 'LogIT-Manager-2026!',
     firstName: 'Yaw',
@@ -356,7 +356,7 @@ async function main() {
     joinServiceDesk: true,
     isLead: true,
   });
-  await upsertDemoUser({
+  const approver = await upsertDemoUser({
     email: 'approver@logit.local',
     password: 'LogIT-Approver-2026!',
     firstName: 'Akosua',
@@ -364,7 +364,7 @@ async function main() {
     roleCode: ROLES.APPROVER,
     departmentId: opsDept.id,
   });
-  await upsertDemoUser({
+  const auditor = await upsertDemoUser({
     email: 'auditor@logit.local',
     password: 'LogIT-Auditor-2026!',
     firstName: 'Nana',
@@ -372,6 +372,7 @@ async function main() {
     roleCode: ROLES.AUDITOR,
     departmentId: itDept.id,
   });
+  void auditor;
 
   // Phase 3 — ticket metadata
   const typeDefs = [
@@ -396,7 +397,29 @@ async function main() {
     { code: 'open', name: 'Open', sortOrder: 20 },
     { code: 'assigned', name: 'Assigned', sortOrder: 30 },
     { code: 'in_progress', name: 'In Progress', sortOrder: 40 },
+    {
+      code: 'under_investigation',
+      name: 'Under investigation',
+      sortOrder: 45,
+    },
+    {
+      code: 'scheduled',
+      name: 'Scheduled',
+      sortOrder: 48,
+      pausesSla: true,
+    },
+    {
+      code: 'implementing',
+      name: 'Implementing',
+      sortOrder: 49,
+    },
     { code: 'pending_user', name: 'Pending User', sortOrder: 50, pausesSla: true },
+    {
+      code: 'known_error',
+      name: 'Known error',
+      sortOrder: 55,
+      pausesSla: true,
+    },
     { code: 'pending_vendor', name: 'Pending Vendor', sortOrder: 60, pausesSla: true },
     { code: 'pending_approval', name: 'Pending Approval', sortOrder: 70, pausesSla: true },
     { code: 'on_hold', name: 'On Hold', sortOrder: 80, pausesSla: true },
@@ -435,18 +458,46 @@ async function main() {
     ['open', 'in_progress'],
     ['open', 'cancelled'],
     ['assigned', 'in_progress'],
+    ['assigned', 'under_investigation'],
     ['assigned', 'pending_user'],
     ['in_progress', 'pending_user'],
     ['in_progress', 'pending_vendor'],
     ['in_progress', 'pending_approval'],
     ['in_progress', 'on_hold'],
+    ['in_progress', 'under_investigation'],
     ['in_progress', 'resolved'],
+    ['under_investigation', 'known_error'],
+    ['under_investigation', 'in_progress'],
+    ['under_investigation', 'resolved'],
+    ['under_investigation', 'on_hold'],
+    ['known_error', 'in_progress'],
+    ['known_error', 'under_investigation'],
+    ['known_error', 'resolved'],
+    ['new', 'pending_approval'],
+    ['open', 'pending_approval'],
+    ['assigned', 'pending_approval'],
+    ['in_progress', 'pending_approval'],
+    ['pending_approval', 'scheduled'],
+    ['open', 'scheduled'],
+    ['assigned', 'scheduled'],
+    ['in_progress', 'scheduled'],
+    ['in_progress', 'implementing'],
+    ['scheduled', 'implementing'],
+    ['scheduled', 'cancelled'],
+    ['scheduled', 'on_hold'],
+    ['implementing', 'resolved'],
+    ['implementing', 'on_hold'],
+    ['implementing', 'scheduled'],
+    ['on_hold', 'scheduled'],
+    ['on_hold', 'implementing'],
     ['pending_user', 'in_progress'],
     ['pending_vendor', 'in_progress'],
     ['pending_approval', 'open'],
     ['pending_approval', 'in_progress'],
     ['pending_approval', 'cancelled'],
     ['on_hold', 'in_progress'],
+    ['on_hold', 'under_investigation'],
+    ['open', 'under_investigation'],
     ['resolved', 'closed'],
     ['resolved', 'open'],
     ['closed', 'open'],
@@ -740,7 +791,706 @@ async function main() {
     },
   });
 
-  console.log('LogIT seed complete (Phase 1–11 MVP).');
+  // ─── Demo sample data (idempotent by ticket number / slug / tag) ───
+  const year = new Date().getFullYear();
+  const types = await prisma.ticketType.findMany();
+  const typeByCode = Object.fromEntries(types.map((t) => [t.code, t]));
+  const cats = await prisma.category.findMany({
+    include: { subcategories: true },
+  });
+  const catByCode = Object.fromEntries(cats.map((c) => [c.code, c]));
+  const statusesNow = await prisma.ticketStatus.findMany();
+  const statusByCode = Object.fromEntries(statusesNow.map((s) => [s.code, s]));
+  const prios = await prisma.priority.findMany();
+  const prioByCode = Object.fromEntries(prios.map((p) => [p.code, p]));
+
+  async function upsertTicket(opts: {
+    number: string;
+    title: string;
+    description: string;
+    typeCode: string;
+    statusCode: string;
+    priorityCode?: string;
+    categoryCode?: string;
+    requesterId: string;
+    assigneeId?: string | null;
+    teamId?: string | null;
+    majorIncident?: boolean;
+    parentNumber?: string;
+    rootCause?: string;
+    workaround?: string;
+    changeRisk?: string;
+    changePlan?: string;
+    rollbackPlan?: string;
+    scheduledStart?: Date;
+    scheduledEnd?: Date;
+    cabRequired?: boolean;
+    impact?: string;
+    urgency?: string;
+    dueAt?: Date;
+    resolvedAt?: Date;
+  }) {
+    const type = typeByCode[opts.typeCode];
+    const status = statusByCode[opts.statusCode];
+    if (!type || !status) return null;
+    const category = opts.categoryCode ? catByCode[opts.categoryCode] : null;
+    const priority = opts.priorityCode ? prioByCode[opts.priorityCode] : null;
+    let parentId: string | undefined;
+    if (opts.parentNumber) {
+      const parent = await prisma.ticket.findUnique({
+        where: { number: opts.parentNumber },
+        select: { id: true },
+      });
+      parentId = parent?.id;
+    }
+    const data = {
+      title: opts.title,
+      description: opts.description,
+      typeId: type.id,
+      statusId: status.id,
+      priorityId: priority?.id ?? null,
+      categoryId: category?.id ?? null,
+      impact: opts.impact ?? null,
+      urgency: opts.urgency ?? null,
+      requesterId: opts.requesterId,
+      assigneeId: opts.assigneeId ?? null,
+      teamId: opts.teamId ?? serviceDesk.id,
+      departmentId: itDept.id,
+      locationId: hq.id,
+      parentId: parentId ?? null,
+      majorIncident: opts.majorIncident ?? false,
+      rootCause: opts.rootCause ?? null,
+      workaround: opts.workaround ?? null,
+      changeRisk: opts.changeRisk ?? null,
+      changePlan: opts.changePlan ?? null,
+      rollbackPlan: opts.rollbackPlan ?? null,
+      scheduledStart: opts.scheduledStart ?? null,
+      scheduledEnd: opts.scheduledEnd ?? null,
+      cabRequired: opts.cabRequired ?? opts.typeCode === 'change',
+      dueAt: opts.dueAt ?? null,
+      resolvedAt: opts.resolvedAt ?? null,
+    };
+    return prisma.ticket.upsert({
+      where: { number: opts.number },
+      update: data,
+      create: { number: opts.number, ...data },
+    });
+  }
+
+  const now = Date.now();
+  const hours = (h: number) => new Date(now + h * 3600_000);
+  const daysAgo = (d: number) => new Date(now - d * 86400_000);
+
+  // Sync number sequences so UI-created tickets don't collide
+  for (const [prefix, lastValue] of [
+    ['INC', 20],
+    ['REQ', 10],
+    ['ACC', 5],
+    ['SEC', 3],
+    ['PRB', 5],
+    ['CHG', 5],
+    ['TSK', 5],
+  ] as const) {
+    await prisma.ticketNumberSequence.upsert({
+      where: { prefix_year: { prefix, year } },
+      update: { lastValue },
+      create: { prefix, year, lastValue },
+    });
+  }
+
+  const miCore = await upsertTicket({
+    number: `INC-${year}-000001`,
+    title: 'Email outage — Exchange Online unreachable',
+    description:
+      'Users across HQ cannot send or receive mail. Outlook shows disconnected. Started ~08:15. Business-critical.',
+    typeCode: 'incident',
+    statusCode: 'in_progress',
+    priorityCode: 'p1_critical',
+    categoryCode: 'SOFTWARE',
+    requesterId: employee.id,
+    assigneeId: manager.id,
+    majorIncident: true,
+    impact: 'high',
+    urgency: 'high',
+    dueAt: hours(2),
+  });
+
+  await upsertTicket({
+    number: `INC-${year}-000002`,
+    title: 'Related: Outlook desktop stuck on password prompt',
+    description: 'Child of major email outage — clients prompting repeatedly.',
+    typeCode: 'incident',
+    statusCode: 'assigned',
+    priorityCode: 'p2_high',
+    categoryCode: 'SOFTWARE',
+    requesterId: employee.id,
+    assigneeId: agent.id,
+    parentNumber: `INC-${year}-000001`,
+    impact: 'medium',
+    urgency: 'high',
+  });
+
+  await upsertTicket({
+    number: `INC-${year}-000003`,
+    title: 'VPN disconnects every 10 minutes',
+    description:
+      'GlobalProtect drops sessions for remote staff. Reconnect works briefly.',
+    typeCode: 'incident',
+    statusCode: 'assigned',
+    priorityCode: 'p2_high',
+    categoryCode: 'NETWORK',
+    requesterId: employee.id,
+    assigneeId: agent.id,
+    impact: 'medium',
+    urgency: 'high',
+    dueAt: hours(8),
+  });
+
+  await upsertTicket({
+    number: `INC-${year}-000004`,
+    title: 'Printer on Floor 3 offline',
+    description: 'HP LaserJet near finance shows offline; queue backing up.',
+    typeCode: 'incident',
+    statusCode: 'new',
+    priorityCode: 'p3_medium',
+    categoryCode: 'HARDWARE',
+    requesterId: employee.id,
+    assigneeId: null,
+    impact: 'low',
+    urgency: 'medium',
+  });
+
+  await upsertTicket({
+    number: `INC-${year}-000005`,
+    title: 'Wi-Fi slow in conference wing',
+    description: 'Guests and staff report <5 Mbps on conf-A SSID.',
+    typeCode: 'incident',
+    statusCode: 'pending_vendor',
+    priorityCode: 'p3_medium',
+    categoryCode: 'NETWORK',
+    requesterId: employee.id,
+    assigneeId: senior.id,
+    impact: 'medium',
+    urgency: 'medium',
+  });
+
+  await upsertTicket({
+    number: `INC-${year}-000006`,
+    title: 'Major: Core switch stack reboot loop (resolved)',
+    description: 'Datacenter ToR stack flapped; traffic blackholed for 40m.',
+    typeCode: 'incident',
+    statusCode: 'resolved',
+    priorityCode: 'p1_critical',
+    categoryCode: 'NETWORK',
+    requesterId: manager.id,
+    assigneeId: senior.id,
+    majorIncident: true,
+    impact: 'high',
+    urgency: 'high',
+    resolvedAt: daysAgo(2),
+  });
+
+  await upsertTicket({
+    number: `SEC-${year}-000001`,
+    title: 'Suspicious login attempts on shared mailbox',
+    description: 'Impossible travel alerts for finance@ — review MFA and sessions.',
+    typeCode: 'security_incident',
+    statusCode: 'under_investigation',
+    priorityCode: 'p2_high',
+    categoryCode: 'ACCESS',
+    requesterId: manager.id,
+    assigneeId: senior.id,
+    impact: 'high',
+    urgency: 'medium',
+  });
+
+  const reqLaptop = await upsertTicket({
+    number: `REQ-${year}-000001`,
+    title: 'Request laptop for new hire — Ops',
+    description: 'New starter needs a standard corporate laptop by Monday.',
+    typeCode: 'service_request',
+    statusCode: 'pending_approval',
+    priorityCode: 'p3_medium',
+    categoryCode: 'HARDWARE',
+    requesterId: employee.id,
+    assigneeId: null,
+    impact: 'low',
+    urgency: 'medium',
+  });
+
+  await upsertTicket({
+    number: `REQ-${year}-000002`,
+    title: 'Extra monitor for design workstation',
+    description: '27" IPS monitor for dual-screen setup.',
+    typeCode: 'service_request',
+    statusCode: 'open',
+    priorityCode: 'p4_low',
+    categoryCode: 'HARDWARE',
+    requesterId: employee.id,
+    assigneeId: agent.id,
+  });
+
+  await upsertTicket({
+    number: `ACC-${year}-000001`,
+    title: 'Access to Finance SharePoint site',
+    description: 'Need Contributor on Finance FY26 site collection.',
+    typeCode: 'access_request',
+    statusCode: 'pending_approval',
+    priorityCode: 'p3_medium',
+    categoryCode: 'ACCESS',
+    requesterId: employee.id,
+  });
+
+  const problem = await upsertTicket({
+    number: `PRB-${year}-000001`,
+    title: 'Problem: Recurring VPN disconnects',
+    description:
+      'Raised from multiple VPN incidents. Investigating gateway config and client version skew.',
+    typeCode: 'problem',
+    statusCode: 'under_investigation',
+    priorityCode: 'p2_high',
+    categoryCode: 'NETWORK',
+    requesterId: manager.id,
+    assigneeId: senior.id,
+    rootCause: 'Suspected mismatched GlobalProtect client vs portal config.',
+    workaround: 'Reconnect via Always-On fallback profile; avoid split tunnel on LTE.',
+  });
+
+  await upsertTicket({
+    number: `INC-${year}-000007`,
+    title: 'VPN drop — linked to PRB-000001',
+    description: 'Another occurrence; linked under problem record.',
+    typeCode: 'incident',
+    statusCode: 'open',
+    priorityCode: 'p2_high',
+    categoryCode: 'NETWORK',
+    requesterId: employee.id,
+    assigneeId: agent.id,
+    parentNumber: `PRB-${year}-000001`,
+  });
+
+  await upsertTicket({
+    number: `PRB-${year}-000002`,
+    title: 'Problem: Known error — Outlook search index corruption',
+    description: 'Search returns incomplete results after Windows updates.',
+    typeCode: 'problem',
+    statusCode: 'known_error',
+    priorityCode: 'p3_medium',
+    categoryCode: 'SOFTWARE',
+    requesterId: senior.id,
+    assigneeId: senior.id,
+    rootCause: 'Windows Search indexer fails after cumulative update KB503xxx.',
+    workaround: 'Rebuild index via Outlook /cleansearch; defer optional CU.',
+  });
+
+  await upsertTicket({
+    number: `CHG-${year}-000001`,
+    title: 'Change: Upgrade firewall firmware to 7.2.8',
+    description: 'Maintenance window Sunday 02:00–04:00. Dual HA pair.',
+    typeCode: 'change',
+    statusCode: 'pending_approval',
+    priorityCode: 'p2_high',
+    categoryCode: 'NETWORK',
+    requesterId: senior.id,
+    assigneeId: manager.id,
+    changeRisk: 'medium — brief failover expected',
+    changePlan:
+      '1. Snapshot config\n2. Upgrade passive\n3. Failover\n4. Upgrade former active\n5. Validate VPN + WAN',
+    rollbackPlan: 'Revert to previous firmware image on both nodes; restore snapshot.',
+    scheduledStart: hours(72),
+    scheduledEnd: hours(74),
+    cabRequired: true,
+  });
+
+  await upsertTicket({
+    number: `CHG-${year}-000002`,
+    title: 'Change: Deploy M365 Conditional Access pilot',
+    description: 'Pilot CA policy for IT dept only.',
+    typeCode: 'change',
+    statusCode: 'scheduled',
+    priorityCode: 'p3_medium',
+    categoryCode: 'ACCESS',
+    requesterId: manager.id,
+    assigneeId: senior.id,
+    changeRisk: 'low',
+    changePlan: 'Enable report-only → enforce for IT security group.',
+    rollbackPlan: 'Disable policy; clear what-if reports.',
+    scheduledStart: hours(48),
+    scheduledEnd: hours(50),
+    cabRequired: true,
+  });
+
+  await upsertTicket({
+    number: `CHG-${year}-000003`,
+    title: 'Change: Replace Floor 2 access point',
+    description: 'Swap faulty AP-214 with spare.',
+    typeCode: 'change',
+    statusCode: 'implementing',
+    priorityCode: 'p4_low',
+    categoryCode: 'NETWORK',
+    requesterId: agent.id,
+    assigneeId: agent.id,
+    changeRisk: 'low',
+    changePlan: 'Take AP offline, mount spare, adopt in controller.',
+    rollbackPlan: 'Re-seat original AP.',
+    scheduledStart: hours(-1),
+    scheduledEnd: hours(1),
+  });
+
+  // Approvals for pending items
+  if (reqLaptop) {
+    await prisma.approval.deleteMany({ where: { ticketId: reqLaptop.id } });
+    await prisma.approval.create({
+      data: {
+        ticketId: reqLaptop.id,
+        approverId: approver.id,
+        status: 'pending',
+      },
+    });
+  }
+  const acc = await prisma.ticket.findUnique({
+    where: { number: `ACC-${year}-000001` },
+  });
+  if (acc) {
+    await prisma.approval.deleteMany({ where: { ticketId: acc.id } });
+    await prisma.approval.create({
+      data: {
+        ticketId: acc.id,
+        approverId: approver.id,
+        status: 'pending',
+      },
+    });
+  }
+  const chgCab = await prisma.ticket.findUnique({
+    where: { number: `CHG-${year}-000001` },
+  });
+  if (chgCab) {
+    await prisma.approval.deleteMany({ where: { ticketId: chgCab.id } });
+    await prisma.approval.create({
+      data: {
+        ticketId: chgCab.id,
+        approverId: approver.id,
+        status: 'pending',
+      },
+    });
+    await prisma.approval.create({
+      data: {
+        ticketId: chgCab.id,
+        approverId: manager.id,
+        status: 'pending',
+      },
+    });
+  }
+
+  // Activity on major incident
+  if (miCore) {
+    await prisma.ticketComment.deleteMany({ where: { ticketId: miCore.id } });
+    await prisma.ticketComment.createMany({
+      data: [
+        {
+          ticketId: miCore.id,
+          authorId: employee.id,
+          body: 'Entire floor cannot send mail. Finance month-end at risk.',
+          isInternal: false,
+        },
+        {
+          ticketId: miCore.id,
+          authorId: manager.id,
+          body: 'Declared major. Bridge open on Teams — war room channel #mi-email.',
+          isInternal: true,
+        },
+        {
+          ticketId: miCore.id,
+          authorId: senior.id,
+          body: 'Microsoft 365 service health shows advisory; checking our connector.',
+          isInternal: false,
+        },
+      ],
+    });
+    await prisma.ticketHistory.deleteMany({
+      where: { ticketId: miCore.id, field: { in: ['created', 'assignee', 'status', 'major_incident'] } },
+    });
+    await prisma.ticketHistory.createMany({
+      data: [
+        {
+          ticketId: miCore.id,
+          actorId: employee.id,
+          field: 'created',
+          newValue: miCore.number,
+        },
+        {
+          ticketId: miCore.id,
+          actorId: manager.id,
+          field: 'major_incident',
+          oldValue: 'false',
+          newValue: 'true',
+        },
+        {
+          ticketId: miCore.id,
+          actorId: manager.id,
+          field: 'assignee',
+          oldValue: null,
+          newValue: manager.id,
+        },
+        {
+          ticketId: miCore.id,
+          actorId: manager.id,
+          field: 'status',
+          oldValue: 'new',
+          newValue: 'in_progress',
+        },
+      ],
+    });
+    await prisma.ticketWatcher.upsert({
+      where: {
+        ticketId_userId: { ticketId: miCore.id, userId: agent.id },
+      },
+      update: {},
+      create: { ticketId: miCore.id, userId: agent.id },
+    });
+    await prisma.ticketWatcher.upsert({
+      where: {
+        ticketId_userId: { ticketId: miCore.id, userId: senior.id },
+      },
+      update: {},
+      create: { ticketId: miCore.id, userId: senior.id },
+    });
+    await prisma.ticketWorkLog.deleteMany({ where: { ticketId: miCore.id } });
+    await prisma.ticketWorkLog.create({
+      data: {
+        ticketId: miCore.id,
+        authorId: senior.id,
+        minutes: 45,
+        note: 'Initial triage + M365 health + connector checks',
+      },
+    });
+  }
+
+  if (problem) {
+    await prisma.ticketComment.deleteMany({ where: { ticketId: problem.id } });
+    await prisma.ticketComment.create({
+      data: {
+        ticketId: problem.id,
+        authorId: senior.id,
+        body: 'Correlating three VPN incidents from last week; opening known-error if confirmed.',
+        isInternal: true,
+      },
+    });
+  }
+
+  // Extra knowledge + catalog + assets
+  await prisma.knowledgeArticle.upsert({
+    where: { slug: 'connect-corporate-vpn' },
+    update: {
+      title: 'Connect to corporate VPN',
+      body: '<p>Install GlobalProtect, sign in with your LogIT email, and choose the <strong>HQ</strong> portal.</p><p>If sessions drop, see the VPN known error article or raise an incident.</p>',
+      status: 'published',
+      publishedAt: new Date(),
+      category: 'Network',
+    },
+    create: {
+      slug: 'connect-corporate-vpn',
+      title: 'Connect to corporate VPN',
+      body: '<p>Install GlobalProtect, sign in with your LogIT email, and choose the <strong>HQ</strong> portal.</p>',
+      status: 'published',
+      publishedAt: new Date(),
+      category: 'Network',
+      createdById: senior.id,
+    },
+  });
+  await prisma.knowledgeArticle.upsert({
+    where: { slug: 'request-software-install' },
+    update: {
+      title: 'Request software installation',
+      body: '<p>Use the Service Catalog item <em>Software install</em> or raise a service request with the package name and business justification.</p>',
+      status: 'published',
+      publishedAt: new Date(),
+      category: 'Software',
+    },
+    create: {
+      slug: 'request-software-install',
+      title: 'Request software installation',
+      body: '<p>Use Catalog → Software install, or open a service request.</p>',
+      status: 'published',
+      publishedAt: new Date(),
+      category: 'Software',
+      createdById: agent.id,
+    },
+  });
+  await prisma.knowledgeArticle.upsert({
+    where: { slug: 'draft-cab-checklist' },
+    update: {
+      title: 'CAB submission checklist (draft)',
+      body: '<p>Risk, plan, rollback, schedule, and stakeholders must be filled before Submit to CAB.</p>',
+      status: 'draft',
+      category: 'Change',
+    },
+    create: {
+      slug: 'draft-cab-checklist',
+      title: 'CAB submission checklist (draft)',
+      body: '<p>Risk, plan, rollback, schedule, and stakeholders must be filled before Submit to CAB.</p>',
+      status: 'draft',
+      category: 'Change',
+      createdById: manager.id,
+    },
+  });
+
+  await prisma.serviceCatalogItem.upsert({
+    where: { code: 'REQ-SOFTWARE' },
+    update: {
+      name: 'Software install',
+      description: 'Request installation of approved business software.',
+      ticketTypeCode: 'service_request',
+      categoryCode: 'SOFTWARE',
+      teamId: serviceDesk.id,
+      isActive: true,
+    },
+    create: {
+      code: 'REQ-SOFTWARE',
+      name: 'Software install',
+      description: 'Request installation of approved business software.',
+      ticketTypeCode: 'service_request',
+      categoryCode: 'SOFTWARE',
+      teamId: serviceDesk.id,
+    },
+  });
+  await prisma.serviceCatalogItem.upsert({
+    where: { code: 'ACC-MFA-RESET' },
+    update: {
+      name: 'MFA reset',
+      description: 'Reset multifactor authentication for a locked account.',
+      ticketTypeCode: 'access_request',
+      categoryCode: 'ACCESS',
+      teamId: serviceDesk.id,
+      isActive: true,
+    },
+    create: {
+      code: 'ACC-MFA-RESET',
+      name: 'MFA reset',
+      description: 'Reset multifactor authentication for a locked account.',
+      ticketTypeCode: 'access_request',
+      categoryCode: 'ACCESS',
+      teamId: serviceDesk.id,
+    },
+  });
+  await prisma.serviceCatalogItem.upsert({
+    where: { code: 'REQ-VPN' },
+    update: {
+      name: 'VPN access',
+      description: 'Enable corporate VPN for remote work.',
+      ticketTypeCode: 'access_request',
+      categoryCode: 'NETWORK',
+      teamId: serviceDesk.id,
+      isActive: true,
+    },
+    create: {
+      code: 'REQ-VPN',
+      name: 'VPN access',
+      description: 'Enable corporate VPN for remote work.',
+      ticketTypeCode: 'access_request',
+      categoryCode: 'NETWORK',
+      teamId: serviceDesk.id,
+    },
+  });
+
+  const phoneType = await prisma.assetType.findUniqueOrThrow({
+    where: { code: 'PHONE' },
+  });
+  const monitorType = await prisma.assetType.findUniqueOrThrow({
+    where: { code: 'MONITOR' },
+  });
+  await prisma.asset.upsert({
+    where: { assetTag: 'GH-IT-0003' },
+    update: {
+      status: 'in_service',
+      assignedUserId: agent.id,
+      name: 'Agent iPhone',
+      locationId: hqLocation?.id ?? null,
+    },
+    create: {
+      assetTag: 'GH-IT-0003',
+      name: 'Agent iPhone',
+      typeId: phoneType.id,
+      serialNumber: 'SN-PHONE-003',
+      manufacturer: 'Apple',
+      model: 'iPhone 14',
+      status: 'in_service',
+      assignedUserId: agent.id,
+      locationId: hqLocation?.id ?? null,
+    },
+  });
+  await prisma.asset.upsert({
+    where: { assetTag: 'GH-IT-0004' },
+    update: {
+      status: 'in_stock',
+      name: 'Spare 27" monitor',
+      locationId: hqLocation?.id ?? null,
+    },
+    create: {
+      assetTag: 'GH-IT-0004',
+      name: 'Spare 27" monitor',
+      typeId: monitorType.id,
+      serialNumber: 'SN-MON-004',
+      manufacturer: 'Dell',
+      model: 'U2722D',
+      status: 'in_stock',
+      locationId: hqLocation?.id ?? null,
+    },
+  });
+  await prisma.asset.upsert({
+    where: { assetTag: 'GH-IT-0005' },
+    update: {
+      status: 'in_repair',
+      name: 'Broken Latitude (board)',
+      locationId: hqLocation?.id ?? null,
+    },
+    create: {
+      assetTag: 'GH-IT-0005',
+      name: 'Broken Latitude (board)',
+      typeId: laptopType.id,
+      serialNumber: 'SN-LAP-005',
+      manufacturer: 'Dell',
+      model: 'Latitude 5420',
+      status: 'in_repair',
+      locationId: hqLocation?.id ?? null,
+      notes: 'Awaiting depot repair — liquid damage.',
+    },
+  });
+
+  // Sample in-app notifications (re-seed friendly: clear demo titles first)
+  await prisma.notification.deleteMany({
+    where: {
+      OR: [
+        { title: { startsWith: 'Assigned INC-' } },
+        { title: { startsWith: 'Approval needed —' } },
+        { title: { startsWith: 'Major incident active —' } },
+      ],
+    },
+  });
+  await prisma.notification.createMany({
+    data: [
+      {
+        userId: agent.id,
+        title: `Assigned INC-${year}-000003`,
+        body: 'VPN disconnects every 10 minutes',
+        link: `/app/tickets/INC-${year}-000003`,
+      },
+      {
+        userId: approver.id,
+        title: `Approval needed — REQ-${year}-000001`,
+        body: 'Request laptop for new hire — Ops',
+        link: '/app/approvals',
+      },
+      {
+        userId: manager.id,
+        title: `Major incident active — INC-${year}-000001`,
+        body: 'Email outage — Exchange Online unreachable',
+        link: '/app/major-incidents',
+      },
+    ],
+  });
+
+  console.log('LogIT seed complete (Phase 1–11 MVP + demo sample data).');
   console.log('Demo accounts (development only — never use in production):');
   console.log(`  sysadmin     ${adminEmail} / ${adminPassword}`);
   console.log('  employee     employee@logit.local / LogIT-Employee-2026!');
@@ -749,6 +1499,7 @@ async function main() {
   console.log('  it_manager   manager@logit.local / LogIT-Manager-2026!');
   console.log('  approver     approver@logit.local / LogIT-Approver-2026!');
   console.log('  auditor      auditor@logit.local / LogIT-Auditor-2026!');
+  console.log('Sample tickets: INC/REQ/ACC/SEC/PRB/CHG queues, Major ops, Approvals, KB, Catalog, Assets.');
 }
 
 main()

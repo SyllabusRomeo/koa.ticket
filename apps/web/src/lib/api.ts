@@ -89,6 +89,7 @@ export type TicketSummary = {
   location?: LocationRef | null;
   locationId?: string | null;
   requester?: PersonRef;
+  majorIncident?: boolean;
   createdAt: string;
   /** Resolution target (ticket.dueAt or active resolution SLA). */
   dueAt?: string | null;
@@ -103,8 +104,25 @@ export type TicketSummary = {
   timeToResolution?: string | null;
 };
 
+export type TicketWorkLog = {
+  id: string;
+  minutes: number;
+  note: string | null;
+  workedAt: string;
+  author: PersonRef;
+};
+
 export type TicketDetail = TicketSummary & {
   description: string;
+  watching?: boolean;
+  rootCause?: string | null;
+  workaround?: string | null;
+  changeRisk?: string | null;
+  changePlan?: string | null;
+  rollbackPlan?: string | null;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+  cabRequired?: boolean;
   category?: { code: string; name: string } | null;
   parent?: {
     id: string;
@@ -174,7 +192,12 @@ export type TicketDetail = TicketSummary & {
     field: string;
     oldValue: string | null;
     newValue: string | null;
+    oldLabel?: string | null;
+    newLabel?: string | null;
+    summary?: string;
+    actorName?: string;
     createdAt: string;
+    actor?: PersonRef | null;
   }>;
 };
 
@@ -327,11 +350,116 @@ export const api = {
   me() {
     return request<{ user: AuthUser }>('/auth/me');
   },
-  listTickets(params: { locationId?: string } = {}) {
+  getProfile() {
+    return request<{
+      user: AuthUser;
+      locations: Array<{
+        id: string;
+        code: string;
+        name: string;
+        site?: string | null;
+        country?: string | null;
+        timezone?: string;
+        isActive?: boolean;
+      }>;
+      departments: Array<{
+        id: string;
+        code: string;
+        name: string;
+        locationId?: string | null;
+        isActive?: boolean;
+      }>;
+    }>('/auth/profile');
+  },
+  updateProfile(body: {
+    firstName?: string;
+    lastName?: string;
+    locationId?: string | null;
+    departmentId?: string | null;
+  }) {
+    return request<{ user: AuthUser }>('/auth/me', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  },
+  changePassword(currentPassword: string, newPassword: string) {
+    return request<{ ok: boolean; message?: string }>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  },
+  listTickets(params: {
+    locationId?: string;
+    majorIncident?: boolean;
+    queue?: string;
+    statusCode?: string;
+    typeCode?: string;
+  } = {}) {
     const qs = new URLSearchParams();
     if (params.locationId) qs.set('locationId', params.locationId);
+    if (params.majorIncident === true) qs.set('majorIncident', 'true');
+    if (params.majorIncident === false) qs.set('majorIncident', 'false');
+    if (params.queue) qs.set('queue', params.queue);
+    if (params.statusCode) qs.set('statusCode', params.statusCode);
+    if (params.typeCode) qs.set('typeCode', params.typeCode);
     const query = qs.toString();
     return request<TicketSummary[]>(`/tickets${query ? `?${query}` : ''}`);
+  },
+  ticketBoard(scope: 'all' | 'mine' | 'unassigned' = 'all') {
+    const qs = new URLSearchParams();
+    if (scope !== 'all') qs.set('scope', scope);
+    const query = qs.toString();
+    return request<{
+      scope: string;
+      total: number;
+      generatedAt: string;
+      columns: Array<{
+        code: string;
+        name: string;
+        tickets: TicketSummary[];
+      }>;
+      workload: Array<{
+        userId: string | null;
+        name: string;
+        count: number;
+      }>;
+      /** fromStatusCode → allowed toStatusCodes */
+      transitions: Record<string, string[]>;
+    }>(`/tickets/board${query ? `?${query}` : ''}`);
+  },
+  majorIncidentsOps() {
+    return request<{
+      kpis: {
+        active: number;
+        breached: number;
+        unassigned: number;
+        withRelated: number;
+        resolvedLast7d: number;
+        totalTracked: number;
+      };
+      active: Array<
+        TicketSummary & {
+          children?: Array<{
+            id: string;
+            number: string;
+            title: string;
+            status: { code: string; name: string; isTerminal?: boolean };
+            priority?: { code: string; name: string } | null;
+            type: { code: string; name: string };
+            assignee?: PersonRef | null;
+          }>;
+          parent?: {
+            id: string;
+            number: string;
+            title: string;
+            majorIncident?: boolean;
+            status: { code: string; name: string };
+          } | null;
+        }
+      >;
+      recentlyResolved: TicketSummary[];
+      generatedAt: string;
+    }>('/tickets/major-incidents');
   },
   getTicket(idOrNumber: string) {
     return request<TicketDetail>(`/tickets/${encodeURIComponent(idOrNumber)}`);
@@ -386,12 +514,98 @@ export const api = {
       locationId?: string | null;
       title?: string;
       description?: string;
+      majorIncident?: boolean;
+      rootCause?: string | null;
+      workaround?: string | null;
+      changeRisk?: string | null;
+      changePlan?: string | null;
+      rollbackPlan?: string | null;
+      scheduledStart?: string | null;
+      scheduledEnd?: string | null;
+      cabRequired?: boolean;
     },
   ) {
     return request<TicketDetail>(
       `/tickets/${encodeURIComponent(idOrNumber)}`,
       {
         method: 'PATCH',
+        body: JSON.stringify(body),
+      },
+    );
+  },
+  promoteToProblem(idOrNumber: string) {
+    return request<TicketDetail>(
+      `/tickets/${encodeURIComponent(idOrNumber)}/promote-problem`,
+      { method: 'POST' },
+    );
+  },
+  requestCab(idOrNumber: string) {
+    return request<TicketDetail>(
+      `/tickets/${encodeURIComponent(idOrNumber)}/request-cab`,
+      { method: 'POST' },
+    );
+  },
+  watchTicket(idOrNumber: string) {
+    return request<{ watching: boolean }>(
+      `/tickets/${encodeURIComponent(idOrNumber)}/watch`,
+      { method: 'POST' },
+    );
+  },
+  unwatchTicket(idOrNumber: string) {
+    return request<{ watching: boolean }>(
+      `/tickets/${encodeURIComponent(idOrNumber)}/watch`,
+      { method: 'DELETE' },
+    );
+  },
+  heartbeatPresence(
+    idOrNumber: string,
+    mode: 'viewing' | 'composing' = 'viewing',
+  ) {
+    return request<{
+      ticketId: string;
+      number: string;
+      peers: Array<{
+        userId: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        mode: 'viewing' | 'composing';
+        updatedAt: string;
+      }>;
+      self: {
+        userId: string;
+        mode: 'viewing' | 'composing';
+        updatedAt: string;
+      };
+      collision: boolean;
+      composingPeers: Array<{
+        userId: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        mode: 'viewing' | 'composing';
+      }>;
+    }>(`/tickets/${encodeURIComponent(idOrNumber)}/presence`, {
+      method: 'POST',
+      body: JSON.stringify({ mode }),
+    });
+  },
+  leavePresence(idOrNumber: string) {
+    return request<{ ok: boolean }>(
+      `/tickets/${encodeURIComponent(idOrNumber)}/presence`,
+      { method: 'DELETE' },
+    );
+  },
+  listWorkLogs(idOrNumber: string) {
+    return request<TicketWorkLog[]>(
+      `/tickets/${encodeURIComponent(idOrNumber)}/work-logs`,
+    );
+  },
+  addWorkLog(idOrNumber: string, body: { minutes: number; note?: string }) {
+    return request<TicketWorkLog>(
+      `/tickets/${encodeURIComponent(idOrNumber)}/work-logs`,
+      {
+        method: 'POST',
         body: JSON.stringify(body),
       },
     );
@@ -465,8 +679,56 @@ export const api = {
         code: string;
         name: string;
         locationId: string | null;
+        isActive?: boolean;
+        location?: { id: string; code: string; name: string } | null;
       }>
     >('/org/departments');
+  },
+  createDepartment(body: {
+    code: string;
+    name: string;
+    locationId?: string;
+  }) {
+    return request<{
+      id: string;
+      code: string;
+      name: string;
+      locationId: string | null;
+      isActive?: boolean;
+      location?: { id: string; code: string; name: string } | null;
+    }>('/org/departments', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  updateDepartment(
+    id: string,
+    body: {
+      name?: string;
+      locationId?: string | null;
+      isActive?: boolean;
+    },
+  ) {
+    return request<{
+      id: string;
+      code: string;
+      name: string;
+      locationId: string | null;
+      isActive?: boolean;
+      location?: { id: string; code: string; name: string } | null;
+    }>(`/org/departments/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  },
+  deactivateDepartment(id: string) {
+    return request<{
+      id: string;
+      code: string;
+      name: string;
+    }>(`/org/departments/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
   },
   createTeam(body: {
     code: string;
@@ -576,6 +838,38 @@ export const api = {
       byLocation: Array<{ code: string; name: string; count: number }>;
       generatedAt: string;
     }>(`/reports/summary${query ? `?${query}` : ''}`);
+  },
+  reportStages(params: { from?: string; to?: string } = {}) {
+    const qs = new URLSearchParams();
+    if (params.from) qs.set('from', params.from);
+    if (params.to) qs.set('to', params.to);
+    const query = qs.toString();
+    return request<{
+      sampleSize: number;
+      stuckThresholdHours: number;
+      from: string | null;
+      to: string | null;
+      byStatus: Array<{
+        code: string;
+        name: string;
+        ticketCount: number;
+        currentCount: number;
+        totalMs: number;
+        avgMs: number;
+        avgLabel: string;
+        totalLabel: string;
+        pctOfAll: number;
+      }>;
+      stuckOpen: Array<{
+        number: string;
+        title: string;
+        statusCode: string;
+        statusName: string;
+        durationMs: number;
+        label: string;
+      }>;
+      generatedAt: string;
+    }>(`/reports/stages${query ? `?${query}` : ''}`);
   },
   async downloadExport(path: string, fallbackFilename: string) {
     const res = await fetch(`${API_BASE}${path}`, { credentials: 'include' });

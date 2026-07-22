@@ -1,24 +1,31 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { api, type AuthUser, type LocationRef, type TicketSummary } from '@/lib/api';
 import { can } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import { PendingAttachments } from '@/components/TicketAttachments';
 import { LocationSelect } from '@/components/LocationSelect';
 import styles from './tickets.module.css';
-import { Plus, Download, Ticket, UserRound, UserX, MapPin } from 'lucide-react';
+import { Plus, Download, Ticket, UserRound, UserX, MapPin, AlertTriangle } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 import { Icon } from '@/components/Icon';
 import { Button } from '@/components/Button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { SlaTimer } from '@/components/SlaTimer';
+import { Suspense } from 'react';
 
-type QueueFilter = 'all' | 'unassigned' | 'mine';
+type QueueFilter = 'all' | 'unassigned' | 'mine' | 'major';
 
-export default function TicketsPage() {
+function parseQueue(raw: string | null): QueueFilter {
+  if (raw === 'unassigned' || raw === 'mine' || raw === 'major') return raw;
+  return 'all';
+}
+
+function TicketsPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [tickets, setTickets] = useState<TicketSummary[]>([]);
   const [locations, setLocations] = useState<LocationRef[]>([]);
@@ -37,7 +44,19 @@ export default function TicketsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [queueFilter, setQueueFilter] = useState<QueueFilter>('all');
+  const [queueFilter, setQueueFilterState] = useState<QueueFilter>(() =>
+    parseQueue(searchParams.get('queue')),
+  );
+
+  function setQueueFilter(next: QueueFilter) {
+    setQueueFilterState(next);
+    const qs = next === 'all' ? '' : `?queue=${next}`;
+    router.replace(`/app/tickets${qs}`);
+  }
+
+  useEffect(() => {
+    setQueueFilterState(parseQueue(searchParams.get('queue')));
+  }, [searchParams]);
 
   async function load(locFilter?: string) {
     const locationFilter = locFilter ?? filterLocation;
@@ -89,11 +108,16 @@ export default function TicketsPage() {
 
   const filteredTickets = useMemo(() => {
     if (!user || queueFilter === 'all') return tickets;
+    if (queueFilter === 'major') {
+      return tickets.filter((t) => !!t.majorIncident);
+    }
     if (queueFilter === 'unassigned') {
       return tickets.filter((t) => !t.assignee);
     }
     return tickets.filter((t) => t.assignee?.id === user.id);
   }, [tickets, queueFilter, user]);
+
+  const majorCount = tickets.filter((t) => t.majorIncident).length;
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
@@ -312,6 +336,18 @@ export default function TicketsPage() {
                 <Icon icon={UserRound} size="sm" />
                 Assigned to me ({mineCount})
               </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={queueFilter === 'major'}
+                className={
+                  queueFilter === 'major' ? styles.chipActive : styles.chip
+                }
+                onClick={() => setQueueFilter('major')}
+              >
+                <Icon icon={AlertTriangle} size="sm" />
+                Major ({majorCount})
+              </button>
             </div>
           ) : null}
           {showQueueChips && locations.length > 0 ? (
@@ -383,6 +419,12 @@ export default function TicketsPage() {
                       <div className={styles.ticketRowTop}>
                         <strong>{t.number}</strong>
                         <div className={styles.ticketRowBadges}>
+                          {t.majorIncident ? (
+                            <span className={styles.miBadge}>
+                              <Icon icon={AlertTriangle} size="sm" />
+                              Major
+                            </span>
+                          ) : null}
                           <SlaTimer
                             dueAt={t.dueAt}
                             slaDueAt={t.slaDueAt}
@@ -409,5 +451,19 @@ export default function TicketsPage() {
         </div>
       </section>
     </AppShell>
+  );
+}
+
+export default function TicketsPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className={styles.page}>
+          <p>Loading tickets…</p>
+        </main>
+      }
+    >
+      <TicketsPageInner />
+    </Suspense>
   );
 }

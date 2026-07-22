@@ -159,6 +159,34 @@
   gap: 0.35rem;
 }
 
+.presenceBanner {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.65rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: rgba(237, 244, 172, 0.55);
+  border: 1px solid rgba(69, 100, 51, 0.25);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.collisionWarn {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.85rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: rgba(231, 69, 36, 0.1);
+  border: 1px solid rgba(231, 69, 36, 0.35);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-accent-orange);
+}
+
 .detailLayout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
@@ -218,6 +246,107 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+}
+
+.miBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(231, 69, 36, 0.12);
+  color: var(--color-accent-orange);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.35rem;
+}
+
+.workLogForm {
+  display: grid;
+  gap: 0.55rem;
+  margin-bottom: 0.75rem;
+}
+
+.workLogForm label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.workLogForm input {
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(15, 74, 64, 0.18);
+  font: inherit;
+}
+
+.workLogList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.workLogList li {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.45rem 0;
+  border-top: 1px solid rgba(15, 74, 64, 0.08);
+  font-size: 0.88rem;
+}
+
+.workLogList strong {
+  color: var(--color-primary);
+}
+
+.workLogList span {
+  opacity: 0.7;
+  font-size: 0.8rem;
+}
+
+.workLogList em {
+  font-style: normal;
+  opacity: 0.85;
+}
+
+.stageBars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.stageBarMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  margin-bottom: 0.2rem;
+}
+
+.stageBarTrack {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(15, 74, 64, 0.08);
+  overflow: hidden;
+}
+
+.stageBarFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-secondary);
+  min-width: 2px;
 }
 
 .mutedSmall {
@@ -284,6 +413,30 @@
 }
 
 .assignPanel label,
+.actionsPanel label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.75rem 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.actionsPanel textarea,
+.actionsPanel input[type='text'],
+.actionsPanel input[type='datetime-local'],
+.actionsPanel input:not([type='checkbox']) {
+  border: 1.5px solid rgba(15, 74, 64, 0.22);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.65rem;
+  font: inherit;
+}
+
+.actionsPanel textarea {
+  resize: vertical;
+  min-height: 4rem;
+}
+
 .commentForm label {
   display: flex;
   flex-direction: column;
@@ -325,6 +478,152 @@
 
 .commentList p {
   margin: 0.25rem 0 0;
+}
+
+.activityBlock {
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(15, 74, 64, 0.08);
+  border-radius: var(--radius-md);
+  padding: 1.15rem 1.25rem 1.25rem;
+  box-shadow: var(--shadow-soft);
+  margin-top: 1rem;
+}
+
+.activityHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.activityHead h3 {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+}
+
+.activityFilters {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  background: rgba(15, 74, 64, 0.06);
+  border-radius: var(--radius-sm);
+}
+
+.activityFilterBtn {
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  padding: 0.35rem 0.65rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.activityFilterBtnActive {
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 74, 64, 0.12);
+}
+
+.activityTimeline {
+  list-style: none;
+  margin: 0.85rem 0 1.1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-left: 2px solid rgba(15, 74, 64, 0.12);
+  margin-left: 0.55rem;
+}
+
+.activityItem {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.65rem;
+  padding: 0.65rem 0 0.65rem 0.85rem;
+}
+
+.activityDot {
+  position: absolute;
+  left: -0.7rem;
+  top: 0.85rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1.5px solid rgba(15, 74, 64, 0.2);
+  color: var(--color-secondary);
+}
+
+.activityAssign .activityDot {
+  border-color: var(--color-secondary);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.activityStatus .activityDot {
+  border-color: rgba(69, 100, 51, 0.45);
+  background: rgba(69, 100, 51, 0.1);
+}
+
+.activityCreated .activityDot {
+  border-color: rgba(15, 74, 64, 0.35);
+}
+
+.activityAlert .activityDot {
+  border-color: var(--color-accent-orange);
+  color: var(--color-accent-orange);
+  background: rgba(231, 69, 36, 0.1);
+}
+
+.activityComment .activityDot {
+  border-color: rgba(15, 74, 64, 0.25);
+  background: rgba(251, 241, 218, 0.9);
+}
+
+.activityBody {
+  min-width: 0;
+}
+
+.activitySummary {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.activityChange {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: rgba(15, 74, 64, 0.75);
+}
+
+.activityChange span:last-child {
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.activityMeta {
+  margin: 0.3rem 0 0;
+  font-size: 0.78rem;
+  color: rgba(15, 74, 64, 0.55);
+}
+
+.activityCommentBody {
+  margin: 0.35rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
 }
 
 .rulesPanel ul {

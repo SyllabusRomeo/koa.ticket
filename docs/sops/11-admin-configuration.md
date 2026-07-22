@@ -41,8 +41,16 @@ Set user home location on **Roles & Access** (`PATCH /users/:id` with `locationI
 
 ### Departments
 
-`GET/POST /api/v1/org/departments`  
-Optional `locationId`.
+**Admin UI (preferred):** `/app/admin/departments` — list, create, edit, soft-deactivate (`org:manage`). Also linked from the profile **Admin** menu.
+
+Seed (dev): **Information Technology** (`IT`) and **Operations** (`OPS`).
+
+API:
+
+`GET /api/v1/org/departments` (`org:read`)  
+`POST /api/v1/org/departments` · `PATCH /api/v1/org/departments/:id` · `DELETE /api/v1/org/departments/:id` (soft) (`org:manage`)
+
+Optional `locationId` ties a department to a primary site. Departments appear on **Teams** create and **My profile**.
 
 ### Teams (support groups)
 

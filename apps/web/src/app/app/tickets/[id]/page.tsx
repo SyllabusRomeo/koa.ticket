@@ -10,26 +10,41 @@ import {
   type TeamWithMembers,
   type TicketAttachment,
   type TicketDetail,
+  type TicketWorkLog,
 } from '@/lib/api';
-import { can } from '@/lib/access';
+import { can, showAgentWorkspace } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import { Icon } from '@/components/Icon';
 import { StatusBadge } from '@/components/StatusBadge';
 import { TicketAttachments } from '@/components/TicketAttachments';
 import { LocationSelect } from '@/components/LocationSelect';
 import {
+  AlertTriangle,
+  CalendarClock,
   Clock,
+  Eye,
+  EyeOff,
+  GitBranchPlus,
+  History,
   MapPin,
+  MessageSquare,
   Save,
+  Timer,
   Trash2,
+  UserRound,
 } from 'lucide-react';
 import styles from '../tickets.module.css';
 import { SlaTimer } from '@/components/SlaTimer';
+import { Button } from '@/components/Button';
 
 const ACTION_LABELS: Record<string, string> = {
   open: 'Open / Reopen',
   assigned: 'Mark assigned',
   in_progress: 'Start progress',
+  under_investigation: 'Under investigation',
+  known_error: 'Mark known error',
+  scheduled: 'Mark scheduled',
+  implementing: 'Start implementing',
   pending_user: 'Pending user',
   pending_vendor: 'Pending vendor',
   pending_approval: 'Pending approval',
@@ -38,6 +53,22 @@ const ACTION_LABELS: Record<string, string> = {
   closed: 'Close',
   cancelled: 'Cancel',
 };
+
+const HISTORY_SKIP = new Set([
+  'comment',
+  'internal_note',
+  'work_log',
+]);
+
+type ActivityFilter = 'all' | 'events' | 'comments';
+
+function historyTone(field: string): string {
+  if (field === 'assignee' || field === 'team') return styles.activityAssign;
+  if (field === 'status') return styles.activityStatus;
+  if (field === 'created') return styles.activityCreated;
+  if (field === 'major_incident') return styles.activityAlert;
+  return styles.activityDefault;
+}
 
 /** Resolve = success; Close = primary; cancel = danger; else secondary. */
 function actionVariant(
@@ -76,6 +107,29 @@ export default function TicketDetailPage() {
   const [attachments, setAttachments] = useState<TicketAttachment[]>([]);
   const [childNumber, setChildNumber] = useState('');
   const [mergeSources, setMergeSources] = useState('');
+  const [workLogs, setWorkLogs] = useState<TicketWorkLog[]>([]);
+  const [workMinutes, setWorkMinutes] = useState('15');
+  const [workNote, setWorkNote] = useState('');
+  const [watching, setWatching] = useState(false);
+  const [rootCause, setRootCause] = useState('');
+  const [workaround, setWorkaround] = useState('');
+  const [changeRisk, setChangeRisk] = useState('');
+  const [changePlan, setChangePlan] = useState('');
+  const [rollbackPlan, setRollbackPlan] = useState('');
+  const [scheduledStart, setScheduledStart] = useState('');
+  const [scheduledEnd, setScheduledEnd] = useState('');
+  const [cabRequired, setCabRequired] = useState(false);
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all');
+  const [presencePeers, setPresencePeers] = useState<
+    Array<{
+      userId: string;
+      firstName: string;
+      lastName: string;
+      mode: 'viewing' | 'composing';
+    }>
+  >([]);
+  const [presenceCollision, setPresenceCollision] = useState(false);
+  const [composing, setComposing] = useState(false);
 
   const load = useCallback(async () => {
     const t = await api.getTicket(idOrNumber);
@@ -83,11 +137,28 @@ export default function TicketDetailPage() {
     setTeamId(t.team?.id ?? '');
     setAssigneeId(t.assignee?.id ?? '');
     setLocationId(t.location?.id ?? t.locationId ?? '');
+    setWatching(!!t.watching);
+    setRootCause(t.rootCause ?? '');
+    setWorkaround(t.workaround ?? '');
+    setChangeRisk(t.changeRisk ?? '');
+    setChangePlan(t.changePlan ?? '');
+    setRollbackPlan(t.rollbackPlan ?? '');
+    setScheduledStart(
+      t.scheduledStart ? t.scheduledStart.slice(0, 16) : '',
+    );
+    setScheduledEnd(t.scheduledEnd ? t.scheduledEnd.slice(0, 16) : '');
+    setCabRequired(!!t.cabRequired);
     try {
       const files = await api.listAttachments(t.number);
       setAttachments(files);
     } catch {
       setAttachments([]);
+    }
+    try {
+      const logs = await api.listWorkLogs(t.number);
+      setWorkLogs(logs);
+    } catch {
+      setWorkLogs([]);
     }
   }, [idOrNumber]);
 
@@ -137,6 +208,43 @@ export default function TicketDetailPage() {
       cancelled = true;
     };
   }, [load, router]);
+
+  useEffect(() => {
+    if (!ticket?.number) return;
+    let cancelled = false;
+    const ticketKey = ticket.number;
+
+    async function beat() {
+      try {
+        const result = await api.heartbeatPresence(
+          ticketKey,
+          composing ? 'composing' : 'viewing',
+        );
+        if (cancelled) return;
+        setPresencePeers(result.peers);
+        setPresenceCollision(result.collision);
+      } catch {
+        /* presence is best-effort */
+      }
+    }
+
+    void beat();
+    const timer = window.setInterval(() => {
+      void beat();
+    }, 12_000);
+
+    const onLeave = () => {
+      void api.leavePresence(ticketKey).catch(() => undefined);
+    };
+    window.addEventListener('pagehide', onLeave);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener('pagehide', onLeave);
+      void api.leavePresence(ticketKey).catch(() => undefined);
+    };
+  }, [ticket?.number, composing]);
 
   const assignees = useMemo(() => {
     if (!teamId) {
@@ -243,6 +351,8 @@ export default function TicketDetailPage() {
       });
       setTicket(updated);
       setAssigneeId(user.id);
+      setRootCause(updated.rootCause ?? '');
+      setWorkaround(updated.workaround ?? '');
       setMessage('Assigned to you.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Assign failed');
@@ -251,6 +361,131 @@ export default function TicketDetailPage() {
       } catch {
         /* ignore */
       }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveProblemAnalysis(e: FormEvent) {
+    e.preventDefault();
+    if (!ticket) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const updated = await api.updateTicket(ticket.number, {
+        version: ticket.version,
+        rootCause: rootCause.trim() || null,
+        workaround: workaround.trim() || null,
+      });
+      setTicket(updated);
+      setRootCause(updated.rootCause ?? '');
+      setWorkaround(updated.workaround ?? '');
+      setMessage('Problem analysis saved.');
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Could not save problem analysis',
+      );
+      try {
+        await load();
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveChangePlan(e: FormEvent) {
+    e.preventDefault();
+    if (!ticket) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const updated = await api.updateTicket(ticket.number, {
+        version: ticket.version,
+        changeRisk: changeRisk.trim() || null,
+        changePlan: changePlan.trim() || null,
+        rollbackPlan: rollbackPlan.trim() || null,
+        scheduledStart: scheduledStart
+          ? new Date(scheduledStart).toISOString()
+          : null,
+        scheduledEnd: scheduledEnd
+          ? new Date(scheduledEnd).toISOString()
+          : null,
+        cabRequired,
+      });
+      setTicket(updated);
+      setChangeRisk(updated.changeRisk ?? '');
+      setChangePlan(updated.changePlan ?? '');
+      setRollbackPlan(updated.rollbackPlan ?? '');
+      setScheduledStart(
+        updated.scheduledStart ? updated.scheduledStart.slice(0, 16) : '',
+      );
+      setScheduledEnd(
+        updated.scheduledEnd ? updated.scheduledEnd.slice(0, 16) : '',
+      );
+      setCabRequired(!!updated.cabRequired);
+      setMessage('Change plan saved.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save change plan');
+      try {
+        await load();
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitCab() {
+    if (!ticket) return;
+    if (
+      !window.confirm(
+        `Submit ${ticket.number} to CAB? Approvers will receive an approval request.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const updated = await api.requestCab(ticket.number);
+      setTicket(updated);
+      setMessage('Submitted to CAB — pending approval.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'CAB submit failed');
+      try {
+        await load();
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function raiseProblem() {
+    if (!ticket) return;
+    if (
+      !window.confirm(
+        `Raise a Problem (PRB) from ${ticket.number}? This ticket will be linked as a child of the new problem.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const problem = await api.promoteToProblem(ticket.number);
+      setMessage(`Created ${problem.number}. Opening problem…`);
+      router.push(`/app/tickets/${encodeURIComponent(problem.number)}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not raise problem');
     } finally {
       setBusy(false);
     }
@@ -371,6 +606,80 @@ export default function TicketDetailPage() {
     }
   }
 
+  async function toggleWatch() {
+    if (!ticket) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = watching
+        ? await api.unwatchTicket(ticket.number)
+        : await api.watchTicket(ticket.number);
+      setWatching(result.watching);
+      setMessage(result.watching ? 'Watching this ticket.' : 'Stopped watching.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Watch update failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleMajorIncident() {
+    if (!ticket) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const updated = await api.updateTicket(ticket.number, {
+        version: ticket.version,
+        majorIncident: !ticket.majorIncident,
+      });
+      setTicket(updated);
+      setWatching(!!updated.watching);
+      setMessage(
+        updated.majorIncident
+          ? 'Marked as major incident.'
+          : 'Major incident flag cleared.',
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Update failed');
+      try {
+        await load();
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onAddWorkLog(e: FormEvent) {
+    e.preventDefault();
+    if (!ticket) return;
+    const minutes = Number(workMinutes);
+    if (!Number.isFinite(minutes) || minutes < 1) {
+      setError('Enter minutes worked (at least 1).');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await api.addWorkLog(ticket.number, {
+        minutes,
+        note: workNote.trim() || undefined,
+      });
+      setWorkNote('');
+      const logs = await api.listWorkLogs(ticket.number);
+      setWorkLogs(logs);
+      setMessage(`Logged ${minutes} minute${minutes === 1 ? '' : 's'}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not log work');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function logout() {
     try {
       await api.logout();
@@ -379,6 +688,62 @@ export default function TicketDetailPage() {
     }
     router.replace('/login');
   }
+
+  const activityItems = useMemo(() => {
+    if (!ticket) return [];
+    type Item =
+      | {
+          kind: 'event';
+          id: string;
+          at: string;
+          field: string;
+          summary: string;
+          oldLabel?: string | null;
+          newLabel?: string | null;
+          actorName: string;
+        }
+      | {
+          kind: 'comment';
+          id: string;
+          at: string;
+          body: string;
+          isInternal: boolean;
+          authorName: string;
+        };
+    const events: Item[] = (ticket.history ?? [])
+      .filter((h) => !HISTORY_SKIP.has(h.field))
+      .map((h) => ({
+        kind: 'event' as const,
+        id: h.id,
+        at: h.createdAt,
+        field: h.field,
+        summary: h.summary ?? h.field,
+        oldLabel: h.oldLabel,
+        newLabel: h.newLabel,
+        actorName: h.actorName || personName(h.actor) || 'System',
+      }));
+    const comments: Item[] = (ticket.comments ?? []).map((c) => ({
+      kind: 'comment' as const,
+      id: c.id,
+      at: c.createdAt,
+      body: c.body,
+      isInternal: c.isInternal,
+      authorName: personName(c.author),
+    }));
+    return [...events, ...comments].sort(
+      (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime(),
+    );
+  }, [ticket]);
+
+  const visibleActivity = useMemo(() => {
+    if (activityFilter === 'events') {
+      return activityItems.filter((i) => i.kind === 'event');
+    }
+    if (activityFilter === 'comments') {
+      return activityItems.filter((i) => i.kind === 'comment');
+    }
+    return activityItems;
+  }, [activityItems, activityFilter]);
 
   if (loading || !user) {
     return (
@@ -404,17 +769,27 @@ export default function TicketDetailPage() {
     can(user, 'settings:manage');
   const canAttach =
     ticket.requester?.id === user.id || can(user, 'tickets:write');
+  const canLogWork = showAgentWorkspace(user) && can(user, 'tickets:write');
+  const canToggleMi =
+    can(user, 'tickets:read_all') || can(user, 'tickets:read_queue');
   const transitions = ticket.allowedTransitions ?? [];
   const ownership = ticket.assignee
     ? `${personName(ticket.assignee)} · ${ticket.team?.name ?? 'No team'}`
     : ticket.team
       ? `Unassigned agent · Team: ${ticket.team.name}`
       : 'Unassigned (no team routed yet)';
+  const workMinutesTotal = workLogs.reduce((sum, log) => sum + log.minutes, 0);
   const originLabel = ticket.location
     ? ticket.location.site
       ? `${ticket.location.name} · ${ticket.location.site}`
       : ticket.location.name
     : 'Not set';
+  const presenceLabel = presencePeers
+    .map((p) => {
+      const name = `${p.firstName} ${p.lastName}`.trim() || p.userId;
+      return p.mode === 'composing' ? `${name} (composing)` : name;
+    })
+    .join(' · ');
 
   return (
     <AppShell user={user} onLogout={logout} title={ticket.number}>
@@ -423,6 +798,20 @@ export default function TicketDetailPage() {
           Back to Tickets
         </a>
       </p>
+
+      {presencePeers.length > 0 ? (
+        <p className={styles.presenceBanner} role="status">
+          <Icon icon={Eye} size="sm" />
+          Also here: {presenceLabel}
+        </p>
+      ) : null}
+      {presenceCollision ? (
+        <p className={styles.collisionWarn} role="alert">
+          <Icon icon={AlertTriangle} size="sm" />
+          Another agent is composing a reply — coordinate to avoid conflicting
+          updates.
+        </p>
+      ) : null}
 
       <section className={styles.detailLayout}>
         <div className={styles.detailMain}>
@@ -434,6 +823,12 @@ export default function TicketDetailPage() {
                 code={ticket.status.code}
                 name={ticket.status.name}
               />
+              {ticket.majorIncident ? (
+                <span className={styles.miBadge}>
+                  <Icon icon={AlertTriangle} size="sm" />
+                  Major incident
+                </span>
+              ) : null}
               {ticket.priority ? (
                 <span className={styles.metaChip}>
                   {ticket.priority.name}
@@ -447,6 +842,30 @@ export default function TicketDetailPage() {
                 {originLabel}
               </span>
             </p>
+            <div className={styles.headerActions}>
+              <Button
+                type="button"
+                variant={watching ? 'secondary' : 'tertiary'}
+                disabled={busy}
+                onClick={toggleWatch}
+              >
+                <Icon icon={watching ? EyeOff : Eye} size="sm" />
+                {watching ? 'Watching' : 'Watch'}
+              </Button>
+              {canToggleMi ? (
+                <Button
+                  type="button"
+                  variant={ticket.majorIncident ? 'dangerOutline' : 'tertiary'}
+                  disabled={busy}
+                  onClick={toggleMajorIncident}
+                >
+                  <Icon icon={AlertTriangle} size="sm" />
+                  {ticket.majorIncident
+                    ? 'Clear major incident'
+                    : 'Mark major incident'}
+                </Button>
+              ) : null}
+            </div>
             <p className={styles.ownership}>
               Owner: <strong>{ownership}</strong>
             </p>
@@ -466,6 +885,147 @@ export default function TicketDetailPage() {
             <h3>Description</h3>
             <p>{ticket.description}</p>
           </div>
+
+          {ticket.type.code === 'problem' ? (
+            <form
+              className={styles.actionsPanel}
+              onSubmit={saveProblemAnalysis}
+              aria-labelledby="problem-analysis"
+            >
+              <h3 id="problem-analysis">
+                <Icon icon={GitBranchPlus} size="sm" />
+                Problem analysis
+              </h3>
+              <p className={styles.hint}>
+                Capture root cause and any workaround. Use status{' '}
+                <strong>Under investigation</strong> or{' '}
+                <strong>Known error</strong> as the analysis matures. Link
+                related incidents under Related tickets.
+              </p>
+              <label>
+                Root cause
+                <textarea
+                  value={rootCause}
+                  onChange={(e) => setRootCause(e.target.value)}
+                  rows={4}
+                  placeholder="Confirmed underlying cause…"
+                  disabled={!can(user, 'tickets:write')}
+                />
+              </label>
+              <label>
+                Workaround
+                <textarea
+                  value={workaround}
+                  onChange={(e) => setWorkaround(e.target.value)}
+                  rows={3}
+                  placeholder="Temporary mitigation for known error…"
+                  disabled={!can(user, 'tickets:write')}
+                />
+              </label>
+              {can(user, 'tickets:write') ? (
+                <button type="submit" className={styles.btn} disabled={busy}>
+                  <Icon icon={Save} size="sm" />
+                  Save analysis
+                </button>
+              ) : null}
+            </form>
+          ) : null}
+
+          {ticket.type.code === 'change' ? (
+            <form
+              className={styles.actionsPanel}
+              onSubmit={saveChangePlan}
+              aria-labelledby="change-plan"
+            >
+              <h3 id="change-plan">
+                <Icon icon={CalendarClock} size="sm" />
+                Change plan & CAB
+              </h3>
+              <p className={styles.hint}>
+                Document risk, implementation, and rollback. Submit to CAB when
+                ready — approvers decide under Approvals. Approved changes move
+                to <strong>Scheduled</strong>.
+              </p>
+              <label>
+                Risk
+                <input
+                  value={changeRisk}
+                  onChange={(e) => setChangeRisk(e.target.value)}
+                  placeholder="low / medium / high — summary"
+                  disabled={!can(user, 'tickets:write')}
+                />
+              </label>
+              <label>
+                Implementation plan
+                <textarea
+                  value={changePlan}
+                  onChange={(e) => setChangePlan(e.target.value)}
+                  rows={4}
+                  placeholder="Steps, owners, validation…"
+                  disabled={!can(user, 'tickets:write')}
+                />
+              </label>
+              <label>
+                Rollback plan
+                <textarea
+                  value={rollbackPlan}
+                  onChange={(e) => setRollbackPlan(e.target.value)}
+                  rows={3}
+                  placeholder="Backout steps if the change fails…"
+                  disabled={!can(user, 'tickets:write')}
+                />
+              </label>
+              <label>
+                Scheduled start
+                <input
+                  type="datetime-local"
+                  value={scheduledStart}
+                  onChange={(e) => setScheduledStart(e.target.value)}
+                  disabled={!can(user, 'tickets:write')}
+                />
+              </label>
+              <label>
+                Scheduled end
+                <input
+                  type="datetime-local"
+                  value={scheduledEnd}
+                  onChange={(e) => setScheduledEnd(e.target.value)}
+                  disabled={!can(user, 'tickets:write')}
+                />
+              </label>
+              <label className={styles.checkLabel}>
+                <input
+                  type="checkbox"
+                  checked={cabRequired}
+                  onChange={(e) => setCabRequired(e.target.checked)}
+                  disabled={!can(user, 'tickets:write')}
+                />
+                CAB review required
+              </label>
+              {can(user, 'tickets:write') ? (
+                <div className={styles.actionButtons}>
+                  <button type="submit" className={styles.btn} disabled={busy}>
+                    <Icon icon={Save} size="sm" />
+                    Save change plan
+                  </button>
+                  {ticket.status.code !== 'pending_approval' &&
+                  !ticket.status.isTerminal ? (
+                    <button
+                      type="button"
+                      className={styles.btnSecondary}
+                      disabled={busy}
+                      onClick={() => void submitCab()}
+                    >
+                      Submit to CAB
+                    </button>
+                  ) : null}
+                  <a href="/app/approvals" className={styles.btnSecondary}>
+                    Open Approvals
+                  </a>
+                </div>
+              ) : null}
+            </form>
+          ) : null}
 
           <section className={styles.actionsPanel} aria-labelledby="related-tickets">
             <h3 id="related-tickets">Related tickets</h3>
@@ -588,17 +1148,37 @@ export default function TicketDetailPage() {
                 Time spent in each status (from ticket history). Current stage
                 is still counting.
               </p>
-              <ul className={styles.commentList}>
-                {ticket.stageDurations.totalsByStatus.map((s) => (
-                  <li key={s.statusCode}>
-                    <strong>{s.statusCode}</strong> — {s.label}
-                    {ticket.stageDurations?.stages.find(
-                      (st) => st.current && st.statusCode === s.statusCode,
-                    )
-                      ? ' (current)'
-                      : ''}
-                  </li>
-                ))}
+              <ul className={styles.stageBars}>
+                {ticket.stageDurations.totalsByStatus.map((s) => {
+                  const max = Math.max(
+                    1,
+                    ...ticket.stageDurations!.totalsByStatus.map(
+                      (x) => x.durationMs,
+                    ),
+                  );
+                  const isCurrent = !!ticket.stageDurations?.stages.find(
+                    (st) => st.current && st.statusCode === s.statusCode,
+                  );
+                  return (
+                    <li key={s.statusCode}>
+                      <div className={styles.stageBarMeta}>
+                        <strong>
+                          {s.statusCode}
+                          {isCurrent ? ' (current)' : ''}
+                        </strong>
+                        <span>{s.label}</span>
+                      </div>
+                      <div className={styles.stageBarTrack} aria-hidden>
+                        <div
+                          className={styles.stageBarFill}
+                          style={{
+                            width: `${Math.round((s.durationMs / max) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           ) : null}
@@ -673,27 +1253,141 @@ export default function TicketDetailPage() {
                 </span>
               </div>
             ) : null}
+
+            {ticket.type.code !== 'problem' &&
+            ticket.type.code !== 'change' &&
+            ticket.type.code !== 'task' &&
+            (can(user, 'tickets:read_queue') ||
+              can(user, 'tickets:read_all')) &&
+            can(user, 'tickets:write') ? (
+              <div className={styles.deleteRow}>
+                <button
+                  type="button"
+                  className={styles.btnSecondary}
+                  disabled={busy}
+                  onClick={() => void raiseProblem()}
+                >
+                  <Icon icon={GitBranchPlus} size="sm" />
+                  Raise problem
+                </button>
+                <span className={styles.hint}>
+                  Creates a PRB and links this ticket as a related incident.
+                </span>
+              </div>
+            ) : null}
           </section>
 
-          <section className={styles.commentsBlock}>
-            <h3>
-              Comments
-            </h3>
-            <ul className={styles.commentList}>
-              {(ticket.comments ?? []).length === 0 ? (
-                <li className={styles.hint}>No comments yet.</li>
+          <section className={styles.activityBlock} aria-labelledby="ticket-activity">
+            <div className={styles.activityHead}>
+              <h3 id="ticket-activity">
+                <Icon icon={History} size="sm" />
+                Activity
+              </h3>
+              <div
+                className={styles.activityFilters}
+                role="tablist"
+                aria-label="Activity filter"
+              >
+                {(
+                  [
+                    ['all', 'All'],
+                    ['events', 'Trail'],
+                    ['comments', 'Comments'],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="tab"
+                    aria-selected={activityFilter === value}
+                    className={`${styles.activityFilterBtn} ${
+                      activityFilter === value
+                        ? styles.activityFilterBtnActive
+                        : ''
+                    }`}
+                    onClick={() => setActivityFilter(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className={styles.hint}>
+              Assignment, status, and ownership changes appear here — not only
+              comments.
+            </p>
+            <ol className={styles.activityTimeline}>
+              {visibleActivity.length === 0 ? (
+                <li className={styles.hint}>No activity yet.</li>
               ) : (
-                (ticket.comments ?? []).map((c) => (
-                  <li key={c.id}>
-                    <strong>
-                      {personName(c.author)}
-                      {c.isInternal ? ' · Internal' : ''}
-                    </strong>
-                    <p>{c.body}</p>
-                  </li>
-                ))
+                visibleActivity.map((item) => {
+                  if (item.kind === 'event') {
+                    return (
+                      <li
+                        key={`e-${item.id}`}
+                        className={`${styles.activityItem} ${historyTone(item.field)}`}
+                      >
+                        <span className={styles.activityDot} aria-hidden>
+                          {item.field === 'assignee' || item.field === 'team' ? (
+                            <Icon icon={UserRound} size="sm" />
+                          ) : (
+                            <Icon icon={History} size="sm" />
+                          )}
+                        </span>
+                        <div className={styles.activityBody}>
+                          <p className={styles.activitySummary}>
+                            <strong>{item.summary}</strong>
+                          </p>
+                          {item.oldLabel &&
+                          item.newLabel &&
+                          item.oldLabel !== item.newLabel &&
+                          item.field !== 'created' ? (
+                            <p className={styles.activityChange}>
+                              <span>{item.oldLabel}</span>
+                              <span aria-hidden> → </span>
+                              <span>{item.newLabel}</span>
+                            </p>
+                          ) : null}
+                          <p className={styles.activityMeta}>
+                            {item.actorName}
+                            {' · '}
+                            {new Date(item.at).toLocaleString(undefined, {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })}
+                          </p>
+                        </div>
+                      </li>
+                    );
+                  }
+                  return (
+                    <li
+                      key={`c-${item.id}`}
+                      className={`${styles.activityItem} ${styles.activityComment}`}
+                    >
+                      <span className={styles.activityDot} aria-hidden>
+                        <Icon icon={MessageSquare} size="sm" />
+                      </span>
+                      <div className={styles.activityBody}>
+                        <p className={styles.activitySummary}>
+                          <strong>
+                            {item.authorName}
+                            {item.isInternal ? ' · Internal note' : ''}
+                          </strong>
+                        </p>
+                        <p className={styles.activityCommentBody}>{item.body}</p>
+                        <p className={styles.activityMeta}>
+                          {new Date(item.at).toLocaleString(undefined, {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })
               )}
-            </ul>
+            </ol>
             {(can(user, 'tickets:write') ||
               ticket.requester?.id === user.id) && (
               <form className={styles.commentForm} onSubmit={onComment}>
@@ -702,6 +1396,8 @@ export default function TicketDetailPage() {
                   <textarea
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
+                    onFocus={() => setComposing(true)}
+                    onBlur={() => setComposing(false)}
                     rows={3}
                     required
                     minLength={1}
@@ -741,6 +1437,59 @@ export default function TicketDetailPage() {
               slaCompleted={ticket.slaCompleted}
               timeToResolution={ticket.timeToResolution}
             />
+          </div>
+
+          <div className={styles.assignPanel}>
+            <h3>
+              <Icon icon={Timer} size="sm" />
+              Work logs
+            </h3>
+            <p className={styles.hint}>
+              {workMinutesTotal > 0
+                ? `${workMinutesTotal} minute${workMinutesTotal === 1 ? '' : 's'} logged`
+                : 'No time logged yet.'}
+            </p>
+            {canLogWork ? (
+              <form className={styles.workLogForm} onSubmit={onAddWorkLog}>
+                <label>
+                  Minutes
+                  <input
+                    type="number"
+                    min={1}
+                    max={24 * 60}
+                    value={workMinutes}
+                    onChange={(e) => setWorkMinutes(e.target.value)}
+                    required
+                  />
+                </label>
+                <label>
+                  Note (optional)
+                  <input
+                    value={workNote}
+                    onChange={(e) => setWorkNote(e.target.value)}
+                    maxLength={500}
+                    placeholder="What did you work on?"
+                  />
+                </label>
+                <button type="submit" className={styles.btn} disabled={busy}>
+                  Log time
+                </button>
+              </form>
+            ) : null}
+            {workLogs.length > 0 ? (
+              <ul className={styles.workLogList}>
+                {workLogs.map((log) => (
+                  <li key={log.id}>
+                    <strong>{log.minutes}m</strong>
+                    <span>
+                      {personName(log.author)} ·{' '}
+                      {new Date(log.workedAt).toLocaleString()}
+                    </span>
+                    {log.note ? <em>{log.note}</em> : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
 
           {canEditLocation ? (

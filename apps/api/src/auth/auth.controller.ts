@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Patch,
   Post,
   Req,
   Res,
@@ -16,6 +17,7 @@ import {
   LoginDto,
   RequestPasswordResetDto,
   ResetPasswordDto,
+  UpdateProfileDto,
 } from './dto/auth.dto';
 import { CurrentUser } from './decorators';
 import { SessionAuthGuard } from './guards/session-auth.guard';
@@ -67,6 +69,22 @@ export class AuthController {
   @UseGuards(SessionAuthGuard)
   me(@CurrentUser() user: AuthUserView) {
     return { user };
+  }
+
+  @Get('profile')
+  @UseGuards(SessionAuthGuard)
+  profile(@CurrentUser() user: AuthUserView) {
+    return this.auth.profileContext(user.id);
+  }
+
+  @Patch('me')
+  @UseGuards(SessionAuthGuard)
+  async updateMe(
+    @CurrentUser() user: AuthUserView,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    const updated = await this.auth.updateProfile(user.id, dto);
+    return { user: updated };
   }
 
   @Post('change-password')

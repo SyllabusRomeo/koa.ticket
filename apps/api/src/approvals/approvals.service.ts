@@ -88,7 +88,7 @@ export class ApprovalsService {
 
     const approval = await this.prisma.approval.findUnique({
       where: { id },
-      include: { ticket: { include: { status: true } } },
+      include: { ticket: { include: { status: true, type: true } } },
     });
     if (!approval) throw new NotFoundException('Approval not found');
     if (approval.approverId !== user.id) {
@@ -98,22 +98,38 @@ export class ApprovalsService {
       throw new BadRequestException('Approval already decided');
     }
 
-    const nextStatusCode = decision === 'approved' ? 'open' : 'cancelled';
-    const nextStatus = await this.prisma.ticketStatus.findUniqueOrThrow({
+    const isChange = approval.ticket.type.code === 'change';
+    const nextStatusCode =
+      decision === 'approved'
+        ? isChange
+          ? 'scheduled'
+          : 'open'
+        : 'cancelled';
+    const nextStatus = await this.prisma.ticketStatus.findUnique({
       where: { code: nextStatusCode },
     });
+    const fallback =
+      decision === 'approved'
+        ? await this.prisma.ticketStatus.findUnique({ where: { code: 'open' } })
+        : await this.prisma.ticketStatus.findUnique({
+            where: { code: 'cancelled' },
+          });
+    const resolvedStatus = nextStatus ?? fallback;
+    if (!resolvedStatus) {
+      throw new BadRequestException(`Status ${nextStatusCode} is not configured`);
+    }
 
     const allowed = await this.prisma.ticketStatusTransition.findUnique({
       where: {
         fromStatusId_toStatusId: {
           fromStatusId: approval.ticket.statusId,
-          toStatusId: nextStatus.id,
+          toStatusId: resolvedStatus.id,
         },
       },
     });
     if (!allowed) {
       throw new BadRequestException(
-        `Cannot move ticket to ${nextStatusCode} from ${approval.ticket.status.code}`,
+        `Cannot move ticket to ${resolvedStatus.code} from ${approval.ticket.status.code}`,
       );
     }
 
@@ -129,7 +145,7 @@ export class ApprovalsService {
       this.prisma.ticket.update({
         where: { id: approval.ticketId },
         data: {
-          statusId: nextStatus.id,
+          statusId: resolvedStatus.id,
           version: { increment: 1 },
           history: {
             create: {
@@ -167,9 +183,11 @@ export class ApprovalsService {
     await this.notifications.notify({
       userId: approval.ticket.requesterId,
       eventType: 'approval.completed',
-      title: `Request ${decision}`,
+      title: isChange
+        ? `CAB ${decision}`
+        : `Request ${decision}`,
       body: approval.ticket.title,
-      link: '/app/tickets',
+      link: `/app/tickets/${approval.ticket.number ?? approval.ticketId}`,
     });
 
     return this.prisma.approval.findUnique({

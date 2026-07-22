@@ -90,7 +90,8 @@ export function workspaceNextActions(user: AuthUser): WorkspaceAction[] {
       push({ href: '/app/admin/routing', label: 'Routing & SLA' });
     }
     if (can(user, 'tickets:read_all') || can(user, 'tickets:read_queue')) {
-      push({ href: '/app/tickets', label: 'Open ticket queue' });
+      push({ href: '/app/queue', label: 'Open queue board' });
+      push({ href: '/app/tickets', label: 'Open ticket list' });
     }
     if (can(user, 'knowledge:write')) {
       push({ href: '/app/knowledge/new', label: 'Create knowledge article' });
@@ -136,7 +137,8 @@ export function workspaceNextActions(user: AuthUser): WorkspaceAction[] {
       can(user, 'tickets:read_all') ||
       can(user, 'tickets:read_own')
     ) {
-      push({ href: '/app/tickets', label: 'Open ticket queue' });
+      push({ href: '/app/queue', label: 'Open queue board' });
+      push({ href: '/app/tickets', label: 'Open ticket list' });
     }
     if (can(user, 'approvals:read')) {
       push({ href: '/app/approvals', label: 'Open Approvals' });
@@ -159,7 +161,11 @@ export function workspaceNextActions(user: AuthUser): WorkspaceAction[] {
   }
 
   if (hasRole(user, 'senior_agent') || hasRole(user, 'agent')) {
-    push({ href: '/app/tickets', label: 'Open ticket queue', primary: true });
+    push({ href: '/app/queue', label: 'Open queue board', primary: true });
+    push({ href: '/app/major-incidents', label: 'Major incident ops' });
+    push({ href: '/app/problems', label: 'Problem queue' });
+    push({ href: '/app/changes', label: 'Change queue' });
+    push({ href: '/app/tickets', label: 'Open ticket list' });
     if (can(user, 'knowledge:write')) {
       push({ href: '/app/knowledge/new', label: 'Create knowledge article' });
     } else if (can(user, 'knowledge:read')) {
@@ -216,29 +222,41 @@ export function notificationHref(note: {
 
 export type NavItem = { href: string; label: string };
 
-export function navForUser(user: AuthUser): NavItem[] {
-  const items: NavItem[] = [{ href: '/app', label: 'Home' }];
+/** Always shown in the top bar for every signed-in user. */
+const PRIMARY_NAV: NavItem[] = [
+  { href: '/app', label: 'Home' },
+  { href: '/app/tickets', label: 'Tickets' },
+  { href: '/app/knowledge', label: 'Knowledge' },
+  { href: '/app/catalog', label: 'Catalog' },
+];
 
-  if (
-    can(user, 'tickets:read_own') ||
-    can(user, 'tickets:read_queue') ||
-    can(user, 'tickets:read_all')
-  ) {
-    items.push({ href: '/app/tickets', label: 'Tickets' });
+const ADMIN_NAV_HREFS = new Set([
+  '/app/admin/roles',
+  '/app/admin/teams',
+  '/app/admin/departments',
+  '/app/admin/locations',
+  '/app/admin/routing',
+  '/app/admin/integrations',
+  '/app/admin/branding',
+]);
+
+export function navForUser(user: AuthUser): NavItem[] {
+  const items: NavItem[] = [...PRIMARY_NAV];
+
+  if (showAgentWorkspace(user)) {
+    const ticketsIdx = items.findIndex((i) => i.href === '/app/tickets');
+    items.splice(
+      ticketsIdx + 1,
+      0,
+      { href: '/app/queue', label: 'Queue' },
+      { href: '/app/major-incidents', label: 'Major' },
+      { href: '/app/problems', label: 'Problems' },
+      { href: '/app/changes', label: 'Changes' },
+    );
   }
+
   if (can(user, 'approvals:read')) {
     items.push({ href: '/app/approvals', label: 'Approvals' });
-  }
-  if (can(user, 'knowledge:read')) {
-    items.push({ href: '/app/knowledge', label: 'Knowledge' });
-  }
-  // Catalog is employee-facing; allow anyone authenticated who can create/view requests
-  if (
-    can(user, 'tickets:write') ||
-    hasRole(user, 'employee') ||
-    hasRole(user, 'approver')
-  ) {
-    items.push({ href: '/app/catalog', label: 'Catalog' });
   }
   if (can(user, 'assets:read')) {
     items.push({ href: '/app/assets', label: 'Assets' });
@@ -254,6 +272,7 @@ export function navForUser(user: AuthUser): NavItem[] {
   }
   if (can(user, 'org:manage')) {
     items.push({ href: '/app/admin/teams', label: 'Teams' });
+    items.push({ href: '/app/admin/departments', label: 'Departments' });
     items.push({ href: '/app/admin/locations', label: 'Locations' });
   }
   if (can(user, 'settings:manage') || can(user, 'org:manage')) {
@@ -265,4 +284,44 @@ export function navForUser(user: AuthUser): NavItem[] {
   }
 
   return items;
+}
+
+/**
+ * Chrome layout groups:
+ * - primary: fixed for everyone (+ Queue for agents)
+ * - role: permission-gated workspace tools
+ * - admin: configuration / sysadmin tools
+ */
+export function navGroupsForUser(user: AuthUser): {
+  primary: NavItem[];
+  role: NavItem[];
+  admin: NavItem[];
+} {
+  const items = navForUser(user);
+  const primary: NavItem[] = [...PRIMARY_NAV];
+  if (showAgentWorkspace(user)) {
+    const ticketsIdx = primary.findIndex((i) => i.href === '/app/tickets');
+    primary.splice(
+      ticketsIdx + 1,
+      0,
+      { href: '/app/queue', label: 'Queue' },
+      { href: '/app/major-incidents', label: 'Major' },
+      { href: '/app/problems', label: 'Problems' },
+      { href: '/app/changes', label: 'Changes' },
+    );
+  }
+  const primaryHrefs = new Set(primary.map((item) => item.href));
+  return {
+    primary,
+    role: items.filter(
+      (item) =>
+        !primaryHrefs.has(item.href) && !ADMIN_NAV_HREFS.has(item.href),
+    ),
+    admin: items.filter((item) => ADMIN_NAV_HREFS.has(item.href)),
+  };
+}
+
+export function isNavActive(pathname: string, href: string) {
+  if (href === '/app') return pathname === '/app' || pathname === '/app/';
+  return pathname === href || pathname.startsWith(`${href}/`);
 }

@@ -70,6 +70,22 @@ export class CreateDepartmentDto {
   locationId?: string;
 }
 
+export class UpdateDepartmentDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  locationId?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+
 export class CreateTeamDto {
   @IsString()
   @MinLength(2)

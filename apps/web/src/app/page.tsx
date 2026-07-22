@@ -1,6 +1,39 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
 import styles from './page.module.css';
 
 export default function HomePage() {
+  const router = useRouter();
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await api.me();
+        if (!cancelled) router.replace('/app');
+      } catch {
+        if (!cancelled) setChecking(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  if (checking) {
+    return (
+      <main className={styles.shell}>
+        <p className={styles.lede} style={{ padding: '2rem' }}>
+          Loading…
+        </p>
+      </main>
+    );
+  }
+
   return (
     <main className={styles.shell}>
       <header className={styles.topbar}>
@@ -11,6 +44,7 @@ export default function HomePage() {
         <nav className={styles.nav} aria-label="Primary">
           <a href="#portal">Portal</a>
           <a href="#status">Status</a>
+          <a href="/login">Sign in</a>
         </nav>
       </header>
 
@@ -26,7 +60,7 @@ export default function HomePage() {
           <a className={styles.primaryBtn} href="/login">
             Sign in
           </a>
-          <a className={styles.secondaryBtn} href="/app">
+          <a className={styles.secondaryBtn} href="/login">
             Open workspace
           </a>
         </div>

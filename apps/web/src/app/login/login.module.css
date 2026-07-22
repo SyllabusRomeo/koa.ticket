@@ -22,6 +22,19 @@
   animation: fadeDown 0.5s ease both;
 }
 
+.brandLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.brandLink:hover .name,
+.brandLink:focus-visible .name {
+  color: var(--color-secondary);
+}
+
 .mark {
   display: inline-flex;
   align-items: center;

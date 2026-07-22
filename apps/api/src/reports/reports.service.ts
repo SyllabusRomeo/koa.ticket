@@ -548,6 +548,160 @@ export class ReportsService {
     };
   }
 
+  /**
+   * Aggregate time-in-status across tickets in range → bottleneck view.
+   * Uses TicketHistory status changes (same model as per-ticket stageDurations).
+   */
+  async stageBottlenecks(range: ReportDateRange = {}) {
+    const now = new Date();
+    const stuckThresholdMs = 24 * 60 * 60_000;
+    const tickets = await this.prisma.ticket.findMany({
+      where: this.ticketWhere(range),
+      take: 2000,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        number: true,
+        title: true,
+        createdAt: true,
+        status: { select: { code: true, name: true, isTerminal: true } },
+        history: {
+          where: { field: 'status' },
+          orderBy: { createdAt: 'asc' },
+          select: {
+            oldValue: true,
+            newValue: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+
+    const statuses = await this.prisma.ticketStatus.findMany({
+      select: { code: true, name: true },
+    });
+    const nameByCode = new Map(statuses.map((s) => [s.code, s.name]));
+
+    type Acc = { totalMs: number; ticketCount: number; currentCount: number };
+    const byCode = new Map<string, Acc>();
+    const stuck: Array<{
+      number: string;
+      title: string;
+      statusCode: string;
+      statusName: string;
+      durationMs: number;
+      label: string;
+    }> = [];
+
+    for (const ticket of tickets) {
+      const totals = this.stageTotalsForTicket(ticket, now);
+      for (const [code, durationMs] of totals.byStatus) {
+        const acc = byCode.get(code) ?? {
+          totalMs: 0,
+          ticketCount: 0,
+          currentCount: 0,
+        };
+        acc.totalMs += durationMs;
+        acc.ticketCount += 1;
+        byCode.set(code, acc);
+      }
+      if (totals.current) {
+        const cur = byCode.get(totals.current.statusCode);
+        if (cur) cur.currentCount += 1;
+        if (
+          !ticket.status.isTerminal &&
+          totals.current.durationMs >= stuckThresholdMs
+        ) {
+          stuck.push({
+            number: ticket.number,
+            title: ticket.title,
+            statusCode: totals.current.statusCode,
+            statusName:
+              nameByCode.get(totals.current.statusCode) ??
+              totals.current.statusCode,
+            durationMs: totals.current.durationMs,
+            label: this.formatDurationLabel(totals.current.durationMs),
+          });
+        }
+      }
+    }
+
+    stuck.sort((a, b) => b.durationMs - a.durationMs);
+
+    const grandTotal = [...byCode.values()].reduce((s, a) => s + a.totalMs, 0);
+    const byStatus = [...byCode.entries()]
+      .map(([code, acc]) => {
+        const avgMs =
+          acc.ticketCount > 0 ? Math.round(acc.totalMs / acc.ticketCount) : 0;
+        return {
+          code,
+          name: nameByCode.get(code) ?? code,
+          ticketCount: acc.ticketCount,
+          currentCount: acc.currentCount,
+          totalMs: acc.totalMs,
+          avgMs,
+          avgLabel: this.formatDurationLabel(avgMs),
+          totalLabel: this.formatDurationLabel(acc.totalMs),
+          pctOfAll:
+            grandTotal > 0
+              ? Math.round((acc.totalMs / grandTotal) * 1000) / 10
+              : 0,
+        };
+      })
+      .sort((a, b) => b.avgMs - a.avgMs);
+
+    return {
+      sampleSize: tickets.length,
+      stuckThresholdHours: 24,
+      from: range.from?.trim() || null,
+      to: range.to?.trim() || null,
+      byStatus,
+      stuckOpen: stuck.slice(0, 15),
+      generatedAt: now.toISOString(),
+    };
+  }
+
+  private stageTotalsForTicket(
+    ticket: {
+      createdAt: Date;
+      status: { code: string };
+      history: Array<{
+        oldValue: string | null;
+        newValue: string | null;
+        createdAt: Date;
+      }>;
+    },
+    now: Date,
+  ) {
+    const statusChanges = ticket.history.filter((h) => h.newValue);
+    const byStatus = new Map<string, number>();
+    let current: { statusCode: string; durationMs: number } | null = null;
+
+    const add = (code: string, ms: number) => {
+      byStatus.set(code, (byStatus.get(code) ?? 0) + Math.max(0, ms));
+    };
+
+    if (statusChanges.length === 0) {
+      const code = ticket.status.code;
+      const durationMs = Math.max(0, now.getTime() - ticket.createdAt.getTime());
+      add(code, durationMs);
+      current = { statusCode: code, durationMs };
+      return { byStatus, current };
+    }
+
+    let cursorCode = statusChanges[0].oldValue ?? 'new';
+    let cursorAt = ticket.createdAt;
+    for (const change of statusChanges) {
+      add(cursorCode, change.createdAt.getTime() - cursorAt.getTime());
+      cursorCode = change.newValue!;
+      cursorAt = change.createdAt;
+    }
+    const currentMs = Math.max(0, now.getTime() - cursorAt.getTime());
+    add(cursorCode, currentMs);
+    current = { statusCode: cursorCode, durationMs: currentMs };
+    return { byStatus, current };
+  }
+
   async loadExportTickets(range: ReportDateRange = {}, take = 5000) {
     return this.prisma.ticket.findMany({
       where: this.ticketWhere(range),

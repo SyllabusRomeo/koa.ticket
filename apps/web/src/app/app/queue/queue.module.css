@@ -1,0 +1,349 @@
+.page {
+  min-height: 100vh;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 1.25rem 1.25rem 2.5rem;
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.top h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+}
+
+.eyebrow {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  color: var(--color-secondary);
+}
+
+.lede {
+  margin: 0.35rem 0 0;
+  max-width: 36rem;
+  color: rgba(15, 74, 64, 0.72);
+  font-size: 0.95rem;
+}
+
+.topActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.scopes {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.2rem;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(15, 74, 64, 0.1);
+  border-radius: var(--radius-md);
+}
+
+.scopeBtn {
+  border: none;
+  background: transparent;
+  color: var(--color-primary);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.scopeBtn:hover {
+  background: rgba(15, 74, 64, 0.06);
+}
+
+.scopeBtnActive {
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+}
+
+.scopeBtnActive:hover {
+  background: var(--color-primary);
+}
+
+.meta {
+  font-size: 0.85rem;
+  color: rgba(15, 74, 64, 0.65);
+}
+
+.error {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 71, 71, 0.12);
+  color: #9a1c1c;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr minmax(200px, 240px);
+  gap: 1rem;
+  align-items: start;
+  min-width: 0;
+}
+
+.boardWrap {
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.board {
+  display: flex;
+  gap: 0.75rem;
+  min-height: 28rem;
+  width: max-content;
+}
+
+.column {
+  width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 12rem);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(15, 74, 64, 0.1);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.columnDropOk {
+  border-color: var(--color-secondary);
+  background: rgba(237, 244, 172, 0.45);
+}
+
+.columnDropNo {
+  opacity: 0.55;
+}
+
+.columnHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 0.85rem;
+  border-bottom: 1px solid rgba(15, 74, 64, 0.08);
+  position: sticky;
+  top: 0;
+  background: inherit;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  z-index: 1;
+}
+
+.columnHead h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.count {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(15, 74, 64, 0.08);
+  color: var(--color-primary);
+}
+
+.cards {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-height: 4rem;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.7rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(15, 74, 64, 0.12);
+  background: #fff;
+  cursor: grab;
+  text-align: left;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 14px rgba(15, 74, 64, 0.1);
+}
+
+.cardDragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+.cardBusy {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.cardTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.cardNumber {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-secondary);
+}
+
+.miBadge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9a1c1c;
+  background: rgba(255, 71, 71, 0.14);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+  font-size: 0.75rem;
+  color: rgba(15, 74, 64, 0.7);
+}
+
+.assignee {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.emptyCol {
+  margin: 0.5rem 0;
+  font-size: 0.8rem;
+  color: rgba(15, 74, 64, 0.45);
+  text-align: center;
+}
+
+.workload {
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(15, 74, 64, 0.08);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  box-shadow: var(--shadow-soft);
+  position: sticky;
+  top: 1rem;
+}
+
+.workload h2 {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+}
+
+.workloadList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.workloadList li {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.workloadRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.workloadRow strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.workloadTrack {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(15, 74, 64, 0.08);
+  overflow: hidden;
+}
+
+.workloadFill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    var(--color-secondary),
+    var(--color-primary)
+  );
+}
+
+.hint {
+  margin: 1rem 0 0;
+  font-size: 0.78rem;
+  color: rgba(15, 74, 64, 0.55);
+  line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .workload {
+    position: static;
+    order: -1;
+  }
+
+  .column {
+    max-height: none;
+  }
+}

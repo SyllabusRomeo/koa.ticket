@@ -5,6 +5,7 @@ import {
   CalendarClock,
   CircleDot,
   ClipboardCheck,
+  Columns3,
   FolderOpen,
   Inbox,
   PauseCircle,
@@ -122,7 +123,15 @@ export function AgentWorkspace({
               New ticket
             </a>
           ) : null}
-          <a href="/app/tickets" className={styles.ctaSecondary}>
+          <a href="/app/queue" className={styles.ctaSecondary}>
+            <Icon icon={Columns3} size="sm" />
+            Queue board
+          </a>
+          <a href="/app/major-incidents" className={styles.ctaSecondary}>
+            <Icon icon={AlertTriangle} size="sm" />
+            Major ops
+          </a>
+          <a href="/app/queue?scope=unassigned" className={styles.ctaSecondary}>
             <Icon icon={UserX} size="sm" />
             Unassigned ({kpis.unassigned})
           </a>
@@ -144,7 +153,7 @@ export function AgentWorkspace({
 
       <section className={styles.kpiRow} aria-label="Queue KPIs">
         <a
-          href="/app/tickets"
+          href="/app/queue"
           className={`${styles.kpi} ${kpis.overdue > 0 ? styles.kpiAlert : ''}`}
         >
           <span className={styles.kpiIcon}>
@@ -153,14 +162,14 @@ export function AgentWorkspace({
           <strong>{kpis.overdue}</strong>
           <span>Overdue</span>
         </a>
-        <a href="/app/tickets" className={styles.kpi}>
+        <a href="/app/queue" className={styles.kpi}>
           <span className={styles.kpiIcon}>
             <Icon icon={CalendarClock} size="sm" />
           </span>
           <strong>{kpis.dueToday}</strong>
           <span>Due today</span>
         </a>
-        <a href="/app/tickets" className={styles.kpi}>
+        <a href="/app/queue" className={styles.kpi}>
           <span className={styles.kpiIcon}>
             <Icon icon={FolderOpen} size="sm" />
           </span>
@@ -168,7 +177,7 @@ export function AgentWorkspace({
           <span>Open</span>
         </a>
         <a
-          href="/app/tickets"
+          href="/app/queue"
           className={`${styles.kpi} ${
             kpis.onHoldPending > 0 ? styles.kpiWarn : ''
           }`}
@@ -180,7 +189,7 @@ export function AgentWorkspace({
           <span>On hold / pending</span>
         </a>
         <a
-          href="/app/tickets"
+          href="/app/queue?scope=unassigned"
           className={`${styles.kpi} ${
             kpis.unassigned > 0 ? styles.kpiAlert : ''
           }`}
@@ -191,7 +200,7 @@ export function AgentWorkspace({
           <strong>{kpis.unassigned}</strong>
           <span>Unassigned</span>
         </a>
-        <a href="/app/tickets" className={styles.kpi}>
+        <a href="/app/queue?scope=mine" className={styles.kpi}>
           <span className={styles.kpiIcon}>
             <Icon icon={UserRound} size="sm" />
           </span>
@@ -242,7 +251,7 @@ export function AgentWorkspace({
             <Icon icon={Ticket} size="sm" />
             Recent queue activity
           </h2>
-          <a href="/app/tickets">Open tickets →</a>
+          <a href="/app/queue">Open queue board →</a>
         </div>
         {metrics.recent.length === 0 ? (
           <EmptyState icon={Inbox}>Queue is empty.</EmptyState>

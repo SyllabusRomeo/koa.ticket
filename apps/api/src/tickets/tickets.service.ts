@@ -13,6 +13,7 @@ import { AssignmentService } from '../assignment/assignment.service';
 import { ApprovalsService } from '../approvals/approvals.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PresenceService } from '../presence/presence.service';
 import { SlaService } from '../sla/sla.service';
 import {
   AddCommentDto,
@@ -30,6 +31,7 @@ export class TicketsService {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly sla: SlaService,
+    private readonly presence: PresenceService,
   ) {}
 
   private canStaffTickets(user: AuthUserView) {
@@ -185,6 +187,7 @@ export class TicketsService {
         teamId: teamId ?? undefined,
         parentId,
         majorIncident,
+        cabRequired: type.code === 'change',
         history: {
           create: [
             {
@@ -192,6 +195,15 @@ export class TicketsService {
               field: 'created',
               newValue: number,
             },
+            ...(teamId
+              ? [
+                  {
+                    actorId: user.id,
+                    field: 'team',
+                    newValue: teamId,
+                  },
+                ]
+              : []),
             ...(parentId
               ? [
                   {
@@ -317,6 +329,204 @@ export class TicketsService {
     return tickets.map((t) => this.serialize(t, user));
   }
 
+  /** Kanban / workload board for agents (non-terminal statuses). */
+  async board(
+    user: AuthUserView,
+    opts: { scope?: 'all' | 'mine' | 'unassigned' } = {},
+  ) {
+    if (!this.canStaffTickets(user)) {
+      throw new ForbiddenException('Queue board requires agent access');
+    }
+
+    const scope = opts.scope ?? 'all';
+    const where: Prisma.TicketWhereInput = {
+      deletedAt: null,
+      status: { isTerminal: false },
+    };
+    if (scope === 'mine') where.assigneeId = user.id;
+    if (scope === 'unassigned') where.assigneeId = null;
+
+    const [statuses, tickets, transitionRows] = await Promise.all([
+      this.prisma.ticketStatus.findMany({
+        where: { isTerminal: false },
+        orderBy: { sortOrder: 'asc' },
+        select: { code: true, name: true, sortOrder: true },
+      }),
+      this.prisma.ticket.findMany({
+        where,
+        orderBy: [{ majorIncident: 'desc' }, { createdAt: 'desc' }],
+        take: 300,
+        include: this.defaultInclude(false),
+      }),
+      this.prisma.ticketStatusTransition.findMany({
+        include: {
+          fromStatus: { select: { code: true } },
+          toStatus: { select: { code: true } },
+        },
+      }),
+    ]);
+
+    const serialized = tickets.map((t) => this.serialize(t, user));
+    const byStatus = new Map<string, typeof serialized>();
+    for (const s of statuses) byStatus.set(s.code, []);
+    for (const t of serialized) {
+      const code = t.status?.code ?? 'new';
+      const list = byStatus.get(code) ?? [];
+      list.push(t);
+      byStatus.set(code, list);
+    }
+
+    const workloadMap = new Map<
+      string,
+      { userId: string | null; name: string; count: number }
+    >();
+    for (const t of tickets) {
+      const key = t.assigneeId ?? 'unassigned';
+      const name = t.assignee
+        ? `${t.assignee.firstName} ${t.assignee.lastName}`.trim() ||
+          t.assignee.email
+        : 'Unassigned';
+      const row = workloadMap.get(key) ?? {
+        userId: t.assigneeId,
+        name,
+        count: 0,
+      };
+      row.count += 1;
+      workloadMap.set(key, row);
+    }
+
+    const transitions: Record<string, string[]> = {};
+    for (const row of transitionRows) {
+      const from = row.fromStatus.code;
+      const to = row.toStatus.code;
+      if (!transitions[from]) transitions[from] = [];
+      if (!transitions[from].includes(to)) transitions[from].push(to);
+    }
+
+    return {
+      scope,
+      columns: statuses.map((s) => ({
+        code: s.code,
+        name: s.name,
+        tickets: byStatus.get(s.code) ?? [],
+      })),
+      workload: [...workloadMap.values()].sort((a, b) => b.count - a.count),
+      transitions,
+      total: serialized.length,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  /** Ops dashboard for major incidents — active MIs with related children. */
+  async majorIncidentsOps(user: AuthUserView) {
+    if (!this.canStaffTickets(user)) {
+      throw new ForbiddenException('Major incident ops requires agent access');
+    }
+
+    const now = Date.now();
+    const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+
+    const tickets = await this.prisma.ticket.findMany({
+      where: { deletedAt: null, majorIncident: true },
+      orderBy: [{ createdAt: 'desc' }],
+      take: 100,
+      include: {
+        ...this.defaultInclude(false),
+        children: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+          include: {
+            status: { select: { code: true, name: true, isTerminal: true } },
+            priority: { select: { code: true, name: true } },
+            type: { select: { code: true, name: true } },
+            assignee: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+        parent: {
+          select: {
+            id: true,
+            number: true,
+            title: true,
+            majorIncident: true,
+            status: { select: { code: true, name: true } },
+          },
+        },
+      },
+    });
+
+    const serialized = tickets.map((t) => {
+      const base = this.serialize(t, user);
+      return {
+        ...base,
+        children: (t.children ?? []).map((c) => ({
+          id: c.id,
+          number: c.number,
+          title: c.title,
+          status: c.status,
+          priority: c.priority,
+          type: c.type,
+          assignee: c.assignee,
+        })),
+        parent: t.parent
+          ? {
+              id: t.parent.id,
+              number: t.parent.number,
+              title: t.parent.title,
+              majorIncident: t.parent.majorIncident,
+              status: t.parent.status,
+            }
+          : null,
+      };
+    });
+
+    const active = serialized.filter((t) => !t.status?.isTerminal);
+    const resolvedRecent = serialized.filter((t) => {
+      if (!t.status?.isTerminal) return false;
+      const stamp =
+        (t as { resolvedAt?: string | Date | null }).resolvedAt ??
+        (t as { closedAt?: string | Date | null }).closedAt ??
+        (t as { updatedAt?: string | Date | null }).updatedAt;
+      if (!stamp) return false;
+      return new Date(stamp).getTime() >= weekAgo.getTime();
+    });
+
+    let breached = 0;
+    let unassigned = 0;
+    let withRelated = 0;
+    for (const t of active) {
+      const remaining = t.slaRemainingMs;
+      if (t.slaBreached || (remaining != null && remaining < 0)) {
+        breached += 1;
+      }
+      const assignee = (t as { assignee?: { id: string } | null }).assignee;
+      if (!assignee) unassigned += 1;
+      const kids = t.children?.length ?? 0;
+      if (kids > 0 || t.parent) withRelated += 1;
+    }
+
+    return {
+      kpis: {
+        active: active.length,
+        breached,
+        unassigned,
+        withRelated,
+        resolvedLast7d: resolvedRecent.length,
+        totalTracked: serialized.length,
+      },
+      active,
+      recentlyResolved: resolvedRecent.slice(0, 20),
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
   /** CSV of the same ticket visibility as list (scoped for employees). */
   async exportCsv(user: AuthUserView, ipAddress?: string | null) {
     const where: Prisma.TicketWhereInput = { deletedAt: null };
@@ -394,8 +604,19 @@ export class TicketsService {
   async get(user: AuthUserView, idOrNumber: string) {
     const ticket = await this.findAccessible(user, idOrNumber, true);
     const allowedTransitions = await this.listAllowedTransitions(user, ticket);
+    const watching = !!(await this.prisma.ticketWatcher.findUnique({
+      where: {
+        ticketId_userId: { ticketId: ticket.id, userId: user.id },
+      },
+      select: { userId: true },
+    }));
+    const serialized = this.serialize(ticket, user);
     return {
-      ...this.serialize(ticket, user),
+      ...serialized,
+      history: await this.decorateHistory(
+        Array.isArray(serialized.history) ? serialized.history : [],
+      ),
+      watching,
       allowedTransitions,
       canSoftDelete: this.canSoftDelete(user),
     };
@@ -580,30 +801,40 @@ export class TicketsService {
       if (!user.permissions.includes(PERMISSIONS.TICKETS_ASSIGN)) {
         throw new ForbiddenException('Cannot assign tickets');
       }
-      data.assignee = dto.assigneeId
-        ? { connect: { id: dto.assigneeId } }
-        : { disconnect: true };
-      history.push({
-        actorId: user.id,
-        field: 'assignee',
-        oldValue: existing.assigneeId,
-        newValue: dto.assigneeId,
-      });
+      const nextAssignee =
+        dto.assigneeId === null || dto.assigneeId === ''
+          ? null
+          : dto.assigneeId;
+      if (nextAssignee !== existing.assigneeId) {
+        data.assignee = nextAssignee
+          ? { connect: { id: nextAssignee } }
+          : { disconnect: true };
+        history.push({
+          actorId: user.id,
+          field: 'assignee',
+          oldValue: existing.assigneeId,
+          newValue: nextAssignee,
+        });
+      }
     }
 
     if (dto.teamId !== undefined) {
       if (!user.permissions.includes(PERMISSIONS.TICKETS_ASSIGN)) {
         throw new ForbiddenException('Cannot assign tickets');
       }
-      data.team = dto.teamId
-        ? { connect: { id: dto.teamId } }
-        : { disconnect: true };
-      history.push({
-        actorId: user.id,
-        field: 'team',
-        oldValue: existing.teamId,
-        newValue: dto.teamId,
-      });
+      const nextTeam =
+        dto.teamId === null || dto.teamId === '' ? null : dto.teamId;
+      if (nextTeam !== existing.teamId) {
+        data.team = nextTeam
+          ? { connect: { id: nextTeam } }
+          : { disconnect: true };
+        history.push({
+          actorId: user.id,
+          field: 'team',
+          oldValue: existing.teamId,
+          newValue: nextTeam,
+        });
+      }
     }
 
     if (dto.locationId !== undefined) {
@@ -642,6 +873,138 @@ export class TicketsService {
           field: 'major_incident',
           oldValue: String(existing.majorIncident),
           newValue: String(dto.majorIncident),
+        });
+      }
+    }
+
+    if (dto.rootCause !== undefined || dto.workaround !== undefined) {
+      if (!this.canStaffTickets(user)) {
+        throw new ForbiddenException('Cannot update problem analysis fields');
+      }
+      if (dto.rootCause !== undefined) {
+        const next =
+          dto.rootCause === null ? null : dto.rootCause.trim() || null;
+        if (next !== existing.rootCause) {
+          data.rootCause = next;
+          history.push({
+            actorId: user.id,
+            field: 'root_cause',
+            oldValue: existing.rootCause,
+            newValue: next,
+          });
+        }
+      }
+      if (dto.workaround !== undefined) {
+        const next =
+          dto.workaround === null ? null : dto.workaround.trim() || null;
+        if (next !== existing.workaround) {
+          data.workaround = next;
+          history.push({
+            actorId: user.id,
+            field: 'workaround',
+            oldValue: existing.workaround,
+            newValue: next,
+          });
+        }
+      }
+    }
+
+    if (
+      dto.changeRisk !== undefined ||
+      dto.changePlan !== undefined ||
+      dto.rollbackPlan !== undefined ||
+      dto.scheduledStart !== undefined ||
+      dto.scheduledEnd !== undefined ||
+      dto.cabRequired !== undefined
+    ) {
+      if (!this.canStaffTickets(user)) {
+        throw new ForbiddenException('Cannot update change plan fields');
+      }
+      if (dto.changeRisk !== undefined) {
+        const next =
+          dto.changeRisk === null ? null : dto.changeRisk.trim() || null;
+        if (next !== existing.changeRisk) {
+          data.changeRisk = next;
+          history.push({
+            actorId: user.id,
+            field: 'change_risk',
+            oldValue: existing.changeRisk,
+            newValue: next,
+          });
+        }
+      }
+      if (dto.changePlan !== undefined) {
+        const next =
+          dto.changePlan === null ? null : dto.changePlan.trim() || null;
+        if (next !== existing.changePlan) {
+          data.changePlan = next;
+          history.push({
+            actorId: user.id,
+            field: 'change_plan',
+            oldValue: existing.changePlan ? '(updated)' : null,
+            newValue: next ? '(set)' : null,
+          });
+        }
+      }
+      if (dto.rollbackPlan !== undefined) {
+        const next =
+          dto.rollbackPlan === null ? null : dto.rollbackPlan.trim() || null;
+        if (next !== existing.rollbackPlan) {
+          data.rollbackPlan = next;
+          history.push({
+            actorId: user.id,
+            field: 'rollback_plan',
+            oldValue: existing.rollbackPlan ? '(updated)' : null,
+            newValue: next ? '(set)' : null,
+          });
+        }
+      }
+      if (dto.scheduledStart !== undefined) {
+        const next = dto.scheduledStart
+          ? new Date(dto.scheduledStart)
+          : null;
+        if (next && Number.isNaN(next.getTime())) {
+          throw new BadRequestException('Invalid scheduledStart');
+        }
+        const prev = existing.scheduledStart?.toISOString() ?? null;
+        const nextIso = next?.toISOString() ?? null;
+        if (prev !== nextIso) {
+          data.scheduledStart = next;
+          history.push({
+            actorId: user.id,
+            field: 'scheduled_start',
+            oldValue: prev,
+            newValue: nextIso,
+          });
+        }
+      }
+      if (dto.scheduledEnd !== undefined) {
+        const next = dto.scheduledEnd ? new Date(dto.scheduledEnd) : null;
+        if (next && Number.isNaN(next.getTime())) {
+          throw new BadRequestException('Invalid scheduledEnd');
+        }
+        const prev = existing.scheduledEnd?.toISOString() ?? null;
+        const nextIso = next?.toISOString() ?? null;
+        if (prev !== nextIso) {
+          data.scheduledEnd = next;
+          history.push({
+            actorId: user.id,
+            field: 'scheduled_end',
+            oldValue: prev,
+            newValue: nextIso,
+          });
+        }
+      }
+      if (
+        dto.cabRequired !== undefined &&
+        dto.cabRequired !== existing.cabRequired
+      ) {
+        data.cabRequired = dto.cabRequired;
+        history.push({
+          actorId: user.id,
+          field: 'cab_required',
+          oldValue: String(existing.cabRequired),
+          newValue: String(dto.cabRequired),
         });
       }
     }
@@ -691,6 +1054,19 @@ export class TicketsService {
           },
         });
       }
+      await this.notifyWatchers({
+        ticketId: ticket.id,
+        actorId: user.id,
+        alreadyNotified: statusRecipients,
+        eventType: 'ticket.status',
+        title: `${ticket.number} status → ${dto.statusCode}`,
+        body: `${ticket.title} (${existing.status.code} → ${dto.statusCode})`,
+        link: `/app/tickets/${ticket.number}`,
+        email: {
+          ticketNumber: ticket.number,
+          eventLabel: `Status: ${dto.statusCode}`,
+        },
+      });
     }
 
     const allowedTransitions = await this.listAllowedTransitions(user, ticket);
@@ -773,6 +1149,19 @@ export class TicketsService {
           },
         });
       }
+      await this.notifyWatchers({
+        ticketId: ticket.id,
+        actorId: user.id,
+        alreadyNotified: recipients,
+        eventType: 'ticket.comment',
+        title: `Comment on ${ticket.number}`,
+        body: preview,
+        link: `/app/tickets/${ticket.number}`,
+        email: {
+          ticketNumber: ticket.number,
+          eventLabel: 'New comment',
+        },
+      });
     }
 
     return comment;
@@ -796,6 +1185,52 @@ export class TicketsService {
       where: { ticketId: ticket.id, userId: user.id },
     });
     return { watching: false };
+  }
+
+  async heartbeatPresence(
+    user: AuthUserView,
+    idOrNumber: string,
+    mode: 'viewing' | 'composing' = 'viewing',
+  ) {
+    const ticket = await this.findAccessible(user, idOrNumber, false);
+    const result = await this.presence.heartbeat(
+      ticket.id,
+      {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+      },
+      mode,
+    );
+    const composingOthers = result.peers.filter((p) => p.mode === 'composing');
+    return {
+      ticketId: ticket.id,
+      number: ticket.number,
+      peers: result.peers,
+      self: result.self,
+      collision: composingOthers.length > 0,
+      composingPeers: composingOthers,
+    };
+  }
+
+  async listPresence(user: AuthUserView, idOrNumber: string) {
+    const ticket = await this.findAccessible(user, idOrNumber, false);
+    const peers = await this.presence.list(ticket.id, user.id);
+    const composingPeers = peers.filter((p) => p.mode === 'composing');
+    return {
+      ticketId: ticket.id,
+      number: ticket.number,
+      peers,
+      collision: composingPeers.length > 0,
+      composingPeers,
+    };
+  }
+
+  async leavePresence(user: AuthUserView, idOrNumber: string) {
+    const ticket = await this.findAccessible(user, idOrNumber, false);
+    await this.presence.leave(ticket.id, user.id);
+    return { ok: true };
   }
 
   async addWorkLog(
@@ -932,6 +1367,223 @@ export class TicketsService {
     });
 
     return this.get(user, parent.id);
+  }
+
+  /**
+   * Raise a Problem (PRB) from an incident/security ticket and link the source as a child.
+   */
+  async promoteToProblem(user: AuthUserView, idOrNumber: string) {
+    if (!user.permissions.includes(PERMISSIONS.TICKETS_WRITE)) {
+      throw new ForbiddenException('Cannot create problems');
+    }
+    if (!this.canStaffTickets(user)) {
+      throw new ForbiddenException('Only agents can raise problems');
+    }
+
+    const source = await this.findAccessible(user, idOrNumber, false);
+    if (source.type.code === 'problem') {
+      throw new BadRequestException('Ticket is already a problem');
+    }
+    if (source.type.code === 'change' || source.type.code === 'task') {
+      throw new BadRequestException(
+        'Only incidents / requests can be promoted to a problem',
+      );
+    }
+
+    if (source.parentId) {
+      const parent = await this.prisma.ticket.findFirst({
+        where: { id: source.parentId, deletedAt: null },
+        include: { type: true },
+      });
+      if (parent?.type.code === 'problem') {
+        return this.get(user, parent.id);
+      }
+    }
+
+    const [problemType, status] = await Promise.all([
+      this.prisma.ticketType.findUnique({ where: { code: 'problem' } }),
+      this.prisma.ticketStatus.findUnique({
+        where: { code: 'under_investigation' },
+      }),
+    ]);
+    if (!problemType) {
+      throw new BadRequestException('Problem ticket type is not configured');
+    }
+    const statusId =
+      status?.id ??
+      (
+        await this.prisma.ticketStatus.findUnique({
+          where: { code: 'open' },
+        })
+      )?.id;
+    if (!statusId) throw new BadRequestException('No status available');
+
+    const number = await this.nextNumber(problemType.prefix);
+    const title = `Problem: ${source.title}`.slice(0, 200);
+
+    const problem = await this.prisma.ticket.create({
+      data: {
+        number,
+        title,
+        description: `Raised from ${source.number}.\n\n${source.description}`,
+        typeId: problemType.id,
+        statusId,
+        priorityId: source.priorityId ?? undefined,
+        categoryId: source.categoryId ?? undefined,
+        subcategoryId: source.subcategoryId ?? undefined,
+        impact: source.impact,
+        urgency: source.urgency,
+        requesterId: source.requesterId,
+        departmentId: source.departmentId,
+        locationId: source.locationId,
+        teamId: source.teamId ?? undefined,
+        assigneeId: source.assigneeId ?? undefined,
+        history: {
+          create: [
+            {
+              actorId: user.id,
+              field: 'created',
+              newValue: number,
+            },
+            {
+              actorId: user.id,
+              field: 'promoted_from',
+              newValue: source.number,
+            },
+            ...(source.teamId
+              ? [
+                  {
+                    actorId: user.id,
+                    field: 'team',
+                    newValue: source.teamId,
+                  },
+                ]
+              : []),
+            ...(source.assigneeId
+              ? [
+                  {
+                    actorId: user.id,
+                    field: 'assignee',
+                    newValue: source.assigneeId,
+                  },
+                ]
+              : []),
+          ],
+        },
+      },
+    });
+
+    await this.prisma.ticket.update({
+      where: { id: source.id },
+      data: {
+        parentId: problem.id,
+        history: {
+          create: {
+            actorId: user.id,
+            field: 'parent',
+            oldValue: source.parentId,
+            newValue: number,
+          },
+        },
+      },
+    });
+
+    await this.prisma.ticketHistory.create({
+      data: {
+        ticketId: problem.id,
+        actorId: user.id,
+        field: 'child_linked',
+        newValue: source.number,
+      },
+    });
+
+    await this.sla.createForTicket(problem.id, source.priorityId ?? undefined);
+    await this.audit.log({
+      actorId: user.id,
+      action: 'ticket.promote_problem',
+      entityType: 'ticket',
+      entityId: problem.id,
+      after: { problem: number, from: source.number },
+    });
+
+    return this.get(user, problem.id);
+  }
+
+  /** Submit a change to CAB / approvers (pending_approval + approval rows). */
+  async requestCab(user: AuthUserView, idOrNumber: string) {
+    if (!user.permissions.includes(PERMISSIONS.TICKETS_WRITE)) {
+      throw new ForbiddenException('Cannot submit change for CAB');
+    }
+    if (!this.canStaffTickets(user)) {
+      throw new ForbiddenException('Only agents can submit CAB reviews');
+    }
+
+    const ticket = await this.findAccessible(user, idOrNumber, false);
+    if (ticket.type.code !== 'change') {
+      throw new BadRequestException('CAB review applies to change tickets only');
+    }
+    if (ticket.status.code === 'pending_approval') {
+      throw new BadRequestException('Change is already pending CAB approval');
+    }
+    if (ticket.status.isTerminal) {
+      throw new BadRequestException('Cannot submit a closed change to CAB');
+    }
+
+    const pendingStatus = await this.prisma.ticketStatus.findUnique({
+      where: { code: 'pending_approval' },
+    });
+    if (!pendingStatus) {
+      throw new BadRequestException('pending_approval status is not configured');
+    }
+
+    const allowed = await this.prisma.ticketStatusTransition.findUnique({
+      where: {
+        fromStatusId_toStatusId: {
+          fromStatusId: ticket.statusId,
+          toStatusId: pendingStatus.id,
+        },
+      },
+    });
+    if (!allowed) {
+      throw new BadRequestException(
+        `Cannot move from ${ticket.status.code} to pending approval`,
+      );
+    }
+
+    await this.prisma.ticket.update({
+      where: { id: ticket.id },
+      data: {
+        statusId: pendingStatus.id,
+        cabRequired: true,
+        version: { increment: 1 },
+        history: {
+          create: [
+            {
+              actorId: user.id,
+              field: 'status',
+              oldValue: ticket.status.code,
+              newValue: 'pending_approval',
+            },
+            {
+              actorId: user.id,
+              field: 'cab_requested',
+              newValue: 'pending',
+            },
+          ],
+        },
+      },
+    });
+
+    await this.approvals.createForTicket(ticket.id, ticket.title, ticket.number);
+    await this.audit.log({
+      actorId: user.id,
+      action: 'ticket.cab_requested',
+      entityType: 'ticket',
+      entityId: ticket.id,
+      after: { number: ticket.number },
+    });
+
+    return this.get(user, ticket.id);
   }
 
   async unlinkChild(
@@ -1387,7 +2039,20 @@ export class TicketsService {
           }
         : false,
       history: withComments
-        ? { orderBy: { createdAt: 'asc' as const }, take: 200 }
+        ? {
+            orderBy: { createdAt: 'asc' as const },
+            take: 200,
+            include: {
+              actor: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                },
+              },
+            },
+          }
         : false,
     };
   }
@@ -1578,6 +2243,301 @@ export class TicketsService {
       return `${sign}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     }
     return `${sign}00:${String(minutes).padStart(2, '0')}`;
+  }
+
+  private async notifyWatchers(params: {
+    ticketId: string;
+    actorId: string;
+    alreadyNotified?: Set<string>;
+    eventType: string;
+    title: string;
+    body: string;
+    link: string;
+    email?: { ticketNumber?: string; eventLabel?: string };
+  }) {
+    const watchers = await this.prisma.ticketWatcher.findMany({
+      where: { ticketId: params.ticketId },
+      select: { userId: true },
+    });
+    for (const { userId } of watchers) {
+      if (userId === params.actorId) continue;
+      if (params.alreadyNotified?.has(userId)) continue;
+      await this.notifications.notify({
+        userId,
+        eventType: params.eventType,
+        title: params.title,
+        body: params.body,
+        link: params.link,
+        email: params.email,
+      });
+    }
+  }
+
+  /**
+   * Resolve assignee/team/location IDs and actors into human-readable activity rows.
+   */
+  private async decorateHistory(
+    history: Array<{
+      id?: string;
+      field: string;
+      oldValue: string | null;
+      newValue: string | null;
+      createdAt: Date | string;
+      actorId?: string | null;
+      actor?: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+      } | null;
+      [k: string]: unknown;
+    }>,
+  ) {
+    const userIds = new Set<string>();
+    const teamIds = new Set<string>();
+    const locationIds = new Set<string>();
+
+    for (const h of history) {
+      if (h.actor?.id) userIds.add(h.actor.id);
+      else if (h.actorId) userIds.add(h.actorId);
+      if (h.field === 'assignee') {
+        if (h.oldValue) userIds.add(h.oldValue);
+        if (h.newValue) userIds.add(h.newValue);
+      }
+      if (h.field === 'team') {
+        if (h.oldValue) teamIds.add(h.oldValue);
+        if (h.newValue) teamIds.add(h.newValue);
+      }
+      if (h.field === 'location') {
+        if (h.oldValue) locationIds.add(h.oldValue);
+        if (h.newValue) locationIds.add(h.newValue);
+      }
+    }
+
+    const [users, teams, locations, statuses] = await Promise.all([
+      userIds.size
+        ? this.prisma.user.findMany({
+            where: { id: { in: [...userIds] } },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          })
+        : Promise.resolve([]),
+      teamIds.size
+        ? this.prisma.team.findMany({
+            where: { id: { in: [...teamIds] } },
+            select: { id: true, name: true, code: true },
+          })
+        : Promise.resolve([]),
+      locationIds.size
+        ? this.prisma.location.findMany({
+            where: { id: { in: [...locationIds] } },
+            select: { id: true, name: true, site: true },
+          })
+        : Promise.resolve([]),
+      this.prisma.ticketStatus.findMany({
+        select: { code: true, name: true },
+      }),
+    ]);
+
+    const userLabel = (id: string | null | undefined) => {
+      if (!id) return 'Unassigned';
+      const u = users.find((x) => x.id === id);
+      if (!u) return 'Unknown user';
+      const name = `${u.firstName} ${u.lastName}`.trim();
+      return name || u.email;
+    };
+    const teamLabel = (id: string | null | undefined) => {
+      if (!id) return 'No team';
+      const t = teams.find((x) => x.id === id);
+      return t?.name ?? 'Unknown team';
+    };
+    const locationLabel = (id: string | null | undefined) => {
+      if (!id) return 'No location';
+      const loc = locations.find((x) => x.id === id);
+      if (!loc) return 'Unknown location';
+      return loc.site ? `${loc.name} · ${loc.site}` : loc.name;
+    };
+    const statusLabel = (code: string | null | undefined) => {
+      if (!code) return '—';
+      return statuses.find((s) => s.code === code)?.name ?? code;
+    };
+
+    const personRef = (
+      id: string | null | undefined,
+    ): {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    } | null => {
+      if (!id) return null;
+      return users.find((u) => u.id === id) ?? null;
+    };
+
+    return history.map((h) => {
+      const actor =
+        h.actor ??
+        (h.actorId ? personRef(h.actorId) : null) ??
+        null;
+
+      let oldLabel: string | null = h.oldValue;
+      let newLabel: string | null = h.newValue;
+      let summary = h.field;
+
+      switch (h.field) {
+        case 'created':
+          summary = `Ticket created${h.newValue ? ` (${h.newValue})` : ''}`;
+          oldLabel = null;
+          newLabel = h.newValue;
+          break;
+        case 'assignee':
+          oldLabel = userLabel(h.oldValue);
+          newLabel = userLabel(h.newValue);
+          summary = h.newValue
+            ? `Assigned to ${newLabel}`
+            : 'Cleared assignee';
+          if (h.oldValue && h.newValue) {
+            summary = `Reassigned to ${newLabel}`;
+          }
+          break;
+        case 'team':
+          oldLabel = h.oldValue ? teamLabel(h.oldValue) : null;
+          newLabel = teamLabel(h.newValue);
+          summary = h.oldValue
+            ? `Team → ${newLabel}`
+            : `Routed to team ${newLabel}`;
+          break;
+        case 'status':
+          oldLabel = statusLabel(h.oldValue);
+          newLabel = statusLabel(h.newValue);
+          summary = `Status → ${newLabel}`;
+          break;
+        case 'priority':
+          summary = `Priority → ${h.newValue ?? '—'}`;
+          break;
+        case 'location':
+          oldLabel = h.oldValue ? locationLabel(h.oldValue) : null;
+          newLabel = locationLabel(h.newValue);
+          summary = `Origin site → ${newLabel}`;
+          break;
+        case 'major_incident':
+          summary =
+            h.newValue === 'true'
+              ? 'Marked as major incident'
+              : 'Cleared major incident flag';
+          break;
+        case 'root_cause':
+          summary = h.newValue
+            ? 'Updated root cause'
+            : 'Cleared root cause';
+          break;
+        case 'workaround':
+          summary = h.newValue
+            ? 'Updated workaround'
+            : 'Cleared workaround';
+          break;
+        case 'comment':
+          summary = 'Public comment added';
+          break;
+        case 'internal_note':
+          summary = 'Internal note added';
+          break;
+        case 'work_log':
+          summary = 'Work log recorded';
+          break;
+        case 'parent':
+          summary = h.newValue
+            ? `Linked parent ${h.newValue}`
+            : 'Parent unlinked';
+          break;
+        case 'child_linked':
+          summary = `Linked child ${h.newValue ?? ''}`.trim();
+          break;
+        case 'child_unlinked':
+          summary = `Unlinked child ${h.oldValue ?? ''}`.trim();
+          break;
+        case 'merged_into':
+          summary = `Merged into ${h.newValue ?? 'another ticket'}`;
+          break;
+        case 'merged_from':
+          summary = `Merged from ${h.newValue ?? 'source ticket(s)'}`;
+          break;
+        case 'merge':
+          summary = 'Tickets merged';
+          break;
+        case 'promoted_from':
+          summary = `Raised from ${h.newValue ?? 'related ticket'}`;
+          break;
+        case 'cab_requested':
+          summary = 'Submitted to CAB for approval';
+          break;
+        case 'cab_required':
+          summary =
+            h.newValue === 'true'
+              ? 'CAB review required'
+              : 'CAB review not required';
+          break;
+        case 'change_risk':
+          summary = h.newValue
+            ? `Change risk → ${h.newValue}`
+            : 'Cleared change risk';
+          break;
+        case 'change_plan':
+          summary = 'Updated change plan';
+          break;
+        case 'rollback_plan':
+          summary = 'Updated rollback plan';
+          break;
+        case 'scheduled_start':
+          summary = h.newValue
+            ? `Scheduled start → ${new Date(h.newValue).toLocaleString()}`
+            : 'Cleared scheduled start';
+          break;
+        case 'scheduled_end':
+          summary = h.newValue
+            ? `Scheduled end → ${new Date(h.newValue).toLocaleString()}`
+            : 'Cleared scheduled end';
+          break;
+        case 'approval':
+          summary =
+            h.newValue === 'approved'
+              ? 'CAB / approval approved'
+              : h.newValue === 'rejected'
+                ? 'CAB / approval rejected'
+                : `Approval → ${h.newValue ?? '—'}`;
+          break;
+        default:
+          summary = h.field.replace(/_/g, ' ');
+      }
+
+      const actorName = actor
+        ? `${actor.firstName} ${actor.lastName}`.trim() || actor.email
+        : 'System';
+
+      return {
+        id: h.id,
+        field: h.field,
+        oldValue: h.oldValue,
+        newValue: h.newValue,
+        oldLabel,
+        newLabel,
+        summary,
+        createdAt: h.createdAt,
+        actor: actor
+          ? {
+              id: actor.id,
+              firstName: actor.firstName,
+              lastName: actor.lastName,
+              email: actor.email,
+            }
+          : null,
+        actorName,
+      };
+    });
   }
 
   private serialize(

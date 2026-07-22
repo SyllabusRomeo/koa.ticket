@@ -139,6 +139,45 @@ export class UpdateTicketDto {
   @IsOptional()
   @IsBoolean()
   majorIncident?: boolean;
+
+  /** Problem RCA — staff only. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(10000)
+  rootCause?: string | null;
+
+  /** Temporary workaround for known errors. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(10000)
+  workaround?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  changeRisk?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10000)
+  changePlan?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10000)
+  rollbackPlan?: string | null;
+
+  @IsOptional()
+  @IsString()
+  scheduledStart?: string | null;
+
+  @IsOptional()
+  @IsString()
+  scheduledEnd?: string | null;
+
+  @IsOptional()
+  @IsBoolean()
+  cabRequired?: boolean;
 }
 
 export class AddCommentDto {

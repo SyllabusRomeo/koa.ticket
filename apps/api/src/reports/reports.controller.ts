@@ -39,6 +39,12 @@ export class ReportsController {
     return this.reports.summary({ from, to });
   }
 
+  @Get('stages')
+  @RequirePermissions(PERMISSIONS.REPORTS_READ)
+  stages(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.reports.stageBottlenecks({ from, to });
+  }
+
   @Get('export.csv')
   @RequirePermissions(PERMISSIONS.REPORTS_READ)
   @Header('Content-Type', 'text/csv; charset=utf-8')

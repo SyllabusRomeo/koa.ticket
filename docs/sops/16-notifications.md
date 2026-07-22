@@ -16,7 +16,7 @@ Explain how users are notified and how preferences work.
 - Assignment / status changes (where wired)
 - SLA warning / breach thresholds
 - Public comments (requester / assignee)
-- (Pending) fan-out to **ticket watchers**
+- **Ticket watchers** — fan-out on public comments and status changes (excludes the actor and users already notified as requester/assignee)
 
 ## How to view
 

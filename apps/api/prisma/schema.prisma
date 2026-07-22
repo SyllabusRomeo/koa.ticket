@@ -383,6 +383,20 @@ model Ticket {
   mergedIntoId    String?   @map("merged_into_id")
   /** Major incident flag for P1 / business-critical outages. */
   majorIncident   Boolean   @default(false) @map("major_incident")
+  /** Problem management — root cause analysis. */
+  rootCause       String?   @map("root_cause")
+  /** Problem management — temporary workaround for known errors. */
+  workaround      String?
+  /** Change management — risk summary (low/medium/high or free text). */
+  changeRisk      String?   @map("change_risk")
+  /** Change implementation plan. */
+  changePlan      String?   @map("change_plan")
+  /** Rollback / backout plan. */
+  rollbackPlan    String?   @map("rollback_plan")
+  scheduledStart  DateTime? @map("scheduled_start")
+  scheduledEnd    DateTime? @map("scheduled_end")
+  /** When true, change should go through CAB / approvers before implement. */
+  cabRequired     Boolean   @default(false) @map("cab_required")
   version         Int       @default(1)
   firstResponseAt DateTime? @map("first_response_at")
   resolvedAt      DateTime? @map("resolved_at")

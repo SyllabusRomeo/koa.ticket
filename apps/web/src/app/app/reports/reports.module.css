@@ -142,6 +142,77 @@
   min-width: 2px;
 }
 
+.barFillAccent {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-secondary);
+  min-width: 2px;
+}
+
+.stagePanel {
+  padding: 1.1rem 1.2rem 1.25rem;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(15, 74, 64, 0.1);
+  box-shadow: var(--shadow-soft);
+}
+
+.stageHead {
+  margin-bottom: 0.85rem;
+}
+
+.stageMeta {
+  font-style: normal;
+  font-weight: 500;
+  opacity: 0.65;
+  font-size: 0.82rem;
+}
+
+.stuckBlock {
+  margin-top: 1.15rem;
+  padding-top: 0.95rem;
+  border-top: 1px solid rgba(15, 74, 64, 0.1);
+}
+
+.stuckTitle {
+  margin: 0 0 0.55rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.stuckList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.stuckList li {
+  display: grid;
+  gap: 0.1rem;
+  font-size: 0.9rem;
+}
+
+.stuckList a {
+  color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.stuckList span {
+  font-size: 0.82rem;
+  opacity: 0.75;
+}
+
+.stuckList em {
+  font-style: normal;
+  opacity: 0.85;
+}
+
 .muted {
   margin: 0;
   font-size: 0.9rem;

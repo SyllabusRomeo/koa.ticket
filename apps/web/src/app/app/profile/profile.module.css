@@ -1,0 +1,136 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 40rem;
+}
+
+.hero {
+  padding: 1rem 1.15rem;
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(15, 74, 64, 0.92),
+      rgba(69, 100, 51, 0.88)
+    );
+  color: #fff;
+}
+
+.eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.intro {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.45;
+  max-width: 34rem;
+}
+
+.panel {
+  padding: 1.15rem 1.25rem 1.35rem;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(15, 74, 64, 0.1);
+  box-shadow: var(--shadow-soft);
+}
+
+.sectionTitle {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+}
+
+.sectionHint {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+
+.form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.field span {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(15, 74, 64, 0.18);
+  background: #fff;
+  font: inherit;
+  color: var(--color-primary);
+}
+
+.field input:focus,
+.field select:focus {
+  outline: 2px solid rgba(237, 244, 172, 0.9);
+  border-color: var(--color-primary);
+}
+
+.field input:disabled {
+  opacity: 0.7;
+  background: rgba(15, 74, 64, 0.04);
+}
+
+.row {
+  display: grid;
+  gap: 0.85rem;
+}
+
+@media (min-width: 640px) {
+  .row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.25rem;
+}
+
+.bannerOk {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  background: rgba(237, 244, 172, 0.55);
+  border-left: 3px solid var(--color-secondary);
+  font-weight: 600;
+}
+
+.readonlyMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0 0 1rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(237, 244, 172, 0.55);
+  font-size: 0.78rem;
+  font-weight: 600;
+}

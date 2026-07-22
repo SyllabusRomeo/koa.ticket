@@ -38,6 +38,21 @@ export default function LoginPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await api.me();
+        if (!cancelled) router.replace('/app');
+      } catch {
+        /* stay on login */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -74,15 +89,17 @@ export default function LoginPage() {
       }
     >
       <header className={styles.brand}>
-        {logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img className={styles.logo} src={logoUrl} alt="LogIT" />
-        ) : (
-          <span className={styles.mark} aria-hidden>
-            <Icon icon={BrandMarkIcon} size="md" />
-          </span>
-        )}
-        <span className={styles.name}>LogIT</span>
+        <a href="/" className={styles.brandLink} aria-label="LogIT homepage">
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className={styles.logo} src={logoUrl} alt="" />
+          ) : (
+            <span className={styles.mark} aria-hidden>
+              <Icon icon={BrandMarkIcon} size="md" />
+            </span>
+          )}
+          <span className={styles.name}>LogIT</span>
+        </a>
       </header>
 
       <section className={styles.card} aria-labelledby="login-title">

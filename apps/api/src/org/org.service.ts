@@ -9,6 +9,7 @@ import {
   CreateDepartmentDto,
   CreateLocationDto,
   CreateTeamDto,
+  UpdateDepartmentDto,
   UpdateLocationDto,
   UpdateTeamDto,
 } from './dto/org.dto';
@@ -96,6 +97,52 @@ export class OrgService {
         name: dto.name.trim(),
         locationId: dto.locationId,
       },
+      include: { location: { select: { id: true, code: true, name: true } } },
+    });
+  }
+
+  async updateDepartment(id: string, dto: UpdateDepartmentDto) {
+    const existing = await this.prisma.department.findFirst({
+      where: { id, deletedAt: null },
+    });
+    if (!existing) throw new NotFoundException('Department not found');
+
+    if (dto.locationId) {
+      const loc = await this.prisma.location.findFirst({
+        where: { id: dto.locationId, deletedAt: null },
+      });
+      if (!loc) throw new BadRequestException('Location not found');
+    }
+
+    return this.prisma.department.update({
+      where: { id },
+      data: {
+        name: dto.name?.trim(),
+        locationId:
+          dto.locationId === undefined
+            ? undefined
+            : dto.locationId === null || !String(dto.locationId).trim()
+              ? null
+              : String(dto.locationId).trim(),
+        isActive: dto.isActive,
+      },
+      include: { location: { select: { id: true, code: true, name: true } } },
+    });
+  }
+
+  async deactivateDepartment(id: string) {
+    const existing = await this.prisma.department.findFirst({
+      where: { id, deletedAt: null },
+    });
+    if (!existing) throw new NotFoundException('Department not found');
+
+    return this.prisma.department.update({
+      where: { id },
+      data: {
+        isActive: false,
+        deletedAt: new Date(),
+      },
+      include: { location: { select: { id: true, code: true, name: true } } },
     });
   }
 

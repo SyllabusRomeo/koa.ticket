@@ -1,9 +1,11 @@
 import {
   IsEmail,
+  IsOptional,
   IsString,
   MinLength,
   MaxLength,
   Matches,
+  ValidateIf,
 } from 'class-validator';
 
 export class LoginDto {
@@ -28,6 +30,31 @@ export class ChangePasswordDto {
       'Password must include uppercase, lowercase, and a number (min 12 chars)',
   })
   newPassword!: string;
+}
+
+export class UpdateProfileDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  lastName?: string;
+
+  /** Home / default location (also stamps new tickets). Null/empty clears. */
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsString()
+  locationId?: string | null;
+
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsString()
+  departmentId?: string | null;
 }
 
 export class RequestPasswordResetDto {
