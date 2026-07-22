@@ -59,15 +59,17 @@ docker compose up --build
 
 | Doc | Purpose |
 | --- | --- |
-| [docs/GAP_ASSESSMENT.md](docs/GAP_ASSESSMENT.md) | **Shipped vs pending** vs PRD / tech roadmap |
-| [docs/ENTERPRISE_ROADMAP.md](docs/ENTERPRISE_ROADMAP.md) | Now / Next / Later product phases |
+| [docs/GAP_ASSESSMENT.md](docs/GAP_ASSESSMENT.md) | **Shipped vs pending** vs PRD / tech roadmap (through M10) |
+| [docs/ENTERPRISE_ROADMAP.md](docs/ENTERPRISE_ROADMAP.md) | Now / polish / Later (L1–L5) product phases |
+| [docs/DEVELOPMENT_TODO.md](docs/DEVELOPMENT_TODO.md) | Living checklist — N/H/M done; remaining L1–L5 |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Shipped features summary (M1–M10) |
 | [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) | Build phases 0–11 checklist |
 | [docs/sops/README.md](docs/sops/README.md) | Operator & user SOPs |
 
 ## Phases
 
 See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).  
-Hetzner production: [infra/hetzner/README.md](infra/hetzner/README.md).
+Hetzner production: [infra/hetzner/README.md](infra/hetzner/README.md) · TLS/CI: [docs/PRODUCTION.md](docs/PRODUCTION.md).
 
 ## SOPs (user & operator guides)
 

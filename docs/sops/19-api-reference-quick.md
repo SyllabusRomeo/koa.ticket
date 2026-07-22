@@ -14,7 +14,10 @@ Give developers/integrators a map of MVP HTTP APIs.
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| POST | `/auth/login` | Sets cookie |
+| POST | `/auth/login` | Sets cookie; may return `{ mfaRequired, mfaToken }` |
+| POST | `/auth/mfa/verify-login` | Completes MFA challenge → session |
+| POST | `/auth/mfa/setup` · `/mfa/confirm` · `/mfa/cancel-setup` · `/mfa/disable` | TOTP setup / disable |
+| GET | `/auth/sso/entra` · `/auth/sso/entra/callback` | Optional Microsoft Entra OIDC |
 | POST | `/auth/logout` | Auth required |
 | GET | `/auth/me` | Current user + roles/permissions |
 | POST | `/auth/change-password` | Revokes sessions |
@@ -31,6 +34,7 @@ Give developers/integrators a map of MVP HTTP APIs.
 | GET/POST | `/org/locations` | org:read / org:manage |
 | PATCH/DELETE | `/org/locations/:id` | org:manage — update / soft-deactivate |
 | GET/POST | `/org/departments` | org:read / org:manage |
+| PATCH/DELETE | `/org/departments/:id` | org:manage — update / soft-deactivate |
 | GET/POST | `/org/teams` | org:read / org:manage |
 | PATCH | `/org/teams/:id` | org:manage |
 | POST | `/org/teams/:id/members` | org:manage |
@@ -41,18 +45,23 @@ Give developers/integrators a map of MVP HTTP APIs.
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/tickets/meta` | Types, statuses, categories, matrix |
-| GET/POST | `/tickets` | List/create (`locationId` / `majorIncident` query filters for staff; create accepts `locationId`, `majorIncident`) |
-| GET/PATCH | `/tickets/:id` | Get/update (`version` required on PATCH; `locationId`, `majorIncident`) |
+| GET | `/tickets/meta` | Types, statuses, categories, matrix, locations |
+| GET | `/tickets/board` | Kanban columns + workload (`scope=all\|mine\|unassigned`) |
+| GET | `/tickets/major-incidents` | MI ops dashboard payload |
+| GET/POST | `/tickets` | List/create (`locationId` / `majorIncident` / `channel` / `typeCode` filters; create accepts `locationId`, `majorIncident`) |
+| GET/PATCH | `/tickets/:id` | Get/update (`version` required on PATCH; `locationId`, `majorIncident`, channel read-only from intake) |
 | POST | `/tickets/:id/comments` | `isInternal` optional |
 | POST | `/tickets/:id/watch` | Subscribe current user as watcher |
 | DELETE | `/tickets/:id/watch` | Unsubscribe |
 | GET/POST | `/tickets/:id/work-logs` | List / add time (`{ minutes, note? }`; staff write) |
+| POST/GET/DELETE | `/tickets/:id/presence` | Agent viewing/composing presence |
 | POST | `/tickets/:id/children` | Link child `{ childNumber }` (staff + `tickets:write`) |
 | DELETE | `/tickets/:id/children/:childId` | Unlink child |
-| POST | `/tickets/:id/merge` | Merge sources into primary `{ sourceTicketIds: string[] }` (staff + write/assign) |
+| POST | `/tickets/:id/merge` | Merge sources into primary `{ sourceTicketIds: string[] }` |
+| POST | `/tickets/:id/request-cab` | Change → CAB / approval path |
+| POST | `/tickets/:id/promote-problem` | Incident → raise linked problem |
 
-## Attachments / Audit
+## Attachments / Audit / Integrations
 
 | Method | Path |
 | --- | --- |
@@ -63,6 +72,11 @@ Give developers/integrators a map of MVP HTTP APIs.
 | POST | `/integrations/chat/simulate` (sysadmin) |
 | POST | `/integrations/slack/events` · `/slack/commands` |
 | POST | `/integrations/teams/messages` |
+| POST | `/integrations/email/inbound` |
+| POST | `/integrations/email/imap/poll` (sysadmin) |
+| GET/POST/PATCH/DELETE | `/webhooks/endpoints` (`settings:manage`) |
+| POST | `/webhooks/endpoints/:id/test` |
+| GET | `/webhooks/endpoints/:id/deliveries` |
 | GET | `/audit` | Query: limit, action, actor, entityType, from, to, q |
 | GET | `/audit/facets` | Distinct actions + entity types |
 

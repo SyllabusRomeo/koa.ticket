@@ -6,14 +6,15 @@ Teach requesters how to use LogIT day to day.
 
 ## Before you start
 
-- You need an active LogIT account (IT creates it).
+- You need an active LogIT account (IT creates it), or your org may offer **Sign in with Microsoft**.
 - Use a supported modern browser.
 - Prefer corporate network/VPN policies as directed by IT.
 
 ## Sign in
 
 1. Go to the LogIT portal URL provided by IT.
-2. Sign in with your email and password ([SOP-07](./07-sign-in-and-security.md)).
+2. Sign in with your email and password, or Microsoft SSO if enabled ([SOP-07](./07-sign-in-and-security.md)).
+3. If MFA is enabled on your account, enter the authenticator code when prompted.
 
 ## Workspace tour
 
@@ -22,7 +23,8 @@ After login (`/app`):
 - Greeting and your roles
 - Shortcuts: **Tickets**, **Knowledge**, **Catalog** (and more if permitted)
 - Recent tickets list
-- Unread notifications (when present)
+- **Notification bell** (unread count) → `/app/notifications`
+- **My profile** — password, MFA, notification preferences, email digest
 
 ## Report an IT issue
 
@@ -31,9 +33,10 @@ After login (`/app`):
    - Title (clear, short)
    - Type (usually Incident)
    - Category (Hardware / Software / Network / Access…)
+   - **Origin site** (location) — defaults to your home location; change if the issue is elsewhere
    - Description (what happened, when, who is affected, error text)
 3. Submit.
-4. Note your ticket number (e.g. `INC-2026-000001`).
+4. Note your ticket number (e.g. `INC-2026-000001`). Portal tickets are stamped channel **web**.
 
 ### Writing a good ticket
 
@@ -44,14 +47,16 @@ After login (`/app`):
 ## Request a standard service
 
 1. Open **Catalog** (`/app/catalog`).
-2. Find the service (e.g. Request Laptop).
-3. For MVP, create a matching **Service Request** ticket from Tickets (catalog→ticket automation expands later). Include business justification and needed date.
+2. Find the service (e.g. Request Laptop). Items with a form show a **form** chip.
+3. Click the service, fill any required fields, add optional notes.
+4. Click **Request this service** — creates the matching ticket with your answers on the record.
+5. Service/access requests that need approval go to the Approvals queue for IT.
 
 ## Track my tickets
 
 On **Tickets**, review **Open work**:
 
-- Number, title, status, priority
+- Number, title, status, priority, channel badge when relevant
 
 You can only see **your own** tickets unless given special access.
 
@@ -63,15 +68,17 @@ You can only see **your own** tickets unless given special access.
 
 ## Respond to IT
 
-When agents ask questions (Pending User), reply on the ticket conversation (public comments). Check notifications.
+When agents ask questions (Pending User), reply on the ticket conversation (public comments). Check the **bell** / notifications inbox, or configure an email digest on Profile.
 
 ## Confirm resolution
 
-When status is Resolved:
+When status is **Resolved**:
 
 1. Verify the fix.
-2. If fixed, IT closes the ticket.
+2. If fixed, IT sets **Closed** (terminal confirmation).
 3. If not fixed, ask IT to reopen (status transition back to Open).
+
+Home/Reports “Resolved today” counts resolutions, not closures.
 
 ## What employees cannot do
 

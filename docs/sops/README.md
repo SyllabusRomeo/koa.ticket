@@ -2,7 +2,7 @@
 
 **Product:** LogIT — Enterprise IT Service Management  
 **Audience:** End users, IT agents, managers, system administrators, auditors, developers  
-**Version:** 1.1 (aligned with MVP phases 0–11 + ops polish: locations, email, watchers/worklogs APIs)
+**Version:** 1.2 (aligned with phases 0–11 + N1–N5 / H1–H7 / M1–M10)
 
 Use this index to find the right procedure. Each SOP is written so a new user can follow it without prior LogIT experience.
 
@@ -36,12 +36,15 @@ Use this index to find the right procedure. Each SOP is written so a new user ca
 
 Also see product docs:
 
-- [Enterprise roadmap](../ENTERPRISE_ROADMAP.md) — now / next / later
+- [Enterprise roadmap](../ENTERPRISE_ROADMAP.md) — now / polish / later (L1–L5)
 - [Gap assessment](../GAP_ASSESSMENT.md) — **shipped vs pending** matrix
-- [Development to-do](../DEVELOPMENT_TODO.md) — live checklist for remaining work
+- [Development to-do](../DEVELOPMENT_TODO.md) — live checklist (remaining = L1–L5)
+- [Changelog](../CHANGELOG.md) — M1–M10 summary
 - [Production TLS + CI](../PRODUCTION.md)
+- [Notifications](../NOTIFICATIONS.md)
 - [Slack / Teams integrations](../INTEGRATIONS_SLACK_TEAMS.md)
 - [Email integrations](../INTEGRATIONS_EMAIL.md)
+- [Outbound webhooks](../INTEGRATIONS_OUTBOUND_WEBHOOKS.md)
 
 ---
 

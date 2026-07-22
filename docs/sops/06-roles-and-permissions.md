@@ -27,7 +27,7 @@ Existing users that previously had multiple `user_roles` rows keep their first l
 | `agent` | IT Support Agent | Queue tickets, assign, internal notes, org read, assets read |
 | `senior_agent` | Senior IT Agent | Agent + broader knowledge/asset write |
 | `it_manager` | IT Manager | All tickets, reports, audit read, org manage |
-| `approver` | Approver | Own tickets + knowledge (approval workflows expand later) |
+| `approver` | Approver | Approvals queue — decide on multi-step policy steps (service/access/change CAB) |
 | `sysadmin` | System Administrator | All permissions |
 | `auditor` | Auditor | Audit/reports/assets/tickets read-only style access |
 
