@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, KeyRound, Save, ShieldCheck, ShieldOff } from 'lucide-react';
+import { Bell, KeyRound, Save, ShieldCheck, ShieldOff, UserRound } from 'lucide-react';
 import { api, type AuthUser } from '@/lib/api';
 import { roleLabel } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
+import { SectionHeading } from '@/components/SectionHeading';
 import { LocationSelect } from '@/components/LocationSelect';
 import appStyles from '../app.module.css';
 import styles from './profile.module.css';
@@ -354,7 +355,9 @@ export default function ProfilePage() {
         {message ? <p className={styles.bannerOk}>{message}</p> : null}
 
         <section className={styles.panel}>
-          <h2 className={styles.sectionTitle}>Profile details</h2>
+          <SectionHeading icon={UserRound} className={styles.sectionTitle}>
+            Profile details
+          </SectionHeading>
           <p className={styles.sectionHint}>
             Your email is managed by an administrator and cannot be changed
             here.
@@ -445,7 +448,9 @@ export default function ProfilePage() {
         </section>
 
         <section className={styles.panel}>
-          <h2 className={styles.sectionTitle}>Change password</h2>
+          <SectionHeading icon={KeyRound} className={styles.sectionTitle}>
+            Change password
+          </SectionHeading>
           <p className={styles.sectionHint}>
             Use at least 12 characters with uppercase, lowercase, and a number.
             You will be signed out after a successful change.
@@ -495,9 +500,9 @@ export default function ProfilePage() {
         </section>
 
         <section className={styles.panel}>
-          <h2 className={styles.sectionTitle}>
-            <Icon icon={Bell} size="sm" /> Notification alerts
-          </h2>
+          <SectionHeading icon={Bell} className={styles.sectionTitle}>
+            Notification alerts
+          </SectionHeading>
           <p className={styles.sectionHint}>
             Choose which ticket and approval events reach you in-app and by
             email. Defaults are on for every event. Digests below roll up unread
@@ -608,7 +613,9 @@ export default function ProfilePage() {
         </section>
 
         <section className={styles.panel}>
-          <h2 className={styles.sectionTitle}>Two-factor authentication</h2>
+          <SectionHeading icon={ShieldCheck} className={styles.sectionTitle}>
+            Two-factor authentication
+          </SectionHeading>
           <p className={styles.sectionHint}>
             Protect your account with an authenticator app (TOTP). Recommended
             for privileged roles.

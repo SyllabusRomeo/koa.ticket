@@ -1,0 +1,11 @@
+# Cap WSL2 / Docker Desktop RAM on Windows (biggest local-dev saver on 16GB laptops).
+# Copy to %USERPROFILE%\.wslconfig then run: wsl --shutdown
+# (Restart Docker Desktop afterward.)
+#
+#   copy infra\wslconfig.example %USERPROFILE%\.wslconfig
+
+[wsl2]
+memory=2GB
+processors=2
+swap=2GB
+localhostForwarding=true

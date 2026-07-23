@@ -23,14 +23,15 @@ Enterprise IT Service Management platform (PRD-aligned). Self-hosted, Docker-fir
 ```bash
 cp .env.example .env
 npm install
-docker compose up -d postgres redis
 npm run build -w @logit/shared
+npm run dev:infra   # postgres + redis only (memory-capped)
 npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
 npm run db:seed
-npm run dev:api    # :4100
-npm run dev:web    # :3100
-npm run dev:worker # optional SLA worker
+npm run dev:api     # :4100  (skip worker unless testing SLA)
+npm run dev:web     # :3100
 ```
+
+On **16GB Windows** laptops, also cap Docker/WSL RAM — see [SOP-03 Low-memory workstations](docs/sops/03-technical-setup-local.md#low-memory-workstations-16gb-ram) (`infra/wslconfig.example`).
 
 Open http://localhost:3100/login
 
@@ -59,10 +60,11 @@ docker compose up --build
 
 | Doc | Purpose |
 | --- | --- |
-| [docs/GAP_ASSESSMENT.md](docs/GAP_ASSESSMENT.md) | **Shipped vs pending** vs PRD / tech roadmap (through M10) |
-| [docs/ENTERPRISE_ROADMAP.md](docs/ENTERPRISE_ROADMAP.md) | Now / polish / Later (L1–L5) product phases |
-| [docs/DEVELOPMENT_TODO.md](docs/DEVELOPMENT_TODO.md) | Living checklist — N/H/M done; remaining L1–L5 |
-| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Shipped features summary (M1–M10) |
+| [docs/USER_AND_DEVELOPER_GUIDE.md](docs/USER_AND_DEVELOPER_GUIDE.md) | **Book-style guide** — setup, every use case, developer map, extension (manufacturing+) |
+| [docs/GAP_ASSESSMENT.md](docs/GAP_ASSESSMENT.md) | **Shipped vs pending** vs PRD / tech roadmap (through L5) |
+| [docs/ENTERPRISE_ROADMAP.md](docs/ENTERPRISE_ROADMAP.md) | Now / polish / Later product phases |
+| [docs/DEVELOPMENT_TODO.md](docs/DEVELOPMENT_TODO.md) | Living checklist — N/H/M/L shipped; optional polish |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Shipped features summary |
 | [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) | Build phases 0–11 checklist |
 | [docs/sops/README.md](docs/sops/README.md) | Operator & user SOPs |
 
@@ -73,7 +75,7 @@ Hetzner production: [infra/hetzner/README.md](infra/hetzner/README.md) · TLS/CI
 
 ## SOPs (user & operator guides)
 
-Start at **[docs/sops/README.md](docs/sops/README.md)** — architecture, setup, employee/agent/admin how-tos, SLA, backups, troubleshooting, API map.
+Start at **[docs/USER_AND_DEVELOPER_GUIDE.md](docs/USER_AND_DEVELOPER_GUIDE.md)** for the full book, or **[docs/sops/README.md](docs/sops/README.md)** for individual SOPs — architecture, setup, employee/agent/admin how-tos, SLA, backups, troubleshooting, API map.
 
 ## Brand
 

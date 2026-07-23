@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -H 0.0.0.0 -p 3100",
+    "dev": "node --max-old-space-size=768 ../../node_modules/next/dist/bin/next dev --turbo -H 0.0.0.0 -p 3100",
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3100",
     "lint": "next lint"

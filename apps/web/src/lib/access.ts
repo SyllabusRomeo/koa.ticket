@@ -47,7 +47,7 @@ export function roleLabel(roles: string[]) {
     senior_agent: 'Senior IT Agent',
     it_manager: 'IT Manager',
     approver: 'Approver',
-    sysadmin: 'System Administrator',
+    sysadmin: 'Administrator',
     auditor: 'Auditor',
   };
   return roles.map((r) => map[r] ?? r).join(' · ');
@@ -90,11 +90,17 @@ export function workspaceNextActions(user: AuthUser): WorkspaceAction[] {
   };
 
   if (hasRole(user, 'sysadmin')) {
+    if (can(user, 'users:manage')) {
+      push({
+        href: '/app/admin/users',
+        label: 'Manage users',
+        primary: true,
+      });
+    }
     if (can(user, 'roles:manage') || can(user, 'users:manage')) {
       push({
         href: '/app/admin/roles',
         label: 'Manage Roles & Access',
-        primary: true,
       });
     }
     if (can(user, 'org:manage')) {
@@ -260,6 +266,7 @@ export function primaryNavForUser(user: AuthUser): NavItem[] {
 }
 
 const ADMIN_NAV_HREFS = new Set([
+  '/app/admin/users',
   '/app/admin/roles',
   '/app/admin/teams',
   '/app/admin/departments',
@@ -296,6 +303,9 @@ export function navForUser(user: AuthUser): NavItem[] {
   }
   if (can(user, 'audit:read')) {
     items.push({ href: '/app/audit', label: 'Audit' });
+  }
+  if (can(user, 'users:manage')) {
+    items.push({ href: '/app/admin/users', label: 'Users' });
   }
   if (can(user, 'roles:manage') || can(user, 'users:manage')) {
     items.push({ href: '/app/admin/roles', label: 'Roles & Access' });

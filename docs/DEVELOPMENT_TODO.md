@@ -64,27 +64,27 @@ Update statuses here as work lands. Principle: **capture data → workflows → 
 
 | # | Item | Status | Notes |
 | --- | --- | --- | --- |
-| L1 | CMDB discovery / CI relationships | `[ ]` | Asset register MVP+ shipped |
-| L2 | AI assists | `[ ]` | Classify, summarize, duplicate, SLA risk |
-| L3 | Knowledge deflection analytics | `[ ]` | Rich KB shipped |
-| L4 | Portal themes | `[ ]` | Branding logo/banner shipped |
-| L5 | Immutable audit export schedules | `[ ]` | Filtered audit UI shipped |
+| L1 | CMDB discovery / CI relationships | `[x]` | Relations + impact BFS; discovery CSV import; Assets UI |
+| L2 | AI assists | `[x]` | Classify / summarize / duplicates / SLA risk (+ optional OpenAI) |
+| L3 | Knowledge deflection analytics | `[x]` | Views + feedback events; Reports deflection panel |
+| L4 | Portal themes | `[x]` | Presets + custom colors; CSS vars site-wide; Admin → Branding |
+| L5 | Immutable audit export schedules | `[x]` | Checksummed CSV email schedules on Audit trail |
 
 ---
 
 ## Sprint alignment (recommended order)
 
-**Shipped:** Near-term N1–N5 · High H1–H7 · Medium M1–M10.
+**Shipped:** Near-term N1–N5 · High H1–H7 · Medium M1–M10 · **L1–L5** (CMDB, AI, KB deflection, portal themes, immutable audit exports).
 
-**What’s next (Later / strategic):**
+**Optional polish:** outbound webhook retry worker, bot outbound replies, board presets, SAML / more IdPs.
 
-1. **L1** — CMDB discovery / CI relationships  
-2. **L2** — AI assists (classify, summarize, duplicate, SLA risk)  
-3. **L3** — Knowledge deflection analytics  
-4. **L4** — Portal themes  
-5. **L5** — Immutable audit export schedules  
+---
 
-Optional polish: outbound webhook retry worker, bot outbound replies, board presets, SAML / more IdPs.
+## Org admin note — Users
+
+**Finding (2026-07-23):** `POST /api/v1/users` existed (`users:manage`), but there was no admin UI to create accounts.  
+
+**Fix:** Admin → **Users** (`/app/admin/users`) — create, edit, activate/deactivate; link to Roles & Access for permissions.
 
 ---
 
@@ -98,10 +98,11 @@ Optional polish: outbound webhook retry worker, bot outbound replies, board pres
 
 ## Related docs
 
+- [USER_AND_DEVELOPER_GUIDE.md](./USER_AND_DEVELOPER_GUIDE.md) — book-style user + developer guide (+ [guide/](./guide/) chapters)  
 - [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md)  
 - [ENTERPRISE_ROADMAP.md](./ENTERPRISE_ROADMAP.md)  
 - [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)  
-- [CHANGELOG.md](./CHANGELOG.md) — M1–M10 summary  
+- [CHANGELOG.md](./CHANGELOG.md) — shipped summary  
 - [PRODUCTION.md](./PRODUCTION.md) — TLS + CI  
 - [NOTIFICATIONS.md](./NOTIFICATIONS.md) — digests  
 - [sops/11-admin-configuration.md](./sops/11-admin-configuration.md)  

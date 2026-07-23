@@ -20,6 +20,7 @@ import { SlaModule } from './sla/sla.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { UsersModule } from './users/users.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     IntegrationsModule,
     BrandingModule,
     WebhooksModule,
+    AiModule,
   ],
 })
 export class AppModule {}

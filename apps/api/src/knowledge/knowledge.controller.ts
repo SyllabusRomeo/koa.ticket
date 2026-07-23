@@ -12,7 +12,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { IsBoolean, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 import type { Response } from 'express';
 import { memoryStorage } from 'multer';
 import { PERMISSIONS } from '@logit/shared';
@@ -64,6 +64,11 @@ class UpdateArticleDto {
   publish?: boolean;
 }
 
+class FeedbackDto {
+  @IsIn(['helpful', 'not_helpful', 'deflected'])
+  eventType!: 'helpful' | 'not_helpful' | 'deflected';
+}
+
 @Controller('knowledge')
 @UseGuards(SessionAuthGuard, RolesGuard)
 export class KnowledgeController {
@@ -75,6 +80,13 @@ export class KnowledgeController {
       return this.knowledge.listAll();
     }
     return this.knowledge.listPublished();
+  }
+
+  @Get('analytics/deflection')
+  @RequirePermissions(PERMISSIONS.REPORTS_READ)
+  deflectionAnalytics(@Query('days') days?: string) {
+    const n = days ? Number(days) : 30;
+    return this.knowledge.deflectionAnalytics(Number.isFinite(n) ? n : 30);
   }
 
   /** Inline image upload for the rich-text editor (knowledge:write). */
@@ -159,7 +171,18 @@ export class KnowledgeController {
     return this.knowledge.getBySlug(
       slug,
       user.permissions.includes(PERMISSIONS.KNOWLEDGE_WRITE),
+      user.id,
     );
+  }
+
+  @Post(':id/feedback')
+  @RequirePermissions(PERMISSIONS.KNOWLEDGE_READ)
+  feedback(
+    @CurrentUser() user: AuthUserView,
+    @Param('id') id: string,
+    @Body() dto: FeedbackDto,
+  ) {
+    return this.knowledge.recordEvent(id, dto.eventType, user.id);
   }
 
   @Post()

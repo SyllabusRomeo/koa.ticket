@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   api,
+  type AssetRelationRow,
+  type AssetImpact,
   type AssetRow,
   type AuthUser,
   type PersonRef,
@@ -16,11 +18,14 @@ import { Icon } from '@/components/Icon';
 import { StatusBadge } from '@/components/StatusBadge';
 import {
   Download,
+  GitBranch,
   Monitor,
   Plus,
   Search,
   Trash2,
+  Upload,
 } from 'lucide-react';
+import { SectionHeading } from '@/components/SectionHeading';
 import appStyles from '../app.module.css';
 import styles from './assets.module.css';
 
@@ -87,6 +92,20 @@ export default function AssetsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [relationTypes, setRelationTypes] = useState<
+    Array<{ code: string; name: string }>
+  >([]);
+  const [relations, setRelations] = useState<AssetRelationRow[]>([]);
+  const [impact, setImpact] = useState<AssetImpact | null>(null);
+  const [relForm, setRelForm] = useState({
+    toAssetId: '',
+    relationType: 'depends_on',
+    notes: '',
+  });
+  const [showDiscovery, setShowDiscovery] = useState(false);
+  const [discoveryCsv, setDiscoveryCsv] = useState(
+    'assetTag,typeCode,name,serialNumber,manufacturer,model,status,locationCode,notes\nGH-NET-0001,NETWORK,Core switch Accra,,Cisco,C9300,in_service,HQ,Discovery sample\nGH-SRV-0001,SERVER,App server 01,,Dell,R750,in_service,HQ,Discovery sample\nfromTag,toTag,relationType,notes\nGH-IT-0001,GH-IT-0002,uses,Laptop uses dock\nGH-SRV-0001,GH-NET-0001,connected_to,Server uplink',
+  );
 
   const canWrite = !!user && can(user, 'assets:write');
   const canOrgRead = !!user && can(user, 'org:read');
@@ -130,19 +149,25 @@ export default function AssetsPage() {
         }
         if (!cancelled) setUser(me);
 
-        const [typeList, statusList, list] = await Promise.all([
+        const [typeList, statusList, list, relTypeList] = await Promise.all([
           api.assetTypes(),
           api.assetStatuses(),
           api.assets(),
+          api.assetRelationTypes(),
         ]);
         if (cancelled) return;
         setTypes(typeList);
         setStatuses(statusList);
+        setRelationTypes(relTypeList);
         setItems(list);
         setSelectedId(list[0]?.id ?? '');
         setCreateForm((f) => ({
           ...f,
           typeCode: typeList[0]?.code ?? '',
+        }));
+        setRelForm((f) => ({
+          ...f,
+          relationType: relTypeList[0]?.code ?? 'depends_on',
         }));
 
         if (can(me, 'org:read')) {
@@ -195,6 +220,34 @@ export default function AssetsPage() {
       typeCode: selected.type.code ?? '',
     });
   }, [selected]);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setRelations([]);
+      setImpact(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [rels, imp] = await Promise.all([
+          api.assetRelations(selectedId),
+          api.assetImpact(selectedId, 2),
+        ]);
+        if (cancelled) return;
+        setRelations(rels);
+        setImpact(imp);
+      } catch {
+        if (!cancelled) {
+          setRelations([]);
+          setImpact(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
 
   async function applyFilters(e?: FormEvent) {
     e?.preventDefault();
@@ -319,6 +372,92 @@ export default function AssetsPage() {
     }
   }
 
+  async function onAddRelation(e: FormEvent) {
+    e.preventDefault();
+    if (!canWrite || !selected || !relForm.toAssetId) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await api.createAssetRelation(selected.id, {
+        toAssetId: relForm.toAssetId,
+        relationType: relForm.relationType,
+        notes: relForm.notes || undefined,
+      });
+      setRelForm((f) => ({ ...f, toAssetId: '', notes: '' }));
+      setMessage('Relationship added.');
+      const [rels, imp] = await Promise.all([
+        api.assetRelations(selected.id),
+        api.assetImpact(selected.id, 2),
+      ]);
+      setRelations(rels);
+      setImpact(imp);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not add relation');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onDeleteRelation(relationId: string) {
+    if (!canWrite || !selected) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.deleteAssetRelation(selected.id, relationId);
+      const [rels, imp] = await Promise.all([
+        api.assetRelations(selected.id),
+        api.assetImpact(selected.id, 2),
+      ]);
+      setRelations(rels);
+      setImpact(imp);
+      setMessage('Relationship removed.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not remove relation');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onDiscoveryImport(e: FormEvent) {
+    e.preventDefault();
+    if (!canWrite) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      // Split sample that has both asset + relation sections into two passes
+      const parts = discoveryCsv.split(
+        /\n(?=fromTag,toTag,relationType)/i,
+      );
+      let created = 0;
+      let updated = 0;
+      let relationsCreated = 0;
+      let relationsSkipped = 0;
+      const errors: string[] = [];
+      for (const part of parts) {
+        const result = await api.discoveryImportAssets({ csv: part.trim() });
+        created += result.created;
+        updated += result.updated;
+        relationsCreated += result.relationsCreated;
+        relationsSkipped += result.relationsSkipped;
+        errors.push(...result.errors);
+      }
+      setMessage(
+        `Discovery import: ${created} created, ${updated} updated, ${relationsCreated} relations (${relationsSkipped} skipped).`,
+      );
+      if (errors.length) {
+        setError(errors.slice(0, 5).join(' · '));
+      }
+      await loadList();
+      setShowDiscovery(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Discovery import failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function logout() {
     try {
       await api.logout();
@@ -419,6 +558,16 @@ export default function AssetsPage() {
             {canWrite ? (
               <Button
                 type="button"
+                variant="tertiary"
+                onClick={() => setShowDiscovery((v) => !v)}
+              >
+                <Icon icon={Upload} size="sm" />
+                {showDiscovery ? 'Hide discovery' : 'Discovery import'}
+              </Button>
+            ) : null}
+            {canWrite ? (
+              <Button
+                type="button"
                 variant="primary"
                 onClick={() => setShowCreate((v) => !v)}
               >
@@ -436,11 +585,51 @@ export default function AssetsPage() {
           </p>
         ) : null}
 
+        {canWrite && showDiscovery ? (
+          <section className={styles.panel}>
+            <div className={styles.sectionHead}>
+              <div>
+                <SectionHeading
+                  icon={Upload}
+                  className={styles.sectionTitle}
+                >
+                  Discovery import
+                </SectionHeading>
+                <p className={styles.sectionHint}>
+                  Paste CI CSV (assetTag, typeCode, …) and/or relation CSV
+                  (fromTag, toTag, relationType). Upserts by asset tag; stamps
+                  source as discovery.
+                </p>
+              </div>
+            </div>
+            <form onSubmit={onDiscoveryImport}>
+              <label className={styles.field}>
+                CSV payload
+                <textarea
+                  value={discoveryCsv}
+                  onChange={(e) => setDiscoveryCsv(e.target.value)}
+                  rows={8}
+                  required
+                  style={{ fontFamily: 'ui-monospace, monospace', fontSize: '0.85rem' }}
+                />
+              </label>
+              <div className={styles.detailActions}>
+                <Button type="submit" disabled={busy}>
+                  <Icon icon={Upload} size="sm" />
+                  {busy ? 'Importing…' : 'Run import'}
+                </Button>
+              </div>
+            </form>
+          </section>
+        ) : null}
+
         {canWrite && showCreate ? (
           <section className={styles.panel}>
             <div className={styles.sectionHead}>
               <div>
-                <h2 className={styles.sectionTitle}>Register asset</h2>
+                <SectionHeading icon={Plus} className={styles.sectionTitle}>
+                  Register asset
+                </SectionHeading>
                 <p className={styles.sectionHint}>
                   Requires <code>assets:write</code>
                 </p>
@@ -644,7 +833,9 @@ export default function AssetsPage() {
             <section className={styles.panel}>
               <div className={styles.sectionHead}>
                 <div>
-                  <h2 className={styles.sectionTitle}>Register</h2>
+                  <SectionHeading icon={Monitor} className={styles.sectionTitle}>
+                    Register
+                  </SectionHeading>
                   <p className={styles.sectionHint}>
                     {items.length} asset{items.length === 1 ? '' : 's'}
                   </p>
@@ -918,6 +1109,119 @@ export default function AssetsPage() {
                       ) : null}
                     </div>
                   )}
+
+                  <div className={styles.cmdbBlock}>
+                    <div className={styles.sectionHead}>
+                      <div>
+                        <h3 className={styles.sectionTitle}>
+                          <Icon icon={GitBranch} size="sm" /> Relationships
+                        </h3>
+                        <p className={styles.sectionHint}>
+                          CMDB links for impact analysis
+                        </p>
+                      </div>
+                    </div>
+                    {relations.length ? (
+                      <ul className={styles.relList}>
+                        {relations.map((r) => (
+                          <li key={r.id}>
+                            <span className={styles.relType}>
+                              {r.direction === 'outgoing' ? '→' : '←'}{' '}
+                              {r.relationTypeName}
+                            </span>
+                            <button
+                              type="button"
+                              className={styles.relTarget}
+                              onClick={() => setSelectedId(r.otherAsset.id)}
+                            >
+                              {r.otherAsset.assetTag} — {r.otherAsset.displayName}
+                            </button>
+                            {canWrite ? (
+                              <button
+                                type="button"
+                                className={styles.relRemove}
+                                onClick={() => onDeleteRelation(r.id)}
+                                disabled={busy}
+                                aria-label="Remove relationship"
+                              >
+                                <Icon icon={Trash2} size="sm" />
+                              </button>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className={styles.muted}>No relationships yet.</p>
+                    )}
+                    {canWrite ? (
+                      <form
+                        onSubmit={onAddRelation}
+                        className={styles.relForm}
+                      >
+                        <label className={styles.field}>
+                          Related asset
+                          <select
+                            value={relForm.toAssetId}
+                            onChange={(e) =>
+                              setRelForm((f) => ({
+                                ...f,
+                                toAssetId: e.target.value,
+                              }))
+                            }
+                            required
+                          >
+                            <option value="">Select…</option>
+                            {items
+                              .filter((a) => a.id !== selected.id)
+                              .map((a) => (
+                                <option key={a.id} value={a.id}>
+                                  {a.assetTag} — {a.displayName}
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+                        <label className={styles.field}>
+                          Type
+                          <select
+                            value={relForm.relationType}
+                            onChange={(e) =>
+                              setRelForm((f) => ({
+                                ...f,
+                                relationType: e.target.value,
+                              }))
+                            }
+                          >
+                            {relationTypes.map((t) => (
+                              <option key={t.code} value={t.code}>
+                                {t.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <Button type="submit" disabled={busy || !relForm.toAssetId}>
+                          Add link
+                        </Button>
+                      </form>
+                    ) : null}
+                    {impact ? (
+                      <div className={styles.impactBox}>
+                        <strong>
+                          Impact preview · {impact.impactedCount} related CI
+                          {impact.impactedCount === 1 ? '' : 's'}
+                        </strong>
+                        <p className={styles.muted}>
+                          {impact.nodes
+                            .filter((n) => n.hop > 0)
+                            .sort((a, b) => a.hop - b.hop)
+                            .map(
+                              (n) =>
+                                `${n.assetTag} (hop ${n.hop})`,
+                            )
+                            .join(' · ') || 'No downstream neighbors'}
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
                 </>
               ) : (
                 <p className={styles.muted}>Select an asset to view details.</p>

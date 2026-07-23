@@ -78,6 +78,31 @@ export type AssetDetail = AssetRow & {
       status: { code: string; name: string };
     };
   }>;
+  source?: string;
+};
+
+export type AssetRelationRow = {
+  id: string;
+  relationType: string;
+  relationTypeName: string;
+  notes?: string | null;
+  direction: 'outgoing' | 'incoming';
+  otherAsset: AssetRow;
+  fromAsset: AssetRow;
+  toAsset: AssetRow;
+};
+
+export type AssetImpact = {
+  root: AssetRow;
+  depth: number;
+  impactedCount: number;
+  nodes: Array<AssetRow & { hop: number }>;
+  edges: Array<{
+    fromAssetId: string;
+    toAssetId: string;
+    relationType: string;
+    relationTypeName: string;
+  }>;
 };
 
 export type TeamRef = {
@@ -370,6 +395,20 @@ export type TicketAttachment = {
   uploadedBy: PersonRef | null;
 };
 
+export type PortalThemeColors = {
+  primary: string;
+  primaryLight: string;
+  secondary: string;
+  background: string;
+  backgroundWarm: string;
+  backgroundAccent: string;
+  danger: string;
+  accentOrange: string;
+  accentMuted: string;
+  textPrimary: string;
+  textOnPrimary: string;
+};
+
 export type BrandingConfig = {
   logoUrl: string | null;
   loginBannerUrl: string | null;
@@ -378,6 +417,18 @@ export type BrandingConfig = {
   logoMime: string | null;
   bannerMime: string | null;
   updatedAt: string | null;
+  theme?: {
+    id: string;
+    name: string;
+    description: string;
+    colors: PortalThemeColors;
+    presets: Array<{
+      id: string;
+      name: string;
+      description: string;
+      colors: PortalThemeColors;
+    }>;
+  };
   limits: {
     logo: { maxBytes: number; extensions: string[] };
     banner: { maxBytes: number; extensions: string[] };
@@ -1272,6 +1323,118 @@ export const api = {
       `/knowledge/${encodeURIComponent(slug)}`,
     );
   },
+  knowledgeFeedback(
+    id: string,
+    eventType: 'helpful' | 'not_helpful' | 'deflected',
+  ) {
+    return request(`/knowledge/${encodeURIComponent(id)}/feedback`, {
+      method: 'POST',
+      body: JSON.stringify({ eventType }),
+    });
+  },
+  knowledgeDeflectionAnalytics(days = 30) {
+    return request<{
+      from: string;
+      to: string;
+      rangeDays: number;
+      totals: {
+        views: number;
+        helpful: number;
+        notHelpful: number;
+        deflected: number;
+      };
+      helpfulRate: number | null;
+      deflectionRate: number | null;
+      topArticles: Array<{
+        id: string;
+        slug: string;
+        title: string;
+        category: string | null;
+        views: number;
+        helpful: number;
+        notHelpful: number;
+        deflected: number;
+      }>;
+      daily: Array<{
+        date: string;
+        views: number;
+        deflected: number;
+        helpful: number;
+      }>;
+    }>(`/knowledge/analytics/deflection?days=${days}`);
+  },
+  aiClassify(body: { title: string; description?: string }) {
+    return request<{
+      provider: string;
+      typeCode: string;
+      typeName: string;
+      categoryCode: string | null;
+      categoryName: string | null;
+      impact: string;
+      urgency: string;
+      priorityCode: string | null;
+      confidence: number;
+      rationale: string;
+    }>('/ai/assist/classify', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  aiSummarize(body: {
+    title?: string;
+    description?: string;
+    ticketId?: string;
+    ticketNumber?: string;
+  }) {
+    return request<{ provider: string; summary: string; ticketNumber?: string }>(
+      '/ai/assist/summarize',
+      { method: 'POST', body: JSON.stringify(body) },
+    );
+  },
+  aiDuplicates(body: {
+    title: string;
+    description?: string;
+    excludeTicketId?: string;
+  }) {
+    return request<{
+      provider: string;
+      matches: Array<{
+        id: string;
+        number: string;
+        title: string;
+        status: { code: string; name: string };
+        score: number;
+      }>;
+    }>('/ai/assist/duplicates', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  aiSlaRisk(ticketRef: string) {
+    return request<{
+      provider: string;
+      ticketNumber: string;
+      level: string;
+      score: number;
+      factors: string[];
+      narrative?: string;
+    }>(`/ai/assist/sla-risk/${encodeURIComponent(ticketRef)}`);
+  },
+  aiSuggestKnowledge(body: { title: string; description?: string }) {
+    return request<{
+      provider: string;
+      matches: Array<{
+        id: string;
+        slug: string;
+        title: string;
+        category: string | null;
+        score: number;
+      }>;
+    }>('/ai/assist/knowledge', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
   createKnowledge(body: {
     title: string;
     body: string;
@@ -1532,6 +1695,47 @@ export const api = {
       body: JSON.stringify({ assetId }),
     });
   },
+  assetRelationTypes() {
+    return request<Array<{ code: string; name: string }>>(
+      '/assets/relation-types',
+    );
+  },
+  assetRelations(id: string) {
+    return request<AssetRelationRow[]>(`/assets/${id}/relations`);
+  },
+  createAssetRelation(
+    id: string,
+    body: { toAssetId: string; relationType: string; notes?: string },
+  ) {
+    return request(`/assets/${id}/relations`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  deleteAssetRelation(id: string, relationId: string) {
+    return request(`/assets/${id}/relations/${relationId}`, {
+      method: 'DELETE',
+    });
+  },
+  assetImpact(id: string, depth = 2) {
+    return request<AssetImpact>(`/assets/${id}/impact?depth=${depth}`);
+  },
+  discoveryImportAssets(body: {
+    csv?: string;
+    assets?: Array<Record<string, string>>;
+    relations?: Array<Record<string, string>>;
+  }) {
+    return request<{
+      created: number;
+      updated: number;
+      relationsCreated: number;
+      relationsSkipped: number;
+      errors: string[];
+    }>('/assets/discovery/import', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
   approvals(status?: string) {
     const q = status ? `?status=${encodeURIComponent(status)}` : '';
     return request<ApprovalItem[]>(`/approvals${q}`);
@@ -1575,7 +1779,10 @@ export const api = {
         firstName: string;
         lastName: string;
         isActive: boolean;
+        departmentId?: string | null;
         locationId: string | null;
+        lastLoginAt?: string | null;
+        createdAt?: string;
         location?: {
           id: string;
           code: string;
@@ -1588,6 +1795,29 @@ export const api = {
       }>
     >('/users');
   },
+  createUser(body: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    password?: string;
+    roleCodes?: string[];
+    departmentId?: string;
+    locationId?: string;
+  }) {
+    return request<{
+      user: {
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        mustChangePassword: boolean;
+      };
+      temporaryPassword?: string;
+    }>('/users', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
   updateUser(
     id: string,
     body: {
@@ -1595,6 +1825,7 @@ export const api = {
       lastName?: string;
       locationId?: string | null;
       departmentId?: string | null;
+      isActive?: boolean;
     },
   ) {
     return request(`/users/${encodeURIComponent(id)}`, {
@@ -1691,6 +1922,15 @@ export const api = {
   },
   branding() {
     return request<BrandingConfig>('/branding');
+  },
+  updateBrandingTheme(body: {
+    themeId: string;
+    colors?: Partial<PortalThemeColors> | null;
+  }) {
+    return request<BrandingConfig>('/branding/theme', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
   },
   uploadBrandingLogo(file: File) {
     const body = new FormData();
@@ -1894,5 +2134,83 @@ export const api = {
     return request<{ actions: string[]; entityTypes: string[] }>(
       '/audit/facets',
     );
+  },
+  listAuditExportSchedules() {
+    return request<
+      Array<{
+        id: string;
+        userId: string;
+        cadence: 'daily' | 'weekly';
+        email: string;
+        filters: {
+          rangeDays: number;
+          action?: string;
+          entityType?: string;
+        };
+        lastRunAt: string | null;
+        isActive: boolean;
+        createdAt: string;
+        updatedAt: string;
+      }>
+    >('/audit/export-schedules');
+  },
+  createAuditExportSchedule(body: {
+    cadence: 'daily' | 'weekly';
+    email: string;
+    rangeDays?: number;
+    action?: string;
+    entityType?: string;
+    isActive?: boolean;
+  }) {
+    return request('/audit/export-schedules', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  updateAuditExportSchedule(
+    id: string,
+    body: {
+      cadence?: 'daily' | 'weekly';
+      email?: string;
+      rangeDays?: number;
+      action?: string | null;
+      entityType?: string | null;
+      isActive?: boolean;
+    },
+  ) {
+    return request(`/audit/export-schedules/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  },
+  deleteAuditExportSchedule(id: string) {
+    return request<{ ok: boolean }>(
+      `/audit/export-schedules/${encodeURIComponent(id)}`,
+      { method: 'DELETE' },
+    );
+  },
+  runAuditExportSchedule(id: string) {
+    return request<{ ok: boolean; result: 'ok' | 'skipped' }>(
+      `/audit/export-schedules/${encodeURIComponent(id)}/run`,
+      { method: 'POST' },
+    );
+  },
+  listAuditExportRuns(limit = 20) {
+    return request<
+      Array<{
+        id: string;
+        scheduleId: string | null;
+        rowCount: number;
+        contentSha256: string;
+        rangeFrom: string | null;
+        rangeTo: string | null;
+        filters: {
+          rangeDays: number;
+          action?: string;
+          entityType?: string;
+        };
+        createdAt: string;
+      }>
+    >(`/audit/export-runs?limit=${encodeURIComponent(String(limit))}`);
   },
 };

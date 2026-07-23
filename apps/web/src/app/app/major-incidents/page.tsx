@@ -12,10 +12,12 @@ import { Icon } from '@/components/Icon';
 import {
   AlertTriangle,
   GitBranch,
+  History,
   RefreshCw,
   Siren,
   UserX,
 } from 'lucide-react';
+import { SectionHeading } from '@/components/SectionHeading';
 import styles from './mi.module.css';
 
 type MiTicket = TicketSummary & {
@@ -331,7 +333,9 @@ export default function MajorIncidentsPage() {
 
         <section className={styles.section} aria-labelledby="recent-mi">
           <div className={styles.sectionHead}>
-            <h2 id="recent-mi">Recently resolved (7 days)</h2>
+            <SectionHeading id="recent-mi" icon={History}>
+              Recently resolved (7 days)
+            </SectionHeading>
           </div>
           {!data || data.recentlyResolved.length === 0 ? (
             <p className={styles.quiet}>None in the last week.</p>

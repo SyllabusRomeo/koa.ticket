@@ -10,8 +10,8 @@ import {
 import { can } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import { EmptyState } from '@/components/EmptyState';
-import { Icon } from '@/components/Icon';
-import { ClipboardCheck } from 'lucide-react';
+import { SectionHeading } from '@/components/SectionHeading';
+import { ClipboardCheck, Plus } from 'lucide-react';
 import appStyles from '../../app.module.css';
 import styles from './approvals-admin.module.css';
 
@@ -144,10 +144,7 @@ export default function ApprovalsAdminPage() {
 
       <div className={styles.grid}>
         <section className={styles.panel}>
-          <h2>
-            <Icon icon={ClipboardCheck} size="sm" />
-            Active policies
-          </h2>
+          <SectionHeading icon={ClipboardCheck}>Active policies</SectionHeading>
           {policies.length === 0 ? (
             <EmptyState icon={ClipboardCheck}>
               No policies yet — fallback is all Approver-role users (legacy).
@@ -174,7 +171,7 @@ export default function ApprovalsAdminPage() {
         </section>
 
         <section className={styles.panel}>
-          <h2>Add policy</h2>
+          <SectionHeading icon={Plus}>Add policy</SectionHeading>
           <form className={styles.form} onSubmit={onCreate}>
             <label>
               Name

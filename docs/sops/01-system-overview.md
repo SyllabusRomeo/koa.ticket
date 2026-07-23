@@ -25,7 +25,7 @@ LogIT is an enterprise IT Service Management platform — not a simple ticket CR
 | Senior Agent | Escalations, richer technical work, raise problems |
 | IT Manager | Oversight, SLA performance, reports, MI dashboard, team/config |
 | Approver | Approve/reject multi-step approval policies (service/access/change) |
-| System Administrator | Users, roles, org, SLA, routing, integrations, branding |
+| Administrator | Users, roles, org, SLA, routing, integrations, branding |
 | Auditor | Read-only audit / historical / compliance views |
 
 ## Expected operating model
@@ -44,9 +44,9 @@ Employee / channel intake
 
 ## What is shipped vs later
 
-**Shipped (through M10):** auth/RBAC + MFA/SSO, org (**Locations** + **Departments** + Teams), core tickets (parent/child, merge, origin location, channel metadata), watchers/worklogs UI, MI badge + dashboard, presence, queue/Kanban, Problem/Change/CAB, attachments, audit, SLA worker + admin UI, skills/workload assignment, notifications (in-app + email + digests), dashboards, knowledge, catalog dynamic forms, assets, reports (heatmap + schedules + stage bottlenecks), Slack/Teams + email/IMAP, signed outbound webhooks, Docker/Hetzner + CI/TLS.
+**Shipped (through L5):** auth/RBAC + MFA/SSO, org (**Locations** + **Departments** + Teams + Users admin), core tickets (parent/child, merge, origin location, channel metadata), watchers/worklogs UI, MI badge + dashboard, presence, queue/Kanban, Problem/Change/CAB, attachments, audit + immutable export schedules, SLA worker + admin UI, skills/workload assignment, notifications (in-app + email + digests), dashboards, knowledge + deflection analytics, catalog dynamic forms, assets/CMDB relations + discovery + impact, reports (heatmap + schedules + stage bottlenecks), Slack/Teams + email/IMAP, signed outbound webhooks, AI assists, portal themes, Docker/Hetzner + CI/TLS.
 
-**Later (L1–L5):** CMDB discovery/relationships, AI assists, knowledge deflection analytics, portal themes, immutable audit export schedules.
+**Optional polish:** webhook retry worker, SAML / more IdPs, bot outbound replies, board presets. Full book: [USER_AND_DEVELOPER_GUIDE.md](../USER_AND_DEVELOPER_GUIDE.md).
 
 ## Brand
 

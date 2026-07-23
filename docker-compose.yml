@@ -7,6 +7,16 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-logit}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_strong_password}
       POSTGRES_DB: ${POSTGRES_DB:-logit}
+    # Lean defaults for laptop/dev hosts (override via POSTGRES_SHARED_BUFFERS etc. if needed)
+    command:
+      - postgres
+      - -c
+      - shared_buffers=${POSTGRES_SHARED_BUFFERS:-64MB}
+      - -c
+      - work_mem=${POSTGRES_WORK_MEM:-4MB}
+      - -c
+      - max_connections=${POSTGRES_MAX_CONNECTIONS:-50}
+    mem_limit: ${POSTGRES_MEM_LIMIT:-256m}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -21,7 +31,15 @@ services:
     image: redis:7-alpine
     ports:
       - '${REDIS_HOST_PORT:-6379}:6379'
-    command: ['redis-server', '--appendonly', 'yes']
+    command:
+      - redis-server
+      - --appendonly
+      - 'yes'
+      - --maxmemory
+      - ${REDIS_MAXMEMORY:-64mb}
+      - --maxmemory-policy
+      - allkeys-lru
+    mem_limit: ${REDIS_MEM_LIMIT:-96m}
     volumes:
       - redis_data:/data
     healthcheck:

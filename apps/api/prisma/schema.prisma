@@ -67,12 +67,15 @@ model User {
   notifications    Notification[]
   notificationPreferences NotificationPreference[]
   knowledgeArticles KnowledgeArticle[]
+  knowledgeEvents  KnowledgeEvent[]
   assignedAssets   Asset[] @relation("AssetAssignee")
   approvals        Approval[] @relation("ApprovalApprover")
   ticketWatchers   TicketWatcher[]
   ticketWorkLogs   TicketWorkLog[]
   skills           UserSkill[]
   reportSchedules  ReportSchedule[]
+  auditExportSchedules AuditExportSchedule[]
+  auditExportRuns  AuditExportRun[]
 
   @@index([email])
   @@index([deletedAt])
@@ -785,9 +788,29 @@ model KnowledgeArticle {
 
   createdBy   User                  @relation(fields: [createdById], references: [id])
   attachments KnowledgeAttachment[]
+  events      KnowledgeEvent[]
 
   @@index([status])
   @@map("knowledge_articles")
+}
+
+/// Engagement / deflection signals for KB analytics (L3)
+model KnowledgeEvent {
+  id        String   @id @default(cuid())
+  articleId String   @map("article_id")
+  userId    String?  @map("user_id")
+  /** view | helpful | not_helpful | deflected */
+  eventType String   @map("event_type")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  article KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([articleId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@index([userId])
+  @@map("knowledge_events")
 }
 
 /// File attachments and inline media for knowledge articles
@@ -855,6 +878,8 @@ model Asset {
   purchaseDate      DateTime? @map("purchase_date")
   warrantyExpiresAt DateTime? @map("warranty_expires_at")
   notes             String?
+  /** Origin of the CI: manual | discovery | import */
+  source            String    @default("manual")
   deletedAt         DateTime? @map("deleted_at")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
@@ -863,11 +888,33 @@ model Asset {
   assignedUser User?        @relation("AssetAssignee", fields: [assignedUserId], references: [id])
   location     Location?    @relation(fields: [locationId], references: [id])
   tickets      TicketAsset[]
+  relationsFrom AssetRelation[] @relation("AssetRelationFrom")
+  relationsTo   AssetRelation[] @relation("AssetRelationTo")
 
   @@index([status])
   @@index([typeId])
   @@index([assignedUserId])
+  @@index([source])
   @@map("assets")
+}
+
+/** Directed CMDB link: fromAsset —relationType→ toAsset */
+model AssetRelation {
+  id           String   @id @default(cuid())
+  fromAssetId  String   @map("from_asset_id")
+  toAssetId    String   @map("to_asset_id")
+  relationType String   @map("relation_type")
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  fromAsset Asset @relation("AssetRelationFrom", fields: [fromAssetId], references: [id], onDelete: Cascade)
+  toAsset   Asset @relation("AssetRelationTo", fields: [toAssetId], references: [id], onDelete: Cascade)
+
+  @@unique([fromAssetId, toAssetId, relationType])
+  @@index([toAssetId])
+  @@index([relationType])
+  @@map("asset_relations")
 }
 
 model TicketAsset {
@@ -967,6 +1014,48 @@ model ReportSchedule {
   @@index([userId, isActive])
   @@index([isActive, lastRunAt])
   @@map("report_schedules")
+}
+
+/** L5 — scheduled immutable audit CSV exports (checksummed runs). */
+model AuditExportSchedule {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  /** daily | weekly */
+  cadence   String
+  email     String
+  /** JSON: { rangeDays?: number, action?: string, entityType?: string } */
+  filters   Json      @default("{}")
+  lastRunAt DateTime? @map("last_run_at")
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  runs AuditExportRun[]
+
+  @@index([userId, isActive])
+  @@index([isActive, lastRunAt])
+  @@map("audit_export_schedules")
+}
+
+/** Immutable export artifact metadata (content hash; CSV emailed, not stored). */
+model AuditExportRun {
+  id             String   @id @default(cuid())
+  scheduleId     String?  @map("schedule_id")
+  userId         String   @map("user_id")
+  rowCount       Int      @map("row_count")
+  contentSha256  String   @map("content_sha256")
+  rangeFrom      DateTime? @map("range_from")
+  rangeTo        DateTime? @map("range_to")
+  filters        Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  schedule AuditExportSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([contentSha256])
+  @@map("audit_export_runs")
 }
 
 /** Outbound signed webhook endpoints (M5). */

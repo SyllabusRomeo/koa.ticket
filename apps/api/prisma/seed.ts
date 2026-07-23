@@ -87,7 +87,7 @@ const ROLE_DEFS: Array<{
   },
   {
     code: ROLES.SYSADMIN,
-    name: 'System Administrator',
+    name: 'Administrator',
     description: 'Full platform administration',
     permissions: Object.values(PERMISSIONS),
   },
@@ -929,6 +929,100 @@ async function main() {
       notes: 'Hot-spare dock for laptop users.',
     },
   });
+
+  const serverType = await prisma.assetType.findUniqueOrThrow({
+    where: { code: 'SERVER' },
+  });
+  const networkType = await prisma.assetType.findUniqueOrThrow({
+    where: { code: 'NETWORK' },
+  });
+  await prisma.asset.upsert({
+    where: { assetTag: 'GH-SRV-0001' },
+    update: {
+      status: 'in_service',
+      name: 'App server 01',
+      locationId: hqLocation?.id ?? null,
+      source: 'manual',
+    },
+    create: {
+      assetTag: 'GH-SRV-0001',
+      name: 'App server 01',
+      typeId: serverType.id,
+      serialNumber: 'SN-SRV-001',
+      manufacturer: 'Dell',
+      model: 'PowerEdge R750',
+      status: 'in_service',
+      locationId: hqLocation?.id ?? null,
+      notes: 'Seed CMDB server CI.',
+      source: 'manual',
+    },
+  });
+  await prisma.asset.upsert({
+    where: { assetTag: 'GH-NET-0001' },
+    update: {
+      status: 'in_service',
+      name: 'Core switch Accra',
+      locationId: hqLocation?.id ?? null,
+      source: 'manual',
+    },
+    create: {
+      assetTag: 'GH-NET-0001',
+      name: 'Core switch Accra',
+      typeId: networkType.id,
+      serialNumber: 'SN-SW-001',
+      manufacturer: 'Cisco',
+      model: 'Catalyst 9300',
+      status: 'in_service',
+      locationId: hqLocation?.id ?? null,
+      notes: 'Seed CMDB network CI.',
+      source: 'manual',
+    },
+  });
+
+  const laptopCi = await prisma.asset.findUniqueOrThrow({
+    where: { assetTag: 'GH-IT-0001' },
+  });
+  const dockCi = await prisma.asset.findUniqueOrThrow({
+    where: { assetTag: 'GH-IT-0002' },
+  });
+  const serverCi = await prisma.asset.findUniqueOrThrow({
+    where: { assetTag: 'GH-SRV-0001' },
+  });
+  const switchCi = await prisma.asset.findUniqueOrThrow({
+    where: { assetTag: 'GH-NET-0001' },
+  });
+  for (const rel of [
+    {
+      fromAssetId: laptopCi.id,
+      toAssetId: dockCi.id,
+      relationType: 'uses',
+      notes: 'Laptop uses docking station',
+    },
+    {
+      fromAssetId: serverCi.id,
+      toAssetId: switchCi.id,
+      relationType: 'connected_to',
+      notes: 'Server uplink to core switch',
+    },
+    {
+      fromAssetId: laptopCi.id,
+      toAssetId: switchCi.id,
+      relationType: 'depends_on',
+      notes: 'Endpoint depends on access network',
+    },
+  ] as const) {
+    await prisma.assetRelation.upsert({
+      where: {
+        fromAssetId_toAssetId_relationType: {
+          fromAssetId: rel.fromAssetId,
+          toAssetId: rel.toAssetId,
+          relationType: rel.relationType,
+        },
+      },
+      update: { notes: rel.notes },
+      create: rel,
+    });
+  }
 
   // ─── Demo sample data (idempotent by ticket number / slug / tag) ───
   const year = new Date().getFullYear();

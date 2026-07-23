@@ -206,3 +206,83 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+.themeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.themeCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  text-align: left;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(15, 74, 64, 0.14);
+  background: #fff;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.themeCard[data-active] {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--color-primary-light) 70%, transparent);
+}
+
+.themeSwatch {
+  display: block;
+  height: 2.25rem;
+  border-radius: 4px;
+}
+
+.themeName {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--color-primary);
+}
+
+.themeDesc {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  opacity: 0.8;
+}
+
+.colorGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.colorField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.colorField input[type='color'] {
+  width: 100%;
+  height: 2.4rem;
+  padding: 0;
+  border: 1px solid rgba(15, 74, 64, 0.18);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  cursor: pointer;
+}
+
+.colorField code {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  opacity: 0.75;
+}

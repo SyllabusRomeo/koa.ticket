@@ -100,6 +100,29 @@ export const ASSET_STATUS_ALIASES: Record<string, AssetStatusCode> = {
   disposed: 'disposed',
 };
 
+/** CMDB relationship types between configuration items (assets). */
+export const ASSET_RELATION_TYPES = [
+  'depends_on',
+  'runs_on',
+  'hosted_by',
+  'connected_to',
+  'uses',
+  'backs_up',
+  'member_of',
+] as const;
+
+export type AssetRelationType = (typeof ASSET_RELATION_TYPES)[number];
+
+export const ASSET_RELATION_TYPE_LABELS: Record<AssetRelationType, string> = {
+  depends_on: 'Depends on',
+  runs_on: 'Runs on',
+  hosted_by: 'Hosted by',
+  connected_to: 'Connected to',
+  uses: 'Uses',
+  backs_up: 'Backs up',
+  member_of: 'Member of',
+};
+
 /** LogIT brand tokens — keep in sync with apps/web CSS variables. */
 export const BRAND = {
   primary: '#0F4A40',
@@ -114,5 +137,98 @@ export const BRAND = {
   textPrimary: '#0F4A40',
   textOnPrimary: '#FFFFFF',
 } as const;
+
+export type PortalThemeColors = {
+  primary: string;
+  primaryLight: string;
+  secondary: string;
+  background: string;
+  backgroundWarm: string;
+  backgroundAccent: string;
+  danger: string;
+  accentOrange: string;
+  accentMuted: string;
+  textPrimary: string;
+  textOnPrimary: string;
+};
+
+export type PortalThemePreset = {
+  id: string;
+  name: string;
+  description: string;
+  colors: PortalThemeColors;
+};
+
+/** Built-in portal themes (L4). Avoid purple / terracotta AI-generic looks. */
+export const PORTAL_THEME_PRESETS: PortalThemePreset[] = [
+  {
+    id: 'logit',
+    name: 'LogIT Forest',
+    description: 'Default LogIT forest primary with lime and warm cream.',
+    colors: { ...BRAND },
+  },
+  {
+    id: 'coastal',
+    name: 'Coastal Teal',
+    description: 'Deep teal with soft aqua highlights for a calm portal.',
+    colors: {
+      primary: '#0A4D56',
+      primaryLight: '#C8E8E4',
+      secondary: '#1F6B66',
+      background: '#FFFFFF',
+      backgroundWarm: '#E8F4F2',
+      backgroundAccent: '#D4EEF5',
+      danger: '#D64545',
+      accentOrange: '#C65D2E',
+      accentMuted: '#B07A4B',
+      textPrimary: '#0A4D56',
+      textOnPrimary: '#FFFFFF',
+    },
+  },
+  {
+    id: 'slate',
+    name: 'Slate Professional',
+    description: 'Charcoal and cool gray for a denser enterprise look.',
+    colors: {
+      primary: '#1F2A32',
+      primaryLight: '#D5DDE3',
+      secondary: '#3D4F5C',
+      background: '#FFFFFF',
+      backgroundWarm: '#EEF1F3',
+      backgroundAccent: '#E2E8ED',
+      danger: '#C62828',
+      accentOrange: '#B85C2E',
+      accentMuted: '#8B7355',
+      textPrimary: '#1F2A32',
+      textOnPrimary: '#FFFFFF',
+    },
+  },
+  {
+    id: 'olive',
+    name: 'Olive Sand',
+    description: 'Muted olive with sand neutrals — still on-brand, softer.',
+    colors: {
+      primary: '#3F4A2E',
+      primaryLight: '#E4E8C8',
+      secondary: '#5C6B3C',
+      background: '#FFFFFF',
+      backgroundWarm: '#F3EFE4',
+      backgroundAccent: '#E8E4D4',
+      danger: '#C44B4B',
+      accentOrange: '#C56A2D',
+      accentMuted: '#A8895A',
+      textPrimary: '#3F4A2E',
+      textOnPrimary: '#FFFFFF',
+    },
+  },
+];
+
+export const DEFAULT_PORTAL_THEME_ID = 'logit' as const;
+
+export function getPortalThemePreset(id: string): PortalThemePreset {
+  return (
+    PORTAL_THEME_PRESETS.find((t) => t.id === id) ?? PORTAL_THEME_PRESETS[0]!
+  );
+}
 
 export const SESSION_COOKIE = 'logit_session' as const;

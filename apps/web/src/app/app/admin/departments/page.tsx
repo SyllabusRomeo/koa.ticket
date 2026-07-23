@@ -9,6 +9,7 @@ import { AppShell } from '@/components/AppShell';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
 import { Icon } from '@/components/Icon';
+import { SectionHeading } from '@/components/SectionHeading';
 import { LocationSelect } from '@/components/LocationSelect';
 import appStyles from '../../app.module.css';
 import styles from '../teams/teams.module.css';
@@ -195,7 +196,12 @@ export default function DepartmentsAdminPage() {
           <section className={styles.panel}>
             <div className={styles.sectionHead}>
               <div>
-                <h2 className={styles.sectionTitle}>Departments</h2>
+                <SectionHeading
+                  icon={Building2}
+                  className={styles.sectionTitle}
+                >
+                  Departments
+                </SectionHeading>
                 <p className={styles.sectionHint}>
                   {departments.length} department
                   {departments.length === 1 ? '' : 's'}

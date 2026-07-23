@@ -1,0 +1,78 @@
+.stack {
+  display: grid;
+  gap: 0.85rem;
+  max-width: 45rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  font: inherit;
+  color: var(--color-primary, #0f4a40);
+}
+
+.label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hint {
+  margin: 0;
+  font-style: normal;
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  opacity: 0.72;
+  line-height: 1.35;
+}
+
+.control {
+  display: block;
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm, 6px);
+  border: 1.5px solid rgba(15, 74, 64, 0.2);
+  background: #fff;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: inherit;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+textarea.control {
+  min-height: 6rem;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.control:hover {
+  border-color: rgba(15, 74, 64, 0.35);
+}
+
+.control:focus {
+  outline: 2px solid rgba(237, 244, 172, 0.95);
+  outline-offset: 1px;
+  border-color: var(--color-primary, #0f4a40);
+}
+
+.control:disabled {
+  opacity: 0.7;
+  background: rgba(15, 74, 64, 0.04);
+  cursor: not-allowed;
+}
+
+.control::placeholder {
+  color: rgba(15, 74, 64, 0.45);
+}

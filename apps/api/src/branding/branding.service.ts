@@ -9,6 +9,13 @@ import { createReadStream, existsSync, mkdirSync, unlinkSync } from 'fs';
 import { writeFile } from 'fs/promises';
 import { join, extname } from 'path';
 import { randomBytes } from 'crypto';
+import {
+  BRAND,
+  DEFAULT_PORTAL_THEME_ID,
+  PORTAL_THEME_PRESETS,
+  getPortalThemePreset,
+  type PortalThemeColors,
+} from '@logit/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import type { AuthUserView } from '../auth/auth.service';
@@ -18,12 +25,30 @@ const KEYS = {
   logoMime: 'branding.logoMime',
   bannerStored: 'branding.bannerStoredName',
   bannerMime: 'branding.bannerMime',
+  themeId: 'branding.themeId',
+  themeColors: 'branding.themeColors',
 } as const;
 
 const LOGO_EXTS = new Set(['png', 'jpg', 'jpeg', 'webp', 'svg']);
 const BANNER_EXTS = new Set(['png', 'jpg', 'jpeg', 'webp']);
 const LOGO_MAX_BYTES = 2 * 1024 * 1024;
 const BANNER_MAX_BYTES = 5 * 1024 * 1024;
+
+const COLOR_KEYS: (keyof PortalThemeColors)[] = [
+  'primary',
+  'primaryLight',
+  'secondary',
+  'background',
+  'backgroundWarm',
+  'backgroundAccent',
+  'danger',
+  'accentOrange',
+  'accentMuted',
+  'textPrimary',
+  'textOnPrimary',
+];
+
+const HEX_RE = /^#([0-9a-fA-F]{6})$/;
 
 @Injectable()
 export class BrandingService {
@@ -76,12 +101,67 @@ export class BrandingService {
     }
   }
 
+  private normalizeHex(value: string, field: string): string {
+    const v = value.trim();
+    if (!HEX_RE.test(v)) {
+      throw new BadRequestException(
+        `${field} must be a 6-digit hex color like #0F4A40`,
+      );
+    }
+    return v.toUpperCase();
+  }
+
+  private parseCustomColors(raw: string | null | undefined): PortalThemeColors | null {
+    if (!raw?.trim()) return null;
+    try {
+      const parsed = JSON.parse(raw) as Partial<PortalThemeColors>;
+      const colors = { ...BRAND } as PortalThemeColors;
+      for (const key of COLOR_KEYS) {
+        if (typeof parsed[key] === 'string') {
+          colors[key] = this.normalizeHex(parsed[key]!, key);
+        }
+      }
+      return colors;
+    } catch {
+      return null;
+    }
+  }
+
+  private async resolveTheme() {
+    const [themeIdRow, colorsRow] = await Promise.all([
+      this.getSetting(KEYS.themeId),
+      this.getSetting(KEYS.themeColors),
+    ]);
+    const themeId = themeIdRow?.value?.trim() || DEFAULT_PORTAL_THEME_ID;
+    const custom = this.parseCustomColors(colorsRow?.value);
+
+    if (themeId === 'custom' && custom) {
+      return {
+        id: 'custom',
+        name: 'Custom',
+        description: 'Organization-defined portal colors.',
+        colors: custom,
+        presets: PORTAL_THEME_PRESETS,
+      };
+    }
+
+    const preset = getPortalThemePreset(themeId);
+    return {
+      id: preset.id,
+      name: preset.name,
+      description: preset.description,
+      colors: custom ? { ...preset.colors, ...custom } : preset.colors,
+      presets: PORTAL_THEME_PRESETS,
+    };
+  }
+
   async getPublic() {
-    const [logo, banner, logoRow, bannerRow] = await Promise.all([
+    const [logo, banner, logoRow, bannerRow, theme] = await Promise.all([
       this.getSetting(KEYS.logoStored),
       this.getSetting(KEYS.bannerStored),
       this.getSetting(KEYS.logoMime),
       this.getSetting(KEYS.bannerMime),
+      this.resolveTheme(),
     ]);
 
     const timestamps = [logo?.updatedAt, banner?.updatedAt].filter(
@@ -100,6 +180,7 @@ export class BrandingService {
       logoMime: logoRow?.value ?? null,
       bannerMime: bannerRow?.value ?? null,
       updatedAt,
+      theme,
       limits: {
         logo: {
           maxBytes: LOGO_MAX_BYTES,
@@ -111,6 +192,70 @@ export class BrandingService {
         },
       },
     };
+  }
+
+  async updateTheme(
+    user: AuthUserView,
+    input: { themeId: string; colors?: Partial<PortalThemeColors> | null },
+    ip?: string,
+  ) {
+    const themeId = input.themeId?.trim();
+    if (!themeId) throw new BadRequestException('themeId required');
+
+    const known =
+      themeId === 'custom' ||
+      PORTAL_THEME_PRESETS.some((p) => p.id === themeId);
+    if (!known) {
+      throw new BadRequestException(
+        `Unknown theme. Allowed: ${PORTAL_THEME_PRESETS.map((p) => p.id).join(', ')}, custom`,
+      );
+    }
+
+    await this.upsertSetting(KEYS.themeId, themeId);
+
+    if (themeId === 'custom') {
+      if (!input.colors) {
+        throw new BadRequestException('Custom theme requires colors');
+      }
+      const base = { ...BRAND } as PortalThemeColors;
+      const next = { ...base };
+      for (const key of COLOR_KEYS) {
+        const v = input.colors[key];
+        if (typeof v === 'string') next[key] = this.normalizeHex(v, key);
+      }
+      await this.upsertSetting(KEYS.themeColors, JSON.stringify(next));
+    } else if (input.colors === null) {
+      await this.deleteSetting(KEYS.themeColors);
+    } else if (input.colors && Object.keys(input.colors).length) {
+      // Optional partial overrides on a preset
+      const preset = getPortalThemePreset(themeId);
+      const next = { ...preset.colors };
+      for (const key of COLOR_KEYS) {
+        const v = input.colors[key];
+        if (typeof v === 'string') next[key] = this.normalizeHex(v, key);
+      }
+      const changed = COLOR_KEYS.some(
+        (k) => next[k].toUpperCase() !== preset.colors[k].toUpperCase(),
+      );
+      if (changed) {
+        await this.upsertSetting(KEYS.themeColors, JSON.stringify(next));
+      } else {
+        await this.deleteSetting(KEYS.themeColors);
+      }
+    } else {
+      await this.deleteSetting(KEYS.themeColors);
+    }
+
+    await this.audit.log({
+      actorId: user.id,
+      action: 'branding.theme_update',
+      entityType: 'system_settings',
+      entityId: KEYS.themeId,
+      after: { themeId },
+      ipAddress: ip,
+    });
+
+    return this.getPublic();
   }
 
   async streamAsset(kind: 'logo' | 'banner') {
@@ -215,6 +360,8 @@ export class BrandingService {
       this.deleteSetting(KEYS.logoMime),
       this.deleteSetting(KEYS.bannerStored),
       this.deleteSetting(KEYS.bannerMime),
+      this.deleteSetting(KEYS.themeId),
+      this.deleteSetting(KEYS.themeColors),
     ]);
 
     await this.audit.log({

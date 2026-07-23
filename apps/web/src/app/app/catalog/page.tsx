@@ -12,9 +12,11 @@ import { can } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import styles from '../app.module.css';
 import catalogStyles from './catalog.module.css';
-import { LayoutGrid, Plus, Search, Send, Trash2, X } from 'lucide-react';
+import { Home, LayoutGrid, Plus, Search, Send, Ticket, Trash2, X } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 import { Icon } from '@/components/Icon';
+import { Button, ButtonLink } from '@/components/Button';
+import { SectionHeading } from '@/components/SectionHeading';
 
 type CatalogItem = {
   id: string;
@@ -538,21 +540,24 @@ export default function CatalogPage() {
         </p>
 
         <div className={styles.ctaRow} style={{ marginBottom: '1rem' }}>
-          <a href="/app/tickets" className={styles.btn}>
+          <ButtonLink href="/app/tickets">
+            <Icon icon={Ticket} size="sm" />
             Open tickets
-          </a>
+          </ButtonLink>
           {canManage ? (
-            <button
+            <Button
               type="button"
-              className={styles.btnSecondary}
+              variant="secondary"
               onClick={() => setShowCreate((v) => !v)}
             >
+              <Icon icon={Plus} size="sm" />
               {showCreate ? 'Hide create form' : 'Add catalog item'}
-            </button>
+            </Button>
           ) : null}
-          <a href="/app" className={styles.btnSecondary}>
+          <ButtonLink href="/app" variant="secondary">
+            <Icon icon={Home} size="sm" />
             Back to Home
-          </a>
+          </ButtonLink>
         </div>
 
         {error ? (
@@ -565,7 +570,9 @@ export default function CatalogPage() {
         {canManage && showCreate ? (
           <div className={catalogStyles.createBox}>
             <form className={catalogStyles.createForm} onSubmit={onCreate}>
-              <h2 className={styles.sectionTitle}>New catalog item</h2>
+              <SectionHeading icon={LayoutGrid} className={styles.sectionTitle}>
+                New catalog item
+              </SectionHeading>
               <label>
                 Code
                 <input

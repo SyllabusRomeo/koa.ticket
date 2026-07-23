@@ -8,7 +8,8 @@ import { AppShell } from '@/components/AppShell';
 import { Button, ButtonLink } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
 import { Icon } from '@/components/Icon';
-import { Download, ScrollText, Search } from 'lucide-react';
+import { Download, ScrollText, Search, CalendarClock } from 'lucide-react';
+import { SectionHeading } from '@/components/SectionHeading';
 import appStyles from '../app.module.css';
 import styles from './audit.module.css';
 
@@ -106,6 +107,16 @@ export default function AuditPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [schedules, setSchedules] = useState<
+    Awaited<ReturnType<typeof api.listAuditExportSchedules>>
+  >([]);
+  const [exportRuns, setExportRuns] = useState<
+    Awaited<ReturnType<typeof api.listAuditExportRuns>>
+  >([]);
+  const [schedCadence, setSchedCadence] = useState<'daily' | 'weekly'>('daily');
+  const [schedEmail, setSchedEmail] = useState('');
+  const [schedRangeDays, setSchedRangeDays] = useState(7);
+  const [schedBusy, setSchedBusy] = useState(false);
 
   const load = useCallback(async (f: Filters) => {
     const data = await api.audit({
@@ -121,6 +132,15 @@ export default function AuditPage() {
     setTotal(data.total);
   }, []);
 
+  async function loadSchedules() {
+    const [sched, runs] = await Promise.all([
+      api.listAuditExportSchedules(),
+      api.listAuditExportRuns(15),
+    ]);
+    setSchedules(sched);
+    setExportRuns(runs);
+  }
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -134,8 +154,12 @@ export default function AuditPage() {
         const [facetData] = await Promise.all([
           api.auditFacets(),
           load(EMPTY_FILTERS),
+          loadSchedules(),
         ]);
-        if (!cancelled) setFacets(facetData);
+        if (!cancelled) {
+          setFacets(facetData);
+          setSchedEmail(user.email);
+        }
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : 'Failed');
@@ -195,6 +219,26 @@ export default function AuditPage() {
       setError(err instanceof Error ? err.message : 'Export failed');
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function onCreateSchedule(e: FormEvent) {
+    e.preventDefault();
+    setSchedBusy(true);
+    setError(null);
+    try {
+      await api.createAuditExportSchedule({
+        cadence: schedCadence,
+        email: schedEmail,
+        rangeDays: schedRangeDays,
+        action: filters.action || undefined,
+        entityType: filters.entityType || undefined,
+      });
+      await loadSchedules();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create schedule');
+    } finally {
+      setSchedBusy(false);
     }
   }
 
@@ -350,11 +394,200 @@ export default function AuditPage() {
           </div>
         </form>
 
+        <section className={styles.schedulePanel}>
+          <div className={styles.scheduleHead}>
+            <div>
+              <SectionHeading
+                icon={CalendarClock}
+                className={styles.resultsTitle}
+              >
+                Scheduled immutable exports
+              </SectionHeading>
+              <p className={styles.resultsMeta}>
+                Email a rolling audit CSV on a daily or weekly cadence. Each run
+                stores a SHA-256 checksum for integrity. Optional action /
+                entity filters use the values currently applied above. Requires
+                SMTP.
+              </p>
+            </div>
+          </div>
+
+          <form className={styles.scheduleForm} onSubmit={onCreateSchedule}>
+            <label className={styles.field}>
+              <span>Cadence</span>
+              <select
+                value={schedCadence}
+                onChange={(e) =>
+                  setSchedCadence(e.target.value as 'daily' | 'weekly')
+                }
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+              </select>
+            </label>
+            <label className={styles.field}>
+              <span>Range (days)</span>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={schedRangeDays}
+                onChange={(e) =>
+                  setSchedRangeDays(
+                    Math.max(1, Math.min(365, Number(e.target.value) || 1)),
+                  )
+                }
+              />
+            </label>
+            <label className={styles.field}>
+              <span>Email</span>
+              <input
+                type="email"
+                required
+                value={schedEmail}
+                onChange={(e) => setSchedEmail(e.target.value)}
+                style={{ minWidth: '14rem' }}
+              />
+            </label>
+            <Button type="submit" disabled={schedBusy}>
+              {schedBusy ? 'Saving…' : 'Add schedule'}
+            </Button>
+          </form>
+
+          {schedules.length === 0 ? (
+            <p className={styles.resultsMeta}>No schedules yet.</p>
+          ) : (
+            <ul className={styles.scheduleList}>
+              {schedules.map((s) => (
+                <li key={s.id} className={styles.scheduleItem}>
+                  <div className={styles.scheduleMeta}>
+                    <strong>
+                      {s.cadence}
+                      {!s.isActive ? (
+                        <span className={styles.inactiveBadge}>paused</span>
+                      ) : null}
+                    </strong>
+                    <span>
+                      {s.email} · last {s.filters.rangeDays} day
+                      {s.filters.rangeDays === 1 ? '' : 's'}
+                      {s.filters.action ? ` · action ${s.filters.action}` : ''}
+                      {s.filters.entityType
+                        ? ` · entity ${s.filters.entityType}`
+                        : ''}
+                      {s.lastRunAt
+                        ? ` · last run ${new Date(s.lastRunAt).toLocaleString()}`
+                        : ' · never run'}
+                    </span>
+                  </div>
+                  <div className={styles.scheduleActions}>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={schedBusy}
+                      onClick={async () => {
+                        setSchedBusy(true);
+                        setError(null);
+                        try {
+                          const res = await api.runAuditExportSchedule(s.id);
+                          await loadSchedules();
+                          if (res.result === 'skipped') {
+                            setError(
+                              'Run prepared but SMTP skipped (check email config).',
+                            );
+                          }
+                        } catch (err) {
+                          setError(
+                            err instanceof Error ? err.message : 'Run failed',
+                          );
+                        } finally {
+                          setSchedBusy(false);
+                        }
+                      }}
+                    >
+                      Run now
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={schedBusy}
+                      onClick={async () => {
+                        setSchedBusy(true);
+                        try {
+                          await api.updateAuditExportSchedule(s.id, {
+                            isActive: !s.isActive,
+                          });
+                          await loadSchedules();
+                        } catch (err) {
+                          setError(
+                            err instanceof Error
+                              ? err.message
+                              : 'Update failed',
+                          );
+                        } finally {
+                          setSchedBusy(false);
+                        }
+                      }}
+                    >
+                      {s.isActive ? 'Pause' : 'Resume'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={schedBusy}
+                      onClick={async () => {
+                        if (!confirm('Delete this audit export schedule?')) {
+                          return;
+                        }
+                        setSchedBusy(true);
+                        try {
+                          await api.deleteAuditExportSchedule(s.id);
+                          await loadSchedules();
+                        } catch (err) {
+                          setError(
+                            err instanceof Error
+                              ? err.message
+                              : 'Delete failed',
+                          );
+                        } finally {
+                          setSchedBusy(false);
+                        }
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {exportRuns.length > 0 ? (
+            <div className={styles.runsBlock}>
+              <h3 className={styles.runsTitle}>Recent checksummed runs</h3>
+              <ul className={styles.runsList}>
+                {exportRuns.map((r) => (
+                  <li key={r.id}>
+                    <span>
+                      {new Date(r.createdAt).toLocaleString()} · {r.rowCount}{' '}
+                      rows
+                    </span>
+                    <code className={styles.hash} title={r.contentSha256}>
+                      {r.contentSha256.slice(0, 16)}…
+                    </code>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </section>
+
         {error ? <p className={appStyles.error}>{error}</p> : null}
 
         <section className={styles.results} aria-live="polite">
           <div className={styles.resultsHead}>
-            <h2 className={styles.resultsTitle}>Events</h2>
+            <SectionHeading icon={ScrollText} className={styles.resultsTitle}>
+              Events
+            </SectionHeading>
             <p className={styles.resultsMeta}>
               Showing {rows.length}
               {total > rows.length ? ` of ${total}` : ''}

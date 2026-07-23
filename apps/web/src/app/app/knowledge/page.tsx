@@ -6,9 +6,10 @@ import { api, type AuthUser, type KnowledgeArticle } from '@/lib/api';
 import { can } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import styles from '../app.module.css';
-import { BookOpen, Plus, Send } from 'lucide-react';
+import { BookOpen, Home, Plus, Send } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 import { Icon } from '@/components/Icon';
+import { ButtonLink } from '@/components/Button';
 
 export default function KnowledgePage() {
   const router = useRouter();
@@ -72,14 +73,15 @@ export default function KnowledgePage() {
         </p>
         <div className={styles.ctaRow} style={{ marginBottom: '1rem' }}>
           {canWrite ? (
-            <a href="/app/knowledge/new" className={styles.btn}>
+            <ButtonLink href="/app/knowledge/new">
               <Icon icon={Plus} size="sm" />
               Create article
-            </a>
+            </ButtonLink>
           ) : null}
-          <a href="/app" className={styles.btnSecondary}>
+          <ButtonLink href="/app" variant="secondary">
+            <Icon icon={Home} size="sm" />
             Back to Home
-          </a>
+          </ButtonLink>
         </div>
         {error ? (
           <p className={styles.error} role="alert">

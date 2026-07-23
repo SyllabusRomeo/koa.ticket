@@ -7,10 +7,11 @@ import { can } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import { Button, ButtonLink } from '@/components/Button';
 import { LocationSelect } from '@/components/LocationSelect';
+import { Save, Users, Shield, UserCog } from 'lucide-react';
+import { Icon } from '@/components/Icon';
+import { SectionHeading } from '@/components/SectionHeading';
 import appStyles from '../../app.module.css';
 import styles from './roles.module.css';
-import { Save, Users } from 'lucide-react';
-import { Icon } from '@/components/Icon';
 
 type RoleRow = {
   id: string;
@@ -274,9 +275,13 @@ export default function RolesAccessPage() {
         <section className={styles.panel} aria-labelledby="understand-roles">
           <div className={styles.sectionHead}>
             <div>
-              <h2 id="understand-roles" className={styles.sectionTitle}>
+              <SectionHeading
+                id="understand-roles"
+                icon={Shield}
+                className={styles.sectionTitle}
+              >
                 Understand roles
-              </h2>
+              </SectionHeading>
               <p className={styles.sectionHint}>
                 Select a role to inspect its built-in permission matrix by area.
               </p>
@@ -360,9 +365,13 @@ export default function RolesAccessPage() {
         <section className={styles.panel} aria-labelledby="assign-access">
           <div className={styles.sectionHead}>
             <div>
-              <h2 id="assign-access" className={styles.sectionTitle}>
+              <SectionHeading
+                id="assign-access"
+                icon={UserCog}
+                className={styles.sectionTitle}
+              >
                 Assign access
-              </h2>
+              </SectionHeading>
               <p className={styles.sectionHint}>
                 Pick a person, choose one primary role (radio), then optionally
                 add extra permissions (checkboxes). Save or Cancel when done.

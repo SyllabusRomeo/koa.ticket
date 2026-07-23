@@ -35,4 +35,18 @@ Concise product summary. Detail lives in [DEVELOPMENT_TODO.md](./docs/DEVELOPMEN
 
 ## What’s next
 
-Later / strategic **L1–L5**: CMDB discovery, AI assists, knowledge deflection analytics, portal themes, immutable audit export schedules.
+**L1 shipped:** CMDB CI relationships, impact preview (BFS), discovery CSV import on Assets.
+
+**L2 shipped:** AI assists — classify, summarize, duplicate detection, SLA risk, related KB (heuristic by default; optional `OPENAI_API_KEY`).
+
+**L3 shipped:** Knowledge deflection analytics (views + feedback; Reports panel).
+
+**L4 shipped:** Portal themes — presets (Forest / Coastal / Slate / Olive) + custom colors; applied site-wide via CSS variables; Admin → Branding.
+
+**L5 shipped:** Immutable audit export schedules — daily/weekly CSV email with SHA-256 run history on Audit trail.
+
+**Users admin shipped:** `/app/admin/users` create / edit / activate-deactivate (`users:manage`).
+
+## Documentation
+
+**User & Developer Guide (book):** [USER_AND_DEVELOPER_GUIDE.md](./USER_AND_DEVELOPER_GUIDE.md) — product map, setup, operations flows, developer guide, and extension blueprints (manufacturing + other industries) under [guide/](./guide/).

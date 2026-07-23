@@ -179,6 +179,7 @@ export class UsersService {
       data: {
         firstName: dto.firstName?.trim(),
         lastName: dto.lastName?.trim(),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         locationId:
           dto.locationId === undefined
             ? undefined

@@ -14,8 +14,10 @@ import { KnowledgeAttachments } from '@/components/KnowledgeAttachments';
 import { KnowledgeHtml } from '@/components/KnowledgeHtml';
 import { RichTextEditor, RichTextHiddenField } from '@/components/RichTextEditor';
 import styles from '../../app.module.css';
-import { Plus, Save } from 'lucide-react';
+import { BookmarkCheck, Pencil, Plus, Save, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { Icon } from '@/components/Icon';
+import { Button, ButtonLink } from '@/components/Button';
+import { FormStack, TextInput } from '@/components/FormField';
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4100/api/v1';
@@ -37,6 +39,8 @@ export default function KnowledgeArticlePage() {
   const [body, setBody] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [feedbackNote, setFeedbackNote] = useState<string | null>(null);
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
 
   async function loadArticle(s: string) {
     const a = await api.getKnowledge(s);
@@ -108,6 +112,27 @@ export default function KnowledgeArticlePage() {
     }
   }
 
+  async function onFeedback(eventType: 'helpful' | 'not_helpful' | 'deflected') {
+    if (!article) return;
+    setFeedbackBusy(true);
+    setFeedbackNote(null);
+    setError(null);
+    try {
+      await api.knowledgeFeedback(article.id, eventType);
+      setFeedbackNote(
+        eventType === 'deflected'
+          ? 'Thanks — marked as solved.'
+          : eventType === 'helpful'
+            ? 'Thanks for the feedback.'
+            : 'Thanks — we will improve this article.',
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Feedback failed');
+    } finally {
+      setFeedbackBusy(false);
+    }
+  }
+
   if (!user || !article) {
     return (
       <main className={styles.page}>
@@ -134,89 +159,125 @@ export default function KnowledgeArticlePage() {
 
         {canWrite ? (
           <div className={styles.ctaRow} style={{ marginBottom: '1rem' }}>
-            <button
-              type="button"
-              className={styles.btn}
-              onClick={() => setEditing((v) => !v)}
-            >
+            <Button type="button" onClick={() => setEditing((v) => !v)}>
+              <Icon icon={Pencil} size="sm" />
               {editing ? 'Cancel edit' : 'Edit article'}
-            </button>
+            </Button>
             {article.status !== 'published' ? (
-              <button
+              <Button
                 type="button"
-                className={`${styles.btn} ${styles.btnSecondary}`}
+                variant="secondary"
                 disabled={saving}
                 onClick={onPublish}
               >
                 Publish
-              </button>
+              </Button>
             ) : null}
-            <a
-              href="/app/knowledge/new"
-              className={`${styles.btn} ${styles.btnSecondary}`}
-            >
+            <ButtonLink href="/app/knowledge/new" variant="secondary">
               <Icon icon={Plus} size="sm" />
               Create another
-            </a>
+            </ButtonLink>
           </div>
         ) : null}
 
         {editing && canWrite ? (
-          <form
-            onSubmit={onSave}
-            style={{ display: 'grid', gap: '0.85rem', maxWidth: 720 }}
-          >
-            <label>
-              Title
-              <input
+          <form onSubmit={onSave}>
+            <FormStack>
+              <TextInput
+                label="Title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
                 minLength={3}
-                style={{ display: 'block', width: '100%', marginTop: 4 }}
               />
-            </label>
-            <label>
-              Category
-              <input
+              <TextInput
+                label="Category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                style={{ display: 'block', width: '100%', marginTop: 4 }}
+                placeholder="e.g. Network, Access, Hardware"
               />
-            </label>
-            <div>
-              <span style={{ display: 'block', marginBottom: 4 }}>Body</span>
-              <RichTextHiddenField value={body} required />
-              <RichTextEditor
-                value={body}
-                onChange={setBody}
-                disabled={saving}
-                onUploadImage={async (file) => {
-                  const att = await api.uploadKnowledgeMedia(file, article.id);
-                  return {
-                    url: `${API_BASE}/knowledge/attachments/${att.id}/content`,
-                    alt: att.originalName,
-                  };
+              <div>
+                <span className={styles.fieldLabel}>Body</span>
+                <RichTextHiddenField value={body} required />
+                <RichTextEditor
+                  value={body}
+                  onChange={setBody}
+                  disabled={saving}
+                  onUploadImage={async (file) => {
+                    const att = await api.uploadKnowledgeMedia(file, article.id);
+                    return {
+                      url: `${API_BASE}/knowledge/attachments/${att.id}/content`,
+                      alt: att.originalName,
+                    };
+                  }}
+                />
+              </div>
+              <KnowledgeAttachments
+                articleId={article.id}
+                canUpload
+                attachments={attachments}
+                onChanged={async () => {
+                  const list = await api.listKnowledgeAttachments(article.id);
+                  setAttachments(list);
                 }}
               />
-            </div>
-            <KnowledgeAttachments
-              articleId={article.id}
-              canUpload
-              attachments={attachments}
-              onChanged={async () => {
-                const list = await api.listKnowledgeAttachments(article.id);
-                setAttachments(list);
-              }}
-            />
-            <button type="submit" className={styles.btn} disabled={saving}>
-              <Icon icon={Save} size="sm" />
-              {saving ? 'Saving…' : 'Save changes'}
-            </button>
+              <Button type="submit" disabled={saving}>
+                <Icon icon={Save} size="sm" />
+                {saving ? 'Saving…' : 'Save changes'}
+              </Button>
+            </FormStack>
           </form>
         ) : (
           <>
             <KnowledgeHtml html={article.body ?? ''} />
+            {article.status === 'published' ? (
+              <div
+                className={styles.ctaRow}
+                style={{
+                  marginTop: '1.25rem',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem',
+                  alignItems: 'center',
+                }}
+                role="group"
+                aria-label="Article feedback"
+              >
+                <span className={styles.muted}>Was this helpful?</span>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={feedbackBusy}
+                  onClick={() => onFeedback('helpful')}
+                  aria-label="Helpful"
+                >
+                  <Icon icon={ThumbsUp} size="sm" />
+                  Helpful
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={feedbackBusy}
+                  onClick={() => onFeedback('not_helpful')}
+                  aria-label="Not helpful"
+                >
+                  <Icon icon={ThumbsDown} size="sm" />
+                  Not helpful
+                </Button>
+                <Button
+                  type="button"
+                  variant="success"
+                  disabled={feedbackBusy}
+                  onClick={() => onFeedback('deflected')}
+                  aria-label="This solved my issue"
+                >
+                  <Icon icon={BookmarkCheck} size="sm" />
+                  Solved
+                </Button>
+                {feedbackNote ? (
+                  <span className={styles.muted}>{feedbackNote}</span>
+                ) : null}
+              </div>
+            ) : null}
             <div style={{ marginTop: '1.25rem' }}>
               <KnowledgeAttachments
                 articleId={article.id}

@@ -11,14 +11,18 @@ import { Icon } from '@/components/Icon';
 import {
   AlertTriangle,
   BarChart3,
+  BookOpen,
+  CalendarClock,
   CircleDot,
   Download,
   FileSpreadsheet,
   FileText,
   FolderOpen,
   Ticket,
+  Timer,
   UserX,
 } from 'lucide-react';
+import { SectionHeading } from '@/components/SectionHeading';
 import appStyles from '../app.module.css';
 import styles from './reports.module.css';
 
@@ -147,6 +151,24 @@ export default function ReportsPage() {
   const [schedEmail, setSchedEmail] = useState('');
   const [schedRangeDays, setSchedRangeDays] = useState(7);
   const [schedBusy, setSchedBusy] = useState(false);
+  const [deflection, setDeflection] = useState<{
+    totals: {
+      views: number;
+      helpful: number;
+      notHelpful: number;
+      deflected: number;
+    };
+    helpfulRate: number | null;
+    deflectionRate: number | null;
+    topArticles: Array<{
+      slug: string;
+      title: string;
+      views: number;
+      helpful: number;
+      notHelpful: number;
+      deflected: number;
+    }>;
+  } | null>(null);
 
   const cellMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -165,14 +187,24 @@ export default function ReportsPage() {
     range: { from?: string; to?: string } = {},
     metric: 'created' | 'resolved' = heatmapMetric,
   ) {
-    const [summaryData, stagesData, heatmapData] = await Promise.all([
-      api.reportSummary(range),
-      api.reportStages(range),
-      api.reportHeatmap({ ...range, metric }),
-    ]);
+    const [summaryData, stagesData, heatmapData, deflectionData] =
+      await Promise.all([
+        api.reportSummary(range),
+        api.reportStages(range),
+        api.reportHeatmap({ ...range, metric }),
+        api.knowledgeDeflectionAnalytics(30).catch(() => null),
+      ]);
     setSummary(summaryData);
     setStages(stagesData);
     setHeatmap(heatmapData);
+    if (deflectionData) {
+      setDeflection({
+        totals: deflectionData.totals,
+        helpfulRate: deflectionData.helpfulRate,
+        deflectionRate: deflectionData.deflectionRate,
+        topArticles: deflectionData.topArticles,
+      });
+    }
   }
 
   useEffect(() => {
@@ -415,9 +447,12 @@ export default function ReportsPage() {
               <section className={styles.heatmapPanel}>
                 <div className={styles.heatmapHead}>
                   <div>
-                    <h2 className={styles.breakdownTitle}>
+                    <SectionHeading
+                      icon={BarChart3}
+                      className={styles.breakdownTitle}
+                    >
                       Volume heatmap
-                    </h2>
+                    </SectionHeading>
                     <p className={styles.muted}>
                       Ticket {heatmap.metric} volume by weekday × hour (
                       {heatmap.sampleSize} ticket
@@ -501,12 +536,80 @@ export default function ReportsPage() {
               <BreakdownList title="By assignee" rows={summary.byAssignee} />
             </div>
 
+            {deflection ? (
+              <section className={styles.stagePanel}>
+                <div className={styles.stageHead}>
+                  <SectionHeading
+                    icon={BookOpen}
+                    className={styles.breakdownTitle}
+                  >
+                    Knowledge deflection (30 days)
+                  </SectionHeading>
+                  <p className={styles.muted}>
+                    Views, helpful votes, and explicit “this solved my issue”
+                    signals from the knowledge base.
+                  </p>
+                </div>
+                <div className={appStyles.stats}>
+                  <div>
+                    <strong>{deflection.totals.views}</strong>
+                    <span>Views</span>
+                  </div>
+                  <div>
+                    <strong>
+                      {deflection.helpfulRate == null
+                        ? '—'
+                        : `${Math.round(deflection.helpfulRate * 100)}%`}
+                    </strong>
+                    <span>Helpful rate</span>
+                  </div>
+                  <div>
+                    <strong>{deflection.totals.deflected}</strong>
+                    <span>Deflected</span>
+                  </div>
+                  <div>
+                    <strong>
+                      {deflection.deflectionRate == null
+                        ? '—'
+                        : `${Math.round(deflection.deflectionRate * 100)}%`}
+                    </strong>
+                    <span>Deflection rate</span>
+                  </div>
+                </div>
+                {deflection.topArticles.length ? (
+                  <ul className={styles.stuckList}>
+                    {deflection.topArticles.slice(0, 8).map((a) => (
+                      <li key={a.slug}>
+                        <a
+                          href={`/app/knowledge/${encodeURIComponent(a.slug)}`}
+                        >
+                          <strong>{a.title}</strong>
+                        </a>
+                        <span>
+                          {a.views} views · {a.helpful} helpful ·{' '}
+                          {a.deflected} deflected
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className={styles.muted}>
+                    No knowledge engagement yet — open articles and use
+                    feedback buttons to populate this.
+                  </p>
+                )}
+              </section>
+            ) : null}
+
             {stages ? (
               <section className={styles.stagePanel}>
                 <div className={styles.stageHead}>
-                  <h2 className={styles.breakdownTitle}>
+                  <SectionHeading
+                    icon={Timer}
+                    className={styles.breakdownTitle}
+                  >
                     Stage duration bottlenecks
-                  </h2>
+                  </SectionHeading>
                   <p className={styles.muted}>
                     Average time-in-status across {stages.sampleSize} ticket
                     {stages.sampleSize === 1 ? '' : 's'} (from status history).
@@ -580,7 +683,12 @@ export default function ReportsPage() {
             <section className={styles.schedulePanel}>
               <div className={styles.scheduleHead}>
                 <div>
-                  <h2 className={styles.breakdownTitle}>Scheduled exports</h2>
+                  <SectionHeading
+                    icon={CalendarClock}
+                    className={styles.breakdownTitle}
+                  >
+                    Scheduled exports
+                  </SectionHeading>
                   <p className={styles.muted}>
                     Email a rolling CSV or PDF on a daily or weekly cadence.
                     Requires SMTP. Use Run now to test immediately.

@@ -139,6 +139,24 @@ class LinkAssetDto {
   assetId!: string;
 }
 
+class CreateRelationDto {
+  @IsString()
+  toAssetId!: string;
+
+  @IsString()
+  relationType!: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+class DiscoveryImportDto {
+  @IsOptional()
+  @IsString()
+  csv?: string;
+}
+
 @Controller('assets')
 @UseGuards(SessionAuthGuard, RolesGuard)
 export class AssetsController {
@@ -154,6 +172,12 @@ export class AssetsController {
   @RequirePermissions(PERMISSIONS.ASSETS_READ)
   statuses() {
     return this.assets.statuses();
+  }
+
+  @Get('relation-types')
+  @RequirePermissions(PERMISSIONS.ASSETS_READ)
+  relationTypes() {
+    return this.assets.relationTypes();
   }
 
   @Get('assignees')
@@ -187,6 +211,18 @@ export class AssetsController {
     res.send(csv);
   }
 
+  @Post('discovery/import')
+  @RequirePermissions(PERMISSIONS.ASSETS_WRITE)
+  discoveryImport(@Body() dto: DiscoveryImportDto & Record<string, unknown>) {
+    return this.assets.discoveryImport({
+      csv: dto.csv,
+      assets: Array.isArray(dto.assets) ? (dto.assets as never) : undefined,
+      relations: Array.isArray(dto.relations)
+        ? (dto.relations as never)
+        : undefined,
+    });
+  }
+
   @Get()
   @RequirePermissions(PERMISSIONS.ASSETS_READ)
   list(
@@ -197,6 +233,34 @@ export class AssetsController {
     @Query('q') q?: string,
   ) {
     return this.assets.list({ status, typeCode, typeId, locationId, q });
+  }
+
+  @Get(':id/relations')
+  @RequirePermissions(PERMISSIONS.ASSETS_READ)
+  listRelations(@Param('id') id: string) {
+    return this.assets.listRelations(id);
+  }
+
+  @Post(':id/relations')
+  @RequirePermissions(PERMISSIONS.ASSETS_WRITE)
+  createRelation(@Param('id') id: string, @Body() dto: CreateRelationDto) {
+    return this.assets.createRelation(id, dto);
+  }
+
+  @Delete(':id/relations/:relationId')
+  @RequirePermissions(PERMISSIONS.ASSETS_WRITE)
+  deleteRelation(
+    @Param('id') id: string,
+    @Param('relationId') relationId: string,
+  ) {
+    return this.assets.deleteRelation(id, relationId);
+  }
+
+  @Get(':id/impact')
+  @RequirePermissions(PERMISSIONS.ASSETS_READ)
+  impact(@Param('id') id: string, @Query('depth') depth?: string) {
+    const n = depth ? Number(depth) : 2;
+    return this.assets.impact(id, Number.isFinite(n) ? n : 2);
   }
 
   @Get(':id')

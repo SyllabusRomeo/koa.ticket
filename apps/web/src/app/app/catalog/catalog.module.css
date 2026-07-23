@@ -324,12 +324,20 @@
 .createForm textarea,
 .createForm select {
   width: 100%;
-  min-height: 2.4rem;
-  padding: 0.45rem 0.65rem;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.75rem;
   border-radius: var(--radius-sm);
   border: 1.5px solid rgba(15, 74, 64, 0.22);
   background: #fff;
   font: inherit;
+}
+
+.createForm input:focus,
+.createForm textarea:focus,
+.createForm select:focus {
+  outline: 2px solid rgba(237, 244, 172, 0.95);
+  outline-offset: 1px;
+  border-color: var(--color-primary);
 }
 
 .createForm textarea {

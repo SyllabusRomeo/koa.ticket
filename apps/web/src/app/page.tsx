@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { LayoutGrid, LogIn } from 'lucide-react';
 import { api } from '@/lib/api';
+import { Icon } from '@/components/Icon';
+import { BrandMarkIcon } from '@/lib/nav-icons';
 import styles from './page.module.css';
 
 export default function HomePage() {
@@ -38,7 +41,7 @@ export default function HomePage() {
     <main className={styles.shell}>
       <header className={styles.topbar}>
         <div className={styles.brand}>
-          <span className={styles.mark} aria-hidden />
+          <Icon icon={BrandMarkIcon} size="md" />
           <span className={styles.brandName}>LogIT</span>
         </div>
         <nav className={styles.nav} aria-label="Primary">
@@ -58,6 +61,7 @@ export default function HomePage() {
         </p>
         <div className={styles.actions}>
           <a className={styles.primaryBtn} href="/login">
+            <Icon icon={LogIn} size="sm" />
             Sign in
           </a>
           <a className={styles.secondaryBtn} href="/login">
@@ -67,7 +71,12 @@ export default function HomePage() {
       </section>
 
       <section id="portal" className={styles.panel} aria-labelledby="portal-heading">
-        <h2 id="portal-heading">Self-service portal</h2>
+        <h2 id="portal-heading" className={styles.panelTitle}>
+          <span className={styles.panelTitleIcon} aria-hidden>
+            <Icon icon={LayoutGrid} size="sm" />
+          </span>
+          Self-service portal
+        </h2>
         <p>
           Sign in to report issues, request services, and track IT work. Phase 1
           auth and Phase 2 organization foundations are live.

@@ -55,7 +55,8 @@ npm run build -w @logit/shared
 ### 4. Start data services
 
 ```bash
-docker compose up -d postgres redis
+npm run dev:infra
+# same as: docker compose up -d postgres redis
 ```
 
 Wait until both are healthy (`docker compose ps`).
@@ -71,13 +72,32 @@ Seed creates roles, permissions, sample org (Accra HQ), SLA, categories, demo us
 
 ### 6. Run application processes
 
-In separate terminals:
+In separate terminals (do **not** use root `npm run dev` unless you need API + web + worker together — that triples Node memory):
 
 ```bash
-npm run dev:api      # http://localhost:4100
-npm run dev:web      # http://localhost:3100
-npm run dev:worker   # SLA background tick (recommended)
+npm run dev:api      # http://localhost:4100  (~512MB heap cap)
+npm run dev:web      # http://localhost:3100  (~768MB heap cap, Turbopack)
+npm run dev:worker   # optional — only when testing SLA ticks
 ```
+
+### Low-memory workstations (16GB RAM)
+
+On a typical Windows laptop, **Docker Desktop / WSL2** is the largest controllable cost (often 1.5–4GB+). Postgres + Redis themselves are small (~50–100MB).
+
+1. **Cap WSL2 RAM** (recommended on ≤16GB machines):
+
+   ```powershell
+   copy infra\wslconfig.example $env:USERPROFILE\.wslconfig
+   wsl --shutdown
+   ```
+
+   Then start Docker Desktop again and `npm run dev:infra`.
+
+2. **Compose already caps** Postgres (~256MB) and Redis (~96MB / `maxmemory 64mb`). Override with `POSTGRES_MEM_LIMIT` / `REDIS_MEM_LIMIT` / `REDIS_MAXMEMORY` in `.env` if needed.
+
+3. **Skip the worker** unless you need SLA background jobs.
+
+4. **Avoid full `docker compose up`** for day-to-day coding — that also builds/runs API, web, nginx inside Docker on top of local Node.
 
 ### 7. Verify
 
@@ -89,7 +109,7 @@ npm run dev:worker   # SLA background tick (recommended)
 
 | Name | Email | Password | Role | What they can access |
 | --- | --- | --- | --- | --- |
-| System Administrator | `admin@logit.local` | `LogIT-Admin-2026!` | `sysadmin` | Full platform (users, org, SLA, settings, all tickets) |
+| Administrator | `admin@logit.local` | `LogIT-Admin-2026!` | `sysadmin` | Full platform (users, org, SLA, settings, all tickets) |
 | Ama Mensah | `employee@logit.local` | `LogIT-Employee-2026!` | `employee` | Own tickets, create tickets, knowledge, catalog |
 | Kojo Asante | `agent@logit.local` | `LogIT-Agent-2026!` | `agent` | Queue tickets, assign, internal notes, assets read, Service Desk |
 | Efua Boateng | `senior@logit.local` | `LogIT-Senior-2026!` | `senior_agent` | Agent + knowledge/asset write, escalations |

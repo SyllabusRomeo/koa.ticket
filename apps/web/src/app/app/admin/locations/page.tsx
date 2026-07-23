@@ -8,6 +8,7 @@ import { AppShell } from '@/components/AppShell';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
 import { Icon } from '@/components/Icon';
+import { SectionHeading } from '@/components/SectionHeading';
 import { MapPin, Plus, Save } from 'lucide-react';
 import appStyles from '../../app.module.css';
 import styles from '../teams/teams.module.css';
@@ -193,7 +194,9 @@ export default function LocationsAdminPage() {
           <section className={styles.panel}>
             <div className={styles.sectionHead}>
               <div>
-                <h2 className={styles.sectionTitle}>Locations</h2>
+                <SectionHeading icon={MapPin} className={styles.sectionTitle}>
+                  Locations
+                </SectionHeading>
                 <p className={styles.sectionHint}>
                   {locations.length} site{locations.length === 1 ? '' : 's'}
                 </p>

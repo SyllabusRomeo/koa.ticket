@@ -2,7 +2,7 @@
 
 /* Action button tokens — see docs/UX_BUTTONS.md */
 :root {
-  /* Brand */
+  /* Brand — overridden at runtime by PortalThemeProvider (L4) */
   --color-primary: #0f4a40;
   --color-primary-light: #edf4ac;
   --color-secondary: #456433;
@@ -26,7 +26,7 @@
 
   --radius-sm: 6px;
   --radius-md: 10px;
-  --shadow-soft: 0 12px 40px rgba(15, 74, 64, 0.08);
+  --shadow-soft: 0 12px 40px color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 
 *,
@@ -46,9 +46,21 @@ body {
   font-family: var(--font-body);
   color: var(--color-text-primary);
   background:
-    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(237, 244, 172, 0.55), transparent 55%),
-    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(249, 221, 255, 0.35), transparent 50%),
-    linear-gradient(180deg, var(--color-background-warm) 0%, var(--color-background) 42%);
+    radial-gradient(
+      ellipse 80% 50% at 10% -10%,
+      color-mix(in srgb, var(--color-primary-light) 55%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 100% 0%,
+      color-mix(in srgb, var(--color-background-accent) 35%, transparent),
+      transparent 50%
+    ),
+    linear-gradient(
+      180deg,
+      var(--color-background-warm) 0%,
+      var(--color-background) 42%
+    );
   background-attachment: fixed;
 }
 
@@ -59,4 +71,78 @@ a {
 
 button {
   font-family: inherit;
+}
+
+/* Shared text-field baseline — LogIT form controls (exclude chrome inputs). */
+input:not([type]),
+input[type='text'],
+input[type='email'],
+input[type='password'],
+input[type='search'],
+input[type='url'],
+input[type='tel'],
+input[type='number'],
+input[type='datetime-local'],
+input[type='date'],
+input[type='time'],
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(15, 74, 64, 0.2);
+  background: #fff;
+  padding: 0.55rem 0.75rem;
+  min-height: 2.5rem;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+textarea {
+  min-height: 5.5rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+input:not([type]):focus,
+input[type='text']:focus,
+input[type='email']:focus,
+input[type='password']:focus,
+input[type='search']:focus,
+input[type='url']:focus,
+input[type='tel']:focus,
+input[type='number']:focus,
+input[type='datetime-local']:focus,
+input[type='date']:focus,
+input[type='time']:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid rgba(237, 244, 172, 0.95);
+  outline-offset: 1px;
+  border-color: var(--color-primary);
+}
+
+input:not([type]):disabled,
+input[type='text']:disabled,
+input[type='email']:disabled,
+input[type='password']:disabled,
+input[type='search']:disabled,
+input[type='url']:disabled,
+input[type='tel']:disabled,
+input[type='number']:disabled,
+input[type='datetime-local']:disabled,
+input[type='date']:disabled,
+input[type='time']:disabled,
+textarea:disabled,
+select:disabled {
+  opacity: 0.7;
+  background: rgba(15, 74, 64, 0.04);
+  cursor: not-allowed;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(15, 74, 64, 0.45);
 }

@@ -21,6 +21,7 @@ import { LocationSelect } from '@/components/LocationSelect';
 import {
   AlertTriangle,
   CalendarClock,
+  ClipboardCheck,
   Clock,
   Eye,
   EyeOff,
@@ -29,6 +30,7 @@ import {
   MapPin,
   MessageSquare,
   Save,
+  Send,
   Timer,
   Trash2,
   UserRound,
@@ -128,6 +130,17 @@ export default function TicketDetailPage() {
   const [workMinutes, setWorkMinutes] = useState('15');
   const [workNote, setWorkNote] = useState('');
   const [watching, setWatching] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiRisk, setAiRisk] = useState<{
+    level: string;
+    score: number;
+    factors: string[];
+    narrative?: string;
+  } | null>(null);
+  const [aiDupes, setAiDupes] = useState<
+    Array<{ number: string; title: string; score: number }>
+  >([]);
+  const [aiBusy, setAiBusy] = useState(false);
   const [rootCause, setRootCause] = useState('');
   const [workaround, setWorkaround] = useState('');
   const [changeRisk, setChangeRisk] = useState('');
@@ -664,6 +677,51 @@ export default function TicketDetailPage() {
     }
   }
 
+  async function runAiAssist() {
+    if (!ticket) return;
+    setAiBusy(true);
+    setError(null);
+    try {
+      const tasks: Promise<void>[] = [
+        api.aiSummarize({ ticketNumber: ticket.number }).then((r) => {
+          setAiSummary(r.summary);
+        }),
+        api
+          .aiDuplicates({
+            title: ticket.title,
+            description: ticket.description,
+            excludeTicketId: ticket.id,
+          })
+          .then((r) => {
+            setAiDupes(
+              r.matches.map((m) => ({
+                number: m.number,
+                title: m.title,
+                score: m.score,
+              })),
+            );
+          }),
+      ];
+      if (can(user!, 'tickets:read_queue')) {
+        tasks.push(
+          api.aiSlaRisk(ticket.number).then((r) => {
+            setAiRisk({
+              level: r.level,
+              score: r.score,
+              factors: r.factors,
+              narrative: r.narrative,
+            });
+          }),
+        );
+      }
+      await Promise.all(tasks);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'AI assist failed');
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
   async function toggleMajorIncident() {
     if (!ticket) return;
     setBusy(true);
@@ -1059,10 +1117,12 @@ export default function TicketDetailPage() {
                       disabled={busy}
                       onClick={() => void submitCab()}
                     >
+                      <Icon icon={Send} size="sm" />
                       Submit to CAB
                     </button>
                   ) : null}
                   <a href="/app/approvals" className={styles.btnSecondary}>
+                    <Icon icon={ClipboardCheck} size="sm" />
                     Open Approvals
                   </a>
                 </div>
@@ -1481,6 +1541,50 @@ export default function TicketDetailPage() {
               timeToResolution={ticket.timeToResolution}
             />
           </div>
+
+          {can(user, 'tickets:write') ? (
+            <div className={styles.assignPanel}>
+              <h3>AI assists</h3>
+              <p className={styles.hint}>
+                Summarize, find possible duplicates, and score SLA risk
+                (heuristic locally; OpenAI when configured).
+              </p>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                disabled={aiBusy || busy}
+                onClick={runAiAssist}
+              >
+                {aiBusy ? 'Running…' : 'Run AI assist'}
+              </button>
+              {aiSummary ? (
+                <p className={styles.hint} style={{ marginTop: '0.75rem' }}>
+                  <strong>Summary:</strong> {aiSummary}
+                </p>
+              ) : null}
+              {aiRisk ? (
+                <p className={styles.hint}>
+                  <strong>
+                    SLA risk: {aiRisk.level} ({aiRisk.score})
+                  </strong>
+                  <br />
+                  {aiRisk.narrative ?? aiRisk.factors.join(' · ')}
+                </p>
+              ) : null}
+              {aiDupes.length ? (
+                <ul className={styles.hint}>
+                  {aiDupes.map((d) => (
+                    <li key={d.number}>
+                      <a href={`/app/tickets/${encodeURIComponent(d.number)}`}>
+                        {d.number}
+                      </a>{' '}
+                      — {d.title}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className={styles.assignPanel}>
             <h3>

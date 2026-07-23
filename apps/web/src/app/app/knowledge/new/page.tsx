@@ -10,6 +10,8 @@ import { RichTextEditor, RichTextHiddenField } from '@/components/RichTextEditor
 import styles from '../../app.module.css';
 import { Save, Send } from 'lucide-react';
 import { Icon } from '@/components/Icon';
+import { Button, ButtonLink } from '@/components/Button';
+import { FormStack, TextInput } from '@/components/FormField';
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4100/api/v1';
@@ -105,13 +107,10 @@ export default function NewKnowledgePage() {
           Authors with <code>knowledge:write</code> write help-center articles
           with rich text, inline images, and downloadable attachments.
         </p>
-        <form
-          onSubmit={onSubmit}
-          style={{ display: 'grid', gap: '0.85rem', maxWidth: 720 }}
-        >
-          <label>
-            Title
-            <input
+        <form onSubmit={onSubmit}>
+          <FormStack>
+            <TextInput
+              label="Title"
               value={title}
               onChange={(e) => {
                 const v = e.target.value;
@@ -120,12 +119,9 @@ export default function NewKnowledgePage() {
               }}
               required
               minLength={3}
-              style={{ display: 'block', width: '100%', marginTop: 4 }}
             />
-          </label>
-          <label>
-            Slug (URL)
-            <input
+            <TextInput
+              label="Slug (URL)"
               value={slug}
               onChange={(e) => {
                 setSlugTouched(true);
@@ -133,64 +129,59 @@ export default function NewKnowledgePage() {
               }}
               required
               minLength={2}
-              style={{ display: 'block', width: '100%', marginTop: 4 }}
+              hint="Used in the article URL. Auto-fills from the title until you edit it."
             />
-          </label>
-          <label>
-            Category
-            <input
+            <TextInput
+              label="Category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              style={{ display: 'block', width: '100%', marginTop: 4 }}
+              placeholder="e.g. How-to, Network, Access"
             />
-          </label>
-          <div>
-            <span style={{ display: 'block', marginBottom: 4 }}>Body</span>
-            <RichTextHiddenField value={body} required />
-            <RichTextEditor
-              value={body}
-              onChange={setBody}
-              disabled={saving}
-              onUploadImage={async (file) => {
-                const att = await api.uploadKnowledgeMedia(file);
-                return {
-                  url: `${API_BASE}/knowledge/attachments/${att.id}/content`,
-                  alt: att.originalName,
-                };
-              }}
+            <div>
+              <span className={styles.fieldLabel}>Body</span>
+              <RichTextHiddenField value={body} required />
+              <RichTextEditor
+                value={body}
+                onChange={setBody}
+                disabled={saving}
+                onUploadImage={async (file) => {
+                  const att = await api.uploadKnowledgeMedia(file);
+                  return {
+                    url: `${API_BASE}/knowledge/attachments/${att.id}/content`,
+                    alt: att.originalName,
+                  };
+                }}
+              />
+            </div>
+            <PendingAttachments
+              files={pendingFiles}
+              onChange={setPendingFiles}
+              label="Article attachments"
+              hint="Optional downloads for readers (PDF, Office docs, ZIP). Use Insert image in the editor for screenshots in the body."
             />
-          </div>
-          <PendingAttachments
-            files={pendingFiles}
-            onChange={setPendingFiles}
-            label="Article attachments"
-            hint="Optional downloads for readers (PDF, Office docs, ZIP). Use Insert image in the editor for screenshots in the body."
-          />
-          <label>
-            <input
-              type="checkbox"
-              checked={publish}
-              onChange={(e) => setPublish(e.target.checked)}
-            />{' '}
-            Publish immediately
-          </label>
-          {error ? (
-            <p className={styles.error} role="alert">
-              {error}
-            </p>
-          ) : null}
-          <div className={styles.actions}>
-            <button type="submit" className={styles.btn} disabled={saving}>
-              <Icon icon={publish ? Send : Save} size="sm" />
-              {saving ? 'Saving…' : publish ? 'Publish article' : 'Save draft'}
-            </button>
-            <a
-              href="/app/knowledge"
-              className={`${styles.btn} ${styles.btnSecondary}`}
-            >
-              Cancel
-            </a>
-          </div>
+            <label className={styles.checkRow}>
+              <input
+                type="checkbox"
+                checked={publish}
+                onChange={(e) => setPublish(e.target.checked)}
+              />
+              Publish immediately
+            </label>
+            {error ? (
+              <p className={styles.error} role="alert">
+                {error}
+              </p>
+            ) : null}
+            <div className={styles.actions}>
+              <Button type="submit" disabled={saving}>
+                <Icon icon={publish ? Send : Save} size="sm" />
+                {saving ? 'Saving…' : publish ? 'Publish article' : 'Save draft'}
+              </Button>
+              <ButtonLink href="/app/knowledge" variant="secondary">
+                Cancel
+              </ButtonLink>
+            </div>
+          </FormStack>
         </form>
       </section>
     </AppShell>

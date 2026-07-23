@@ -6,6 +6,8 @@
 
 Use this index to find the right procedure. Each SOP is written so a new user can follow it without prior LogIT experience.
 
+For the **full book** (product map, setup, flows, developer guide, manufacturing extensions), start at **[USER_AND_DEVELOPER_GUIDE.md](../USER_AND_DEVELOPER_GUIDE.md)**.
+
 ---
 
 ## Start here
@@ -36,10 +38,11 @@ Use this index to find the right procedure. Each SOP is written so a new user ca
 
 Also see product docs:
 
-- [Enterprise roadmap](../ENTERPRISE_ROADMAP.md) — now / polish / later (L1–L5)
+- [User & Developer Guide](../USER_AND_DEVELOPER_GUIDE.md) — book-style master guide
+- [Enterprise roadmap](../ENTERPRISE_ROADMAP.md) — now / polish / later
 - [Gap assessment](../GAP_ASSESSMENT.md) — **shipped vs pending** matrix
-- [Development to-do](../DEVELOPMENT_TODO.md) — live checklist (remaining = L1–L5)
-- [Changelog](../CHANGELOG.md) — M1–M10 summary
+- [Development to-do](../DEVELOPMENT_TODO.md) — live checklist
+- [Changelog](../CHANGELOG.md) — shipped summary
 - [Production TLS + CI](../PRODUCTION.md)
 - [Notifications](../NOTIFICATIONS.md)
 - [Slack / Teams integrations](../INTEGRATIONS_SLACK_TEAMS.md)

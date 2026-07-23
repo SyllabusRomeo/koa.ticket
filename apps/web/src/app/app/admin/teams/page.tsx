@@ -8,6 +8,7 @@ import { AppShell } from '@/components/AppShell';
 import { Button } from '@/components/Button';
 import { EmptyState } from '@/components/EmptyState';
 import { Icon } from '@/components/Icon';
+import { SectionHeading } from '@/components/SectionHeading';
 import { LocationSelect } from '@/components/LocationSelect';
 import { Plus, Save, Users } from 'lucide-react';
 import appStyles from '../../app.module.css';
@@ -259,7 +260,9 @@ export default function TeamsAdminPage() {
           <section className={styles.panel}>
             <div className={styles.sectionHead}>
               <div>
-                <h2 className={styles.sectionTitle}>Teams</h2>
+                <SectionHeading icon={Users} className={styles.sectionTitle}>
+                  Teams
+                </SectionHeading>
                 <p className={styles.sectionHint}>
                   {teams.length} active · seed includes Service Desk
                 </p>

@@ -1,10 +1,12 @@
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Req,
   Res,
@@ -13,6 +15,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { IsObject, IsOptional, IsString, MinLength } from 'class-validator';
 import type { Response } from 'express';
 import { memoryStorage } from 'multer';
 import { ROLES } from '@logit/shared';
@@ -22,11 +25,21 @@ import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { BrandingService } from './branding.service';
 
+class UpdateThemeDto {
+  @IsString()
+  @MinLength(2)
+  themeId!: string;
+
+  @IsOptional()
+  @IsObject()
+  colors?: Record<string, string> | null;
+}
+
 @Controller('branding')
 export class BrandingController {
   constructor(private readonly branding: BrandingService) {}
 
-  /** Public — login page reads logo / banner URLs without a session. */
+  /** Public — login page reads logo / banner / theme without a session. */
   @Get()
   get() {
     return this.branding.getPublic();
@@ -49,6 +62,21 @@ export class BrandingController {
       `inline; filename="${result.filename.replace(/"/g, '')}"`,
     );
     return result.file;
+  }
+
+  @Patch('theme')
+  @UseGuards(SessionAuthGuard, RolesGuard)
+  @Roles(ROLES.SYSADMIN)
+  updateTheme(
+    @CurrentUser() user: AuthUserView,
+    @Body() dto: UpdateThemeDto,
+    @Req() req: { ip?: string },
+  ) {
+    return this.branding.updateTheme(
+      user,
+      { themeId: dto.themeId, colors: dto.colors },
+      req.ip,
+    );
   }
 
   @Post('logo')

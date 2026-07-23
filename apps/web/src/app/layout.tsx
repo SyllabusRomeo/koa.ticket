@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { PortalThemeProvider } from '@/components/PortalThemeProvider';
 
 export const metadata: Metadata = {
   title: 'LogIT — IT Service Management',
@@ -13,7 +14,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <PortalThemeProvider>{children}</PortalThemeProvider>
+      </body>
     </html>
   );
 }

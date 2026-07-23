@@ -160,7 +160,7 @@ export class KnowledgeService {
     });
   }
 
-  async getBySlug(slug: string, allowDraft = false) {
+  async getBySlug(slug: string, allowDraft = false, viewerUserId?: string) {
     const article = await this.prisma.knowledgeArticle.findUnique({
       where: { slug },
     });
@@ -168,7 +168,133 @@ export class KnowledgeService {
     if (!allowDraft && article.status !== 'published') {
       throw new NotFoundException('Article not found');
     }
+    if (viewerUserId && article.status === 'published') {
+      await this.recordEvent(article.id, 'view', viewerUserId).catch(() => undefined);
+    }
     return this.toArticleView(article);
+  }
+
+  async recordEvent(
+    articleId: string,
+    eventType: 'view' | 'helpful' | 'not_helpful' | 'deflected',
+    userId?: string,
+  ) {
+    const article = await this.prisma.knowledgeArticle.findUnique({
+      where: { id: articleId },
+    });
+    if (!article) throw new NotFoundException('Article not found');
+    if (article.status !== 'published' && eventType !== 'view') {
+      throw new BadRequestException('Article is not published');
+    }
+    return this.prisma.knowledgeEvent.create({
+      data: {
+        articleId,
+        userId: userId ?? null,
+        eventType,
+      },
+    });
+  }
+
+  async deflectionAnalytics(days = 30) {
+    const rangeDays = Math.min(Math.max(days, 1), 365);
+    const from = new Date();
+    from.setUTCDate(from.getUTCDate() - rangeDays);
+    from.setUTCHours(0, 0, 0, 0);
+
+    const events = await this.prisma.knowledgeEvent.findMany({
+      where: { createdAt: { gte: from } },
+      select: {
+        articleId: true,
+        eventType: true,
+        createdAt: true,
+        article: { select: { id: true, slug: true, title: true, category: true } },
+      },
+    });
+
+    const totals = {
+      views: 0,
+      helpful: 0,
+      notHelpful: 0,
+      deflected: 0,
+    };
+    const byArticle = new Map<
+      string,
+      {
+        id: string;
+        slug: string;
+        title: string;
+        category: string | null;
+        views: number;
+        helpful: number;
+        notHelpful: number;
+        deflected: number;
+      }
+    >();
+    const dailyMap = new Map<
+      string,
+      { date: string; views: number; deflected: number; helpful: number }
+    >();
+
+    for (const e of events) {
+      if (e.eventType === 'view') totals.views += 1;
+      else if (e.eventType === 'helpful') totals.helpful += 1;
+      else if (e.eventType === 'not_helpful') totals.notHelpful += 1;
+      else if (e.eventType === 'deflected') totals.deflected += 1;
+
+      let row = byArticle.get(e.articleId);
+      if (!row) {
+        row = {
+          id: e.article.id,
+          slug: e.article.slug,
+          title: e.article.title,
+          category: e.article.category,
+          views: 0,
+          helpful: 0,
+          notHelpful: 0,
+          deflected: 0,
+        };
+        byArticle.set(e.articleId, row);
+      }
+      if (e.eventType === 'view') row.views += 1;
+      else if (e.eventType === 'helpful') row.helpful += 1;
+      else if (e.eventType === 'not_helpful') row.notHelpful += 1;
+      else if (e.eventType === 'deflected') row.deflected += 1;
+
+      const day = e.createdAt.toISOString().slice(0, 10);
+      let dayRow = dailyMap.get(day);
+      if (!dayRow) {
+        dayRow = { date: day, views: 0, deflected: 0, helpful: 0 };
+        dailyMap.set(day, dayRow);
+      }
+      if (e.eventType === 'view') dayRow.views += 1;
+      if (e.eventType === 'deflected') dayRow.deflected += 1;
+      if (e.eventType === 'helpful') dayRow.helpful += 1;
+    }
+
+    const feedback = totals.helpful + totals.notHelpful;
+    const helpfulRate = feedback ? totals.helpful / feedback : null;
+    const deflectionRate = totals.views
+      ? totals.deflected / totals.views
+      : null;
+
+    const topArticles = [...byArticle.values()]
+      .sort(
+        (a, b) =>
+          b.deflected + b.helpful + b.views -
+          (a.deflected + a.helpful + a.views),
+      )
+      .slice(0, 15);
+
+    return {
+      from: from.toISOString(),
+      to: new Date().toISOString(),
+      rangeDays,
+      totals,
+      helpfulRate,
+      deflectionRate,
+      topArticles,
+      daily: [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date)),
+    };
   }
 
   async create(data: {

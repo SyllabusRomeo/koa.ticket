@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @logit/api & npm run dev -w @logit/web & npm run dev -w @logit/worker",
+    "dev:infra": "docker compose up -d postgres redis",
     "dev:api": "npm run dev -w @logit/api",
     "dev:web": "npm run dev -w @logit/web",
     "dev:worker": "npm run dev -w @logit/worker",

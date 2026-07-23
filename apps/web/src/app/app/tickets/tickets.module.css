@@ -76,12 +76,22 @@
 .form input,
 .form select,
 .form textarea {
+  width: 100%;
+  min-height: 2.5rem;
   border: 1.5px solid rgba(15, 74, 64, 0.22);
   border-radius: var(--radius-sm);
-  padding: 0.55rem 0.7rem;
+  padding: 0.55rem 0.75rem;
   font: inherit;
   color: var(--color-text-primary);
   background: #fff;
+}
+
+.form input:focus,
+.form select:focus,
+.form textarea:focus {
+  outline: 2px solid rgba(237, 244, 172, 0.95);
+  outline-offset: 1px;
+  border-color: var(--color-primary);
 }
 
 .formActions {

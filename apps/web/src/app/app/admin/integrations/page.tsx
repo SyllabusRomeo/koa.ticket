@@ -1,14 +1,48 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  Copy,
+  History,
+  Inbox,
+  KeyRound,
+  Link2,
+  Mail,
+  MessageSquareText,
+  Plug,
+  RefreshCw,
+  Send,
+  Trash2,
+  Webhook,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { api, type AuthUser, type WebhookEndpoint } from '@/lib/api';
 import { hasRole } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
+import { Button } from '@/components/Button';
+import { Icon } from '@/components/Icon';
+import { SectionHeading } from '@/components/SectionHeading';
+import {
+  IntegrationStatusCard,
+  SlackGlyph,
+  TeamsGlyph,
+} from './integration-glyphs';
 import appStyles from '../../app.module.css';
 import styles from './integrations.module.css';
 
+function PanelHeading({
+  icon,
+  children,
+}: {
+  icon: LucideIcon;
+  children: ReactNode;
+}) {
+  return <SectionHeading icon={icon}>{children}</SectionHeading>;
+}
+
 type Status = Awaited<ReturnType<typeof api.integrationsStatus>>;
+type Delivery = Awaited<ReturnType<typeof api.webhookDeliveries>>[number];
 
 const DEFAULT_EVENTS = [
   'ticket.created',
@@ -29,6 +63,7 @@ export default function IntegrationsAdminPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [imapBusy, setImapBusy] = useState(false);
+  const [statusBusy, setStatusBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
   const [webhooksEnabled, setWebhooksEnabled] = useState(true);
@@ -40,6 +75,13 @@ export default function IntegrationsAdminPage() {
   const [whActive, setWhActive] = useState(false);
   const [whBusy, setWhBusy] = useState(false);
   const [revealedSecret, setRevealedSecret] = useState<string | null>(null);
+  const [deliveriesFor, setDeliveriesFor] = useState<string | null>(null);
+  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+  const [deliveriesBusy, setDeliveriesBusy] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editUrl, setEditUrl] = useState('');
+  const [editEvents, setEditEvents] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,13 +95,17 @@ export default function IntegrationsAdminPage() {
         if (!cancelled) setUser(user);
         const [s, events, eps] = await Promise.all([
           api.integrationsStatus(),
-          api.webhookEvents().catch(() => ({ enabled: true, events: DEFAULT_EVENTS })),
+          api
+            .webhookEvents()
+            .catch(() => ({ enabled: true, events: DEFAULT_EVENTS })),
           api.webhookEndpoints().catch(() => [] as WebhookEndpoint[]),
         ]);
         if (!cancelled) {
           setStatus(s);
           setWebhooksEnabled(events.enabled);
-          setEventCatalog(events.events?.length ? events.events : DEFAULT_EVENTS);
+          setEventCatalog(
+            events.events?.length ? events.events : DEFAULT_EVENTS,
+          );
           setEndpoints(eps);
         }
       } catch {
@@ -75,6 +121,25 @@ export default function IntegrationsAdminPage() {
 
   async function refreshEndpoints() {
     setEndpoints(await api.webhookEndpoints());
+  }
+
+  async function refreshStatus() {
+    setStatusBusy(true);
+    setError(null);
+    try {
+      const [s, events] = await Promise.all([
+        api.integrationsStatus(),
+        api.webhookEvents(),
+      ]);
+      setStatus(s);
+      setWebhooksEnabled(events.enabled);
+      setEventCatalog(events.events?.length ? events.events : DEFAULT_EVENTS);
+      await refreshEndpoints();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to refresh status');
+    } finally {
+      setStatusBusy(false);
+    }
   }
 
   async function copy(label: string, value: string) {
@@ -128,6 +193,41 @@ export default function IntegrationsAdminPage() {
     );
   }
 
+  function toggleEditEvent(code: string) {
+    setEditEvents((prev) =>
+      prev.includes(code) ? prev.filter((e) => e !== code) : [...prev, code],
+    );
+  }
+
+  function startEdit(ep: WebhookEndpoint) {
+    setEditingId(ep.id);
+    setEditName(ep.name);
+    setEditUrl(ep.url);
+    setEditEvents([...ep.eventTypes]);
+    setError(null);
+  }
+
+  async function onSaveEdit(e: FormEvent) {
+    e.preventDefault();
+    if (!editingId) return;
+    setWhBusy(true);
+    setError(null);
+    try {
+      await api.updateWebhookEndpoint(editingId, {
+        name: editName.trim(),
+        url: editUrl.trim(),
+        eventTypes: editEvents,
+      });
+      setEditingId(null);
+      setResult('Webhook endpoint updated.');
+      await refreshEndpoints();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update webhook');
+    } finally {
+      setWhBusy(false);
+    }
+  }
+
   async function onCreateWebhook(e: FormEvent) {
     e.preventDefault();
     setWhBusy(true);
@@ -143,7 +243,9 @@ export default function IntegrationsAdminPage() {
       });
       if (created.secret) setRevealedSecret(created.secret);
       setWhName('');
-      setResult(`Webhook “${created.name}” created. Copy the secret now — it won’t be shown again.`);
+      setResult(
+        `Webhook “${created.name}” created. Copy the secret now — it won’t be shown again.`,
+      );
       await refreshEndpoints();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create webhook');
@@ -165,6 +267,34 @@ export default function IntegrationsAdminPage() {
     }
   }
 
+  async function onRotateSecret(ep: WebhookEndpoint) {
+    if (
+      !window.confirm(
+        `Rotate signing secret for “${ep.name}”? The old secret stops working immediately.`,
+      )
+    ) {
+      return;
+    }
+    setWhBusy(true);
+    setError(null);
+    setResult(null);
+    setRevealedSecret(null);
+    try {
+      const updated = await api.updateWebhookEndpoint(ep.id, {
+        rotateSecret: true,
+      });
+      if (updated.secret) setRevealedSecret(updated.secret);
+      setResult(
+        `Secret rotated for “${ep.name}”. Copy the new secret now — it won’t be shown again.`,
+      );
+      await refreshEndpoints();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to rotate secret');
+    } finally {
+      setWhBusy(false);
+    }
+  }
+
   async function onTestWebhook(id: string) {
     setWhBusy(true);
     setError(null);
@@ -176,10 +306,34 @@ export default function IntegrationsAdminPage() {
           ? `Test ping OK (HTTP ${res.statusCode ?? '—'}) · delivery ${res.deliveryId}`
           : `Test ping failed: ${res.error ?? `HTTP ${res.statusCode}`}`,
       );
+      if (deliveriesFor === id) {
+        setDeliveries(await api.webhookDeliveries(id));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Test ping failed');
     } finally {
       setWhBusy(false);
+    }
+  }
+
+  async function onToggleDeliveries(id: string) {
+    if (deliveriesFor === id) {
+      setDeliveriesFor(null);
+      setDeliveries([]);
+      return;
+    }
+    setDeliveriesBusy(true);
+    setError(null);
+    try {
+      const rows = await api.webhookDeliveries(id);
+      setDeliveriesFor(id);
+      setDeliveries(rows);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to load deliveries',
+      );
+    } finally {
+      setDeliveriesBusy(false);
     }
   }
 
@@ -189,6 +343,11 @@ export default function IntegrationsAdminPage() {
     setError(null);
     try {
       await api.deleteWebhookEndpoint(id);
+      if (deliveriesFor === id) {
+        setDeliveriesFor(null);
+        setDeliveries([]);
+      }
+      if (editingId === id) setEditingId(null);
       await refreshEndpoints();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete webhook');
@@ -232,95 +391,77 @@ export default function IntegrationsAdminPage() {
             {error}
           </p>
         ) : null}
+        {result ? <pre className={styles.result}>{result}</pre> : null}
 
         <section className={styles.panel}>
-          <h2>
-            Status
-          </h2>
+          <div className={styles.panelHead}>
+            <PanelHeading icon={Plug}>Status</PanelHeading>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={statusBusy}
+              onClick={() => void refreshStatus()}
+            >
+              <Icon icon={RefreshCw} size="sm" />
+              {statusBusy ? 'Refreshing…' : 'Refresh'}
+            </Button>
+          </div>
           <div className={styles.statusGrid}>
-            <div
-              className={`${styles.statusCard} ${
-                status?.slack.configured ? styles.ready : styles.pending
-              }`}
-            >
-              <strong>Slack</strong>
-              <span>
-                {status?.slack.configured
+            <IntegrationStatusCard
+              title="Slack"
+              ready={!!status?.slack.configured}
+              status={
+                status?.slack.configured
                   ? 'Env configured'
-                  : 'Not configured (dev simulate still works)'}
-              </span>
-              <em>
-                Signing secret:{' '}
-                {status?.slack.signingSecret ? 'yes' : 'no'} · Bot token:{' '}
-                {status?.slack.botToken ? 'yes' : 'no'}
-                {status?.slack.authRequired ? ' · auth required' : ''}
-              </em>
-            </div>
-            <div
-              className={`${styles.statusCard} ${
-                status?.teams.configured ? styles.ready : styles.pending
-              }`}
-            >
-              <strong>Microsoft Teams</strong>
-              <span>
-                {status?.teams.configured
+                  : 'Not configured (dev simulate still works)'
+              }
+              detail={`Signing secret: ${status?.slack.signingSecret ? 'yes' : 'no'} · Bot token: ${status?.slack.botToken ? 'yes' : 'no'}${status?.slack.authRequired ? ' · auth required' : ''}`}
+              glyph={SlackGlyph}
+            />
+            <IntegrationStatusCard
+              title="Microsoft Teams"
+              ready={!!status?.teams.configured}
+              status={
+                status?.teams.configured
                   ? 'Env configured'
-                  : 'Not configured (dev simulate still works)'}
-              </span>
-              <em>
-                App id (JWT): {status?.teams.appId ? 'yes' : 'no'} · Webhook
-                secret: {status?.teams.webhookSecret ? 'yes' : 'no'}
-                {status?.teams.jwtVerification ? ' · JWT on' : ''}
-                {status?.teams.allowEmulator ? ' · emulator' : ''}
-                {status?.teams.authRequired ? ' · auth required' : ''}
-              </em>
-            </div>
-            <div
-              className={`${styles.statusCard} ${
-                status?.email?.configured ? styles.ready : styles.pending
-              }`}
-            >
-              <strong>Email (SMTP)</strong>
-              <span>
-                {status?.email?.configured
+                  : 'Not configured (dev simulate still works)'
+              }
+              detail={`App id (JWT): ${status?.teams.appId ? 'yes' : 'no'} · Webhook secret: ${status?.teams.webhookSecret ? 'yes' : 'no'}${status?.teams.jwtVerification ? ' · JWT on' : ''}${status?.teams.allowEmulator ? ' · emulator' : ''}${status?.teams.authRequired ? ' · auth required' : ''}`}
+              glyph={TeamsGlyph}
+            />
+            <IntegrationStatusCard
+              title="Email (SMTP)"
+              ready={!!status?.email?.configured}
+              status={
+                status?.email?.configured
                   ? 'Outbound SMTP configured'
-                  : 'Not configured — outbound emails are logged and skipped'}
-              </span>
-              <em>
-                Host: {status?.email?.outbound.hostValue ?? '—'} · From:{' '}
-                {status?.email?.outbound.from ?? '—'} · Inbound secret:{' '}
-                {status?.email?.inbound.secretConfigured ? 'yes' : 'no'}
-              </em>
-            </div>
-            <div
-              className={`${styles.statusCard} ${
-                status?.email?.imap?.configured ? styles.ready : styles.pending
-              }`}
-            >
-              <strong>Email (IMAP)</strong>
-              <span>
-                {status?.email?.imap?.configured
+                  : 'Not configured — outbound emails are logged and skipped'
+              }
+              detail={`Host: ${status?.email?.outbound.hostValue ?? '—'} · From: ${status?.email?.outbound.from ?? '—'} · Inbound secret: ${status?.email?.inbound.secretConfigured ? 'yes' : 'no'}`}
+              lucide={Mail}
+            />
+            <IntegrationStatusCard
+              title="Email (IMAP)"
+              ready={!!status?.email?.imap?.configured}
+              status={
+                status?.email?.imap?.configured
                   ? `Polling ${status.email.imap.mailbox ?? 'INBOX'} every ${status.email.imap.pollMinutes ?? 5}m`
-                  : 'Not configured — webhook inbound still works'}
-              </span>
-              <em>
-                Host: {status?.email?.imap?.host ?? '—'} ·{' '}
-                {status?.email?.imap?.note ?? ''}
-              </em>
-            </div>
-            <div
-              className={`${styles.statusCard} ${
-                webhooksEnabled ? styles.ready : styles.pending
-              }`}
-            >
-              <strong>Outbound webhooks</strong>
-              <span>
-                {webhooksEnabled
+                  : 'Not configured — webhook inbound still works'
+              }
+              detail={`Host: ${status?.email?.imap?.host ?? '—'} · ${status?.email?.imap?.note ?? ''}`}
+              lucide={Inbox}
+            />
+            <IntegrationStatusCard
+              title="Outbound webhooks"
+              ready={webhooksEnabled}
+              status={
+                webhooksEnabled
                   ? `${endpoints.filter((e) => e.isActive).length} active · ${endpoints.length} total`
-                  : 'Disabled (WEBHOOKS_ENABLED=false)'}
-              </span>
-              <em>HMAC-SHA256 signed POSTs on ticket lifecycle events</em>
-            </div>
+                  : 'Disabled (WEBHOOKS_ENABLED=false)'
+              }
+              detail="HMAC-SHA256 signed POSTs on ticket lifecycle events"
+              lucide={Webhook}
+            />
           </div>
           <p className={styles.meta}>
             Service account:{' '}
@@ -332,27 +473,28 @@ export default function IntegrationsAdminPage() {
         </section>
 
         <section className={styles.panel}>
-          <h2>Outbound webhooks</h2>
+          <PanelHeading icon={Webhook}>Outbound webhooks</PanelHeading>
           <p className={styles.hint}>
             LogIT POSTs JSON to your URL on ticket events. Verify{' '}
             <code>X-LogIT-Signature</code> (HMAC-SHA256 of the raw body,{' '}
-            <code>sha256=&lt;hex&gt;</code>) with the endpoint secret. Also
-            check <code>X-LogIT-Event</code>, <code>X-LogIT-Delivery-Id</code>,{' '}
-            <code>X-LogIT-Timestamp</code>. Docs:{' '}
-            INTEGRATIONS_OUTBOUND_WEBHOOKS.md
+            <code>sha256=&lt;hex&gt;</code>) with the endpoint secret. Also check{' '}
+            <code>X-LogIT-Event</code>, <code>X-LogIT-Delivery-Id</code>,{' '}
+            <code>X-LogIT-Timestamp</code>. See{' '}
+            <code>docs/INTEGRATIONS_OUTBOUND_WEBHOOKS.md</code>.
           </p>
 
           {revealedSecret ? (
             <div className={styles.secretBox}>
-              <strong>New signing secret (copy now)</strong>
+              <strong>Signing secret (copy now)</strong>
               <code>{revealedSecret}</code>
-              <button
+              <Button
                 type="button"
-                className={styles.copyBtn}
+                variant="secondary"
                 onClick={() => copy('webhook-secret', revealedSecret)}
               >
+                <Icon icon={Copy} size="sm" />
                 {copied === 'webhook-secret' ? 'Copied' : 'Copy secret'}
-              </button>
+              </Button>
             </div>
           ) : null}
 
@@ -362,10 +504,14 @@ export default function IntegrationsAdminPage() {
             <ul className={styles.endpointList}>
               {endpoints.map((ep) => (
                 <li key={ep.id}>
-                  <div>
+                  <div className={styles.endpointBody}>
                     <strong>
                       {ep.name}{' '}
-                      <span className={ep.isActive ? styles.badgeOn : styles.badgeOff}>
+                      <span
+                        className={
+                          ep.isActive ? styles.badgeOn : styles.badgeOff
+                        }
+                      >
                         {ep.isActive ? 'active' : 'inactive'}
                       </span>
                     </strong>
@@ -374,32 +520,152 @@ export default function IntegrationsAdminPage() {
                       Events: {ep.eventTypes.join(', ') || '—'} · Secret:{' '}
                       {ep.secretHint}
                     </em>
+
+                    {editingId === ep.id ? (
+                      <form
+                        className={styles.editForm}
+                        onSubmit={onSaveEdit}
+                      >
+                        <label>
+                          Name
+                          <input
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            required
+                            minLength={2}
+                          />
+                        </label>
+                        <label>
+                          URL
+                          <input
+                            value={editUrl}
+                            onChange={(e) => setEditUrl(e.target.value)}
+                            required
+                            type="url"
+                          />
+                        </label>
+                        <fieldset className={styles.eventSet}>
+                          <legend>Events</legend>
+                          {eventCatalog.map((code) => (
+                            <label key={code} className={styles.checkRow}>
+                              <input
+                                type="checkbox"
+                                checked={editEvents.includes(code)}
+                                onChange={() => toggleEditEvent(code)}
+                              />
+                              {code}
+                            </label>
+                          ))}
+                        </fieldset>
+                        <div className={styles.editActions}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            disabled={whBusy}
+                            onClick={() => setEditingId(null)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button type="submit" disabled={whBusy}>
+                            {whBusy ? 'Saving…' : 'Save changes'}
+                          </Button>
+                        </div>
+                      </form>
+                    ) : null}
+
+                    {deliveriesFor === ep.id ? (
+                      <div className={styles.deliveries}>
+                        <h3 className={styles.subhead}>Recent deliveries</h3>
+                        {deliveries.length === 0 ? (
+                          <p className={styles.hint}>
+                            No deliveries yet — run a test ping.
+                          </p>
+                        ) : (
+                          <ul className={styles.deliveryList}>
+                            {deliveries.map((d) => (
+                              <li key={d.id}>
+                                <span
+                                  className={
+                                    d.success
+                                      ? styles.deliveryOk
+                                      : styles.deliveryFail
+                                  }
+                                >
+                                  {d.success ? 'OK' : 'Fail'}
+                                </span>
+                                <code>{d.eventType}</code>
+                                <span>
+                                  HTTP {d.statusCode ?? '—'} ·{' '}
+                                  {new Date(d.createdAt).toLocaleString()}
+                                </span>
+                                {d.error ? (
+                                  <em className={styles.deliveryError}>
+                                    {d.error}
+                                  </em>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                   <div className={styles.endpointActions}>
-                    <button
+                    <Button
                       type="button"
-                      className={styles.copyBtn}
+                      variant="secondary"
+                      disabled={whBusy}
+                      onClick={() =>
+                        editingId === ep.id
+                          ? setEditingId(null)
+                          : startEdit(ep)
+                      }
+                    >
+                      {editingId === ep.id ? 'Close edit' : 'Edit'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
                       disabled={whBusy}
                       onClick={() => void onToggleActive(ep)}
                     >
                       {ep.isActive ? 'Disable' : 'Enable'}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
-                      className={styles.copyBtn}
+                      variant="secondary"
                       disabled={whBusy || !ep.isActive}
                       onClick={() => void onTestWebhook(ep.id)}
                     >
                       Test ping
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
-                      className={styles.copyBtn}
+                      variant="secondary"
+                      disabled={whBusy || deliveriesBusy}
+                      onClick={() => void onToggleDeliveries(ep.id)}
+                    >
+                      <Icon icon={History} size="sm" />
+                      {deliveriesFor === ep.id ? 'Hide log' : 'Deliveries'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={whBusy}
+                      onClick={() => void onRotateSecret(ep)}
+                    >
+                      <Icon icon={KeyRound} size="sm" />
+                      Rotate secret
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="dangerOutline"
                       disabled={whBusy}
                       onClick={() => void onDeleteWebhook(ep.id)}
                     >
+                      <Icon icon={Trash2} size="sm" />
                       Delete
-                    </button>
+                    </Button>
                   </div>
                 </li>
               ))}
@@ -449,19 +715,18 @@ export default function IntegrationsAdminPage() {
               />
               Active immediately
             </label>
-            <button type="submit" className={appStyles.btn} disabled={whBusy}>
+            <Button type="submit" disabled={whBusy}>
               {whBusy ? 'Saving…' : 'Create webhook'}
-            </button>
+            </Button>
           </form>
         </section>
 
         <section className={styles.panel}>
-          <h2>
-            Webhook URLs
-          </h2>
+          <PanelHeading icon={Link2}>Webhook URLs</PanelHeading>
           <p className={styles.hint}>
             Paste these into Slack, Teams, or your email inbound parse provider.
-            Docs: INTEGRATIONS_SLACK_TEAMS.md · INTEGRATIONS_EMAIL.md
+            See <code>docs/INTEGRATIONS_SLACK_TEAMS.md</code> and{' '}
+            <code>docs/INTEGRATIONS_EMAIL.md</code>.
           </p>
           <ul className={styles.urlList}>
             {[
@@ -476,13 +741,14 @@ export default function IntegrationsAdminPage() {
                     <strong>{label}</strong>
                     <code>{url}</code>
                   </div>
-                  <button
+                  <Button
                     type="button"
-                    className={styles.copyBtn}
+                    variant="secondary"
                     onClick={() => copy(String(label), String(url))}
                   >
+                    <Icon icon={Copy} size="sm" />
                     {copied === label ? 'Copied' : 'Copy'}
-                  </button>
+                  </Button>
                 </li>
               ) : null,
             )}
@@ -490,14 +756,13 @@ export default function IntegrationsAdminPage() {
         </section>
 
         <section className={styles.panel}>
-          <h2>Email setup</h2>
+          <PanelHeading icon={Mail}>Email setup</PanelHeading>
           <p className={styles.hint}>
             Outbound uses nodemailer + SMTP. Inbound webhook and optional IMAP
             poller share the same pipeline: reply headers (
             <code>In-Reply-To</code> / <code>References</code>) or subject token{' '}
             <code>[INC-2026-…]</code> comment on a ticket; otherwise a new
-            incident is created. Message-IDs are stored for threading and
-            dedupe.
+            incident is created. Message-IDs are stored for threading and dedupe.
           </p>
           <ol className={styles.steps}>
             <li>
@@ -506,8 +771,8 @@ export default function IntegrationsAdminPage() {
               <code>EMAIL_FROM</code>, and <code>APP_PUBLIC_URL</code>.
             </li>
             <li>
-              Point your inbound parse webhook at the Email inbound URL. Optional:{' '}
-              <code>EMAIL_INBOUND_SECRET</code> as Bearer auth.
+              Point your inbound parse webhook at the Email inbound URL.
+              Optional: <code>EMAIL_INBOUND_SECRET</code> as Bearer auth.
             </li>
             <li>
               Optional IMAP: set <code>IMAP_HOST</code>, <code>IMAP_USER</code>,{' '}
@@ -519,20 +784,20 @@ export default function IntegrationsAdminPage() {
             </li>
           </ol>
           {status?.email?.imap?.configured ? (
-            <button
+            <Button
               type="button"
-              className={appStyles.btnSecondary}
+              variant="secondary"
               disabled={imapBusy}
               onClick={() => void onImapPoll()}
-              style={{ marginTop: '0.75rem' }}
+              className={styles.imapBtn}
             >
               {imapBusy ? 'Polling…' : 'Run IMAP poll now'}
-            </button>
+            </Button>
           ) : null}
         </section>
 
         <section className={styles.panel}>
-          <h2>Message examples</h2>
+          <PanelHeading icon={MessageSquareText}>Message examples</PanelHeading>
           <ul className={styles.examples}>
             {(status?.examples ?? []).map((ex) => (
               <li key={ex}>
@@ -547,8 +812,9 @@ export default function IntegrationsAdminPage() {
               <code>SLACK_BOT_TOKEN</code>) in API env.
             </li>
             <li>
-              For Teams, point the bot messaging endpoint at the Teams URL and
-              set <code>TEAMS_WEBHOOK_SECRET</code>.
+              For Teams, point the bot messaging endpoint at the Teams URL. Prefer{' '}
+              <code>TEAMS_APP_ID</code> (Bot Framework JWT). Optional fallback:{' '}
+              <code>TEAMS_WEBHOOK_SECRET</code> as shared Bearer.
             </li>
             <li>
               Set <code>APP_PUBLIC_URL</code> so chat/email replies include deep
@@ -558,9 +824,7 @@ export default function IntegrationsAdminPage() {
         </section>
 
         <section className={styles.panel}>
-          <h2>
-            Dev simulate
-          </h2>
+          <PanelHeading icon={Send}>Dev simulate</PanelHeading>
           <p className={styles.hint}>
             Sysadmin-only. Creates a real ticket without Slack/Teams — use this
             to demo the chat-to-ticket flow locally.
@@ -575,13 +839,10 @@ export default function IntegrationsAdminPage() {
                 required
               />
             </label>
-            <button type="submit" className={appStyles.btn} disabled={busy}>
+            <Button type="submit" disabled={busy}>
               {busy ? 'Creating…' : 'Simulate ticket create'}
-            </button>
+            </Button>
           </form>
-          {result ? (
-            <pre className={styles.result}>{result}</pre>
-          ) : null}
         </section>
       </div>
     </AppShell>

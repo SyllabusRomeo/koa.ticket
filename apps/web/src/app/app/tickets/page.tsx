@@ -64,6 +64,14 @@ function TicketsPageInner() {
   const [queueFilter, setQueueFilterState] = useState<QueueFilter>(() =>
     parseQueue(searchParams.get('queue')),
   );
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiNote, setAiNote] = useState<string | null>(null);
+  const [dupes, setDupes] = useState<
+    Array<{ number: string; title: string; score: number }>
+  >([]);
+  const [kbHints, setKbHints] = useState<
+    Array<{ slug: string; title: string; score: number }>
+  >([]);
 
   function setQueueFilter(next: QueueFilter) {
     setQueueFilterState(next);
@@ -167,6 +175,48 @@ function TicketsPageInner() {
       setError(err instanceof Error ? err.message : 'Could not create ticket');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function onAiAssist() {
+    if (title.trim().length < 3) {
+      setError('Enter a title first, then run AI assist.');
+      return;
+    }
+    setAiBusy(true);
+    setError(null);
+    setAiNote(null);
+    try {
+      const [classified, duplicates, knowledge] = await Promise.all([
+        api.aiClassify({ title, description }),
+        api.aiDuplicates({ title, description }),
+        api.aiSuggestKnowledge({ title, description }),
+      ]);
+      if (classified.typeCode) setTypeCode(classified.typeCode);
+      if (classified.categoryCode) setCategoryCode(classified.categoryCode);
+      setDupes(
+        duplicates.matches.map((m) => ({
+          number: m.number,
+          title: m.title,
+          score: m.score,
+        })),
+      );
+      setKbHints(
+        knowledge.matches.map((m) => ({
+          slug: m.slug,
+          title: m.title,
+          score: m.score,
+        })),
+      );
+      setAiNote(
+        `${classified.rationale} · Suggested ${classified.typeName}${
+          classified.categoryName ? ` / ${classified.categoryName}` : ''
+        } (${Math.round(classified.confidence * 100)}% confidence, ${classified.provider}).`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'AI assist failed');
+    } finally {
+      setAiBusy(false);
     }
   }
 
@@ -301,6 +351,46 @@ function TicketsPageInner() {
                 rows={5}
               />
             </label>
+            <div className={styles.formActions}>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                disabled={aiBusy || saving}
+                onClick={onAiAssist}
+              >
+                {aiBusy ? 'Analyzing…' : 'AI assist'}
+              </button>
+            </div>
+            {aiNote ? <p className={styles.hint}>{aiNote}</p> : null}
+            {dupes.length ? (
+              <div className={styles.hint}>
+                <strong>Possible duplicates:</strong>
+                <ul>
+                  {dupes.map((d) => (
+                    <li key={d.number}>
+                      <a href={`/app/tickets/${encodeURIComponent(d.number)}`}>
+                        {d.number}
+                      </a>{' '}
+                      — {d.title} ({Math.round(d.score * 100)}%)
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {kbHints.length ? (
+              <div className={styles.hint}>
+                <strong>Related knowledge:</strong>
+                <ul>
+                  {kbHints.map((k) => (
+                    <li key={k.slug}>
+                      <a href={`/app/knowledge/${encodeURIComponent(k.slug)}`}>
+                        {k.title}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <PendingAttachments
               files={pendingFiles}
               onChange={setPendingFiles}

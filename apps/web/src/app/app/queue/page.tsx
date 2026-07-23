@@ -20,8 +20,9 @@ import { EmptyState } from '@/components/EmptyState';
 import { StatusBadge } from '@/components/StatusBadge';
 import { SlaTimer } from '@/components/SlaTimer';
 import { Button, ButtonLink } from '@/components/Button';
-import { Columns3, RefreshCw } from 'lucide-react';
+import { Columns3, Gauge, RefreshCw } from 'lucide-react';
 import { Icon } from '@/components/Icon';
+import { SectionHeading } from '@/components/SectionHeading';
 import styles from './queue.module.css';
 
 type Scope = 'all' | 'mine' | 'unassigned';
@@ -380,7 +381,7 @@ function QueueBoardInner() {
             </div>
 
             <aside className={styles.workload} aria-label="Workload">
-              <h2>Workload</h2>
+              <SectionHeading icon={Gauge}>Workload</SectionHeading>
               <ul className={styles.workloadList}>
                 {board.workload.map((w) => (
                   <li key={w.userId ?? 'unassigned'}>

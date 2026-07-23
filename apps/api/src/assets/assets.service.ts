@@ -5,8 +5,11 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
+  ASSET_RELATION_TYPES,
+  ASSET_RELATION_TYPE_LABELS,
   ASSET_STATUS_ALIASES,
   ASSET_STATUSES,
+  type AssetRelationType,
   type AssetStatusCode,
 } from '@logit/shared';
 import { PrismaService } from '../prisma/prisma.service';
@@ -487,5 +490,555 @@ export class AssetsService {
     );
 
     return `${header}\n${lines.join('\n')}`;
+  }
+
+  relationTypes() {
+    return ASSET_RELATION_TYPES.map((code) => ({
+      code,
+      name: ASSET_RELATION_TYPE_LABELS[code],
+    }));
+  }
+
+  normalizeRelationType(raw: string): AssetRelationType {
+    const key = raw.trim().toLowerCase().replace(/\s+/g, '_');
+    if (!(ASSET_RELATION_TYPES as readonly string[]).includes(key)) {
+      throw new BadRequestException(
+        `Invalid relation type. Allowed: ${ASSET_RELATION_TYPES.join(', ')}`,
+      );
+    }
+    return key as AssetRelationType;
+  }
+
+  private relationAssetSelect = {
+    id: true,
+    assetTag: true,
+    name: true,
+    status: true,
+    type: { select: { code: true, name: true } },
+  } as const;
+
+  async listRelations(assetId: string) {
+    const asset = await this.prisma.asset.findFirst({
+      where: { id: assetId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!asset) throw new NotFoundException('Asset not found');
+
+    const rows = await this.prisma.assetRelation.findMany({
+      where: {
+        OR: [{ fromAssetId: assetId }, { toAssetId: assetId }],
+      },
+      include: {
+        fromAsset: { select: this.relationAssetSelect },
+        toAsset: { select: this.relationAssetSelect },
+      },
+      orderBy: [{ relationType: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    return rows.map((r) => ({
+      id: r.id,
+      relationType: r.relationType,
+      relationTypeName:
+        ASSET_RELATION_TYPE_LABELS[r.relationType as AssetRelationType] ??
+        r.relationType,
+      notes: r.notes,
+      direction: r.fromAssetId === assetId ? 'outgoing' : 'incoming',
+      fromAsset: this.serialize(r.fromAsset as never),
+      toAsset: this.serialize(r.toAsset as never),
+      otherAsset: this.serialize(
+        (r.fromAssetId === assetId ? r.toAsset : r.fromAsset) as never,
+      ),
+      createdAt: r.createdAt,
+    }));
+  }
+
+  async createRelation(
+    fromAssetId: string,
+    input: { toAssetId: string; relationType: string; notes?: string },
+  ) {
+    if (fromAssetId === input.toAssetId) {
+      throw new BadRequestException('Cannot relate an asset to itself');
+    }
+    const [from, to] = await Promise.all([
+      this.prisma.asset.findFirst({
+        where: { id: fromAssetId, deletedAt: null },
+      }),
+      this.prisma.asset.findFirst({
+        where: { id: input.toAssetId, deletedAt: null },
+      }),
+    ]);
+    if (!from) throw new NotFoundException('Source asset not found');
+    if (!to) throw new NotFoundException('Target asset not found');
+
+    const relationType = this.normalizeRelationType(input.relationType);
+    try {
+      const created = await this.prisma.assetRelation.create({
+        data: {
+          fromAssetId,
+          toAssetId: input.toAssetId,
+          relationType,
+          notes: input.notes?.trim() || null,
+        },
+        include: {
+          fromAsset: { select: this.relationAssetSelect },
+          toAsset: { select: this.relationAssetSelect },
+        },
+      });
+      return {
+        id: created.id,
+        relationType: created.relationType,
+        relationTypeName: ASSET_RELATION_TYPE_LABELS[relationType],
+        notes: created.notes,
+        fromAsset: this.serialize(created.fromAsset as never),
+        toAsset: this.serialize(created.toAsset as never),
+      };
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw new BadRequestException('This relationship already exists');
+      }
+      throw e;
+    }
+  }
+
+  async deleteRelation(assetId: string, relationId: string) {
+    const rel = await this.prisma.assetRelation.findFirst({
+      where: {
+        id: relationId,
+        OR: [{ fromAssetId: assetId }, { toAssetId: assetId }],
+      },
+    });
+    if (!rel) throw new NotFoundException('Relationship not found');
+    await this.prisma.assetRelation.delete({ where: { id: relationId } });
+    return { ok: true };
+  }
+
+  /** BFS neighborhood for change/incident impact preview. */
+  async impact(assetId: string, depth = 2) {
+    const root = await this.prisma.asset.findFirst({
+      where: { id: assetId, deletedAt: null },
+      include: {
+        type: true,
+        assignedUser: { select: PERSON_SELECT },
+        location: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            site: true,
+            country: true,
+          },
+        },
+      },
+    });
+    if (!root) throw new NotFoundException('Asset not found');
+
+    const maxDepth = Math.min(Math.max(depth, 1), 4);
+    const visited = new Map<string, number>();
+    visited.set(assetId, 0);
+    const edges: Array<{
+      fromAssetId: string;
+      toAssetId: string;
+      relationType: string;
+      relationTypeName: string;
+    }> = [];
+    let frontier = [assetId];
+
+    for (let d = 0; d < maxDepth && frontier.length; d++) {
+      const rels = await this.prisma.assetRelation.findMany({
+        where: {
+          OR: [
+            { fromAssetId: { in: frontier } },
+            { toAssetId: { in: frontier } },
+          ],
+        },
+      });
+      const next: string[] = [];
+      for (const r of rels) {
+        edges.push({
+          fromAssetId: r.fromAssetId,
+          toAssetId: r.toAssetId,
+          relationType: r.relationType,
+          relationTypeName:
+            ASSET_RELATION_TYPE_LABELS[r.relationType as AssetRelationType] ??
+            r.relationType,
+        });
+        for (const id of [r.fromAssetId, r.toAssetId]) {
+          if (!visited.has(id)) {
+            visited.set(id, d + 1);
+            next.push(id);
+          }
+        }
+      }
+      frontier = next;
+    }
+
+    const neighborIds = [...visited.keys()].filter((id) => id !== assetId);
+    const neighbors = neighborIds.length
+      ? await this.prisma.asset.findMany({
+          where: { id: { in: neighborIds }, deletedAt: null },
+          include: {
+            type: true,
+            assignedUser: { select: PERSON_SELECT },
+            location: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                site: true,
+                country: true,
+              },
+            },
+          },
+        })
+      : [];
+
+    const uniqueEdges = [
+      ...new Map(
+        edges.map((e) => [
+          `${e.fromAssetId}:${e.toAssetId}:${e.relationType}`,
+          e,
+        ]),
+      ).values(),
+    ];
+
+    return {
+      root: this.serialize(root),
+      depth: maxDepth,
+      nodes: [
+        { ...this.serialize(root), hop: 0 },
+        ...neighbors.map((n) => ({
+          ...this.serialize(n),
+          hop: visited.get(n.id) ?? 0,
+        })),
+      ],
+      edges: uniqueEdges,
+      impactedCount: neighborIds.length,
+    };
+  }
+
+  /**
+   * Discovery / auto-import: upsert CIs from CSV text or JSON rows.
+   * Optional relation rows: fromTag,toTag,relationType[,notes]
+   */
+  async discoveryImport(input: {
+    csv?: string;
+    assets?: Array<{
+      assetTag: string;
+      typeCode: string;
+      name?: string;
+      serialNumber?: string;
+      manufacturer?: string;
+      model?: string;
+      status?: string;
+      locationCode?: string;
+      notes?: string;
+    }>;
+    relations?: Array<{
+      fromTag: string;
+      toTag: string;
+      relationType: string;
+      notes?: string;
+    }>;
+  }) {
+    let assetRows = input.assets ?? [];
+    let relationRows = input.relations ?? [];
+
+    if (input.csv?.trim()) {
+      const parsed = this.parseDiscoveryCsv(input.csv);
+      assetRows = [...assetRows, ...parsed.assets];
+      relationRows = [...relationRows, ...parsed.relations];
+    }
+
+    if (!assetRows.length && !relationRows.length) {
+      throw new BadRequestException(
+        'Provide csv text and/or assets[] / relations[] payloads',
+      );
+    }
+
+    const locations = await this.prisma.location.findMany({
+      where: { deletedAt: null },
+      select: { id: true, code: true },
+    });
+    const locByCode = new Map(
+      locations.map((l) => [l.code.toUpperCase(), l.id]),
+    );
+    const types = await this.prisma.assetType.findMany();
+    const typeByCode = new Map(types.map((t) => [t.code.toUpperCase(), t]));
+
+    let created = 0;
+    let updated = 0;
+    const errors: string[] = [];
+    const tagToId = new Map<string, string>();
+
+    for (const [i, row] of assetRows.entries()) {
+      try {
+        const assetTag = row.assetTag?.trim().toUpperCase();
+        const typeCode = row.typeCode?.trim().toUpperCase();
+        if (!assetTag || assetTag.length < 2) {
+          throw new Error('assetTag required');
+        }
+        if (!typeCode) throw new Error('typeCode required');
+        const type = typeByCode.get(typeCode);
+        if (!type) throw new Error(`Unknown typeCode ${typeCode}`);
+
+        let locationId: string | null = null;
+        if (row.locationCode?.trim()) {
+          locationId =
+            locByCode.get(row.locationCode.trim().toUpperCase()) ?? null;
+          if (!locationId) {
+            throw new Error(`Unknown locationCode ${row.locationCode}`);
+          }
+        }
+
+        const status = this.normalizeStatus(row.status ?? 'in_stock');
+        const existing = await this.prisma.asset.findUnique({
+          where: { assetTag },
+        });
+        if (existing && !existing.deletedAt) {
+          const asset = await this.prisma.asset.update({
+            where: { id: existing.id },
+            data: {
+              name: row.name?.trim() || existing.name,
+              typeId: type.id,
+              serialNumber:
+                row.serialNumber?.trim() || existing.serialNumber,
+              manufacturer:
+                row.manufacturer?.trim() || existing.manufacturer,
+              model: row.model?.trim() || existing.model,
+              status,
+              locationId:
+                locationId !== null ? locationId : existing.locationId,
+              notes: row.notes?.trim() || existing.notes,
+              source: 'discovery',
+              deletedAt: null,
+            },
+          });
+          tagToId.set(assetTag, asset.id);
+          updated += 1;
+        } else if (existing?.deletedAt) {
+          const asset = await this.prisma.asset.update({
+            where: { id: existing.id },
+            data: {
+              name: row.name?.trim() || null,
+              typeId: type.id,
+              serialNumber: row.serialNumber?.trim() || null,
+              manufacturer: row.manufacturer?.trim() || null,
+              model: row.model?.trim() || null,
+              status,
+              locationId,
+              notes: row.notes?.trim() || null,
+              source: 'discovery',
+              deletedAt: null,
+            },
+          });
+          tagToId.set(assetTag, asset.id);
+          updated += 1;
+        } else {
+          const asset = await this.prisma.asset.create({
+            data: {
+              assetTag,
+              name: row.name?.trim() || null,
+              typeId: type.id,
+              serialNumber: row.serialNumber?.trim() || null,
+              manufacturer: row.manufacturer?.trim() || null,
+              model: row.model?.trim() || null,
+              status,
+              locationId,
+              notes: row.notes?.trim() || null,
+              source: 'discovery',
+            },
+          });
+          tagToId.set(assetTag, asset.id);
+          created += 1;
+        }
+      } catch (e) {
+        errors.push(`assets[${i}]: ${(e as Error).message}`);
+      }
+    }
+
+    // Resolve tags that already exist but weren't in this batch
+    const missingTags = new Set<string>();
+    for (const r of relationRows) {
+      const from = r.fromTag?.trim().toUpperCase();
+      const to = r.toTag?.trim().toUpperCase();
+      if (from && !tagToId.has(from)) missingTags.add(from);
+      if (to && !tagToId.has(to)) missingTags.add(to);
+    }
+    if (missingTags.size) {
+      const found = await this.prisma.asset.findMany({
+        where: {
+          assetTag: { in: [...missingTags] },
+          deletedAt: null,
+        },
+        select: { id: true, assetTag: true },
+      });
+      for (const a of found) tagToId.set(a.assetTag, a.id);
+    }
+
+    let relationsCreated = 0;
+    let relationsSkipped = 0;
+    for (const [i, row] of relationRows.entries()) {
+      try {
+        const fromTag = row.fromTag?.trim().toUpperCase();
+        const toTag = row.toTag?.trim().toUpperCase();
+        if (!fromTag || !toTag) throw new Error('fromTag and toTag required');
+        const fromId = tagToId.get(fromTag);
+        const toId = tagToId.get(toTag);
+        if (!fromId) throw new Error(`Unknown fromTag ${fromTag}`);
+        if (!toId) throw new Error(`Unknown toTag ${toTag}`);
+        if (fromId === toId) throw new Error('Self-relation not allowed');
+        const relationType = this.normalizeRelationType(row.relationType);
+        try {
+          await this.prisma.assetRelation.create({
+            data: {
+              fromAssetId: fromId,
+              toAssetId: toId,
+              relationType,
+              notes: row.notes?.trim() || null,
+            },
+          });
+          relationsCreated += 1;
+        } catch (e) {
+          if (
+            e instanceof Prisma.PrismaClientKnownRequestError &&
+            e.code === 'P2002'
+          ) {
+            relationsSkipped += 1;
+          } else {
+            throw e;
+          }
+        }
+      } catch (e) {
+        errors.push(`relations[${i}]: ${(e as Error).message}`);
+      }
+    }
+
+    return {
+      created,
+      updated,
+      relationsCreated,
+      relationsSkipped,
+      errors,
+    };
+  }
+
+  private parseDiscoveryCsv(csv: string): {
+    assets: Array<{
+      assetTag: string;
+      typeCode: string;
+      name?: string;
+      serialNumber?: string;
+      manufacturer?: string;
+      model?: string;
+      status?: string;
+      locationCode?: string;
+      notes?: string;
+    }>;
+    relations: Array<{
+      fromTag: string;
+      toTag: string;
+      relationType: string;
+      notes?: string;
+    }>;
+  } {
+    const lines = csv
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('#'));
+    if (!lines.length) return { assets: [], relations: [] };
+
+    const parseLine = (line: string): string[] => {
+      const out: string[] = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') {
+            cur += '"';
+            i += 1;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (ch === ',' && !inQuotes) {
+          out.push(cur.trim());
+          cur = '';
+        } else {
+          cur += ch;
+        }
+      }
+      out.push(cur.trim());
+      return out;
+    };
+
+    const header = parseLine(lines[0]).map((h) => h.toLowerCase());
+    const isRelation =
+      header.includes('fromtag') ||
+      header.includes('from_tag') ||
+      header.includes('totag') ||
+      header.includes('to_tag');
+
+    const assets: Array<{
+      assetTag: string;
+      typeCode: string;
+      name?: string;
+      serialNumber?: string;
+      manufacturer?: string;
+      model?: string;
+      status?: string;
+      locationCode?: string;
+      notes?: string;
+    }> = [];
+    const relations: Array<{
+      fromTag: string;
+      toTag: string;
+      relationType: string;
+      notes?: string;
+    }> = [];
+
+    const idx = (names: string[]) => {
+      for (const n of names) {
+        const i = header.indexOf(n);
+        if (i >= 0) return i;
+      }
+      return -1;
+    };
+
+    for (const line of lines.slice(1)) {
+      const cols = parseLine(line);
+      if (isRelation) {
+        const fromTag = cols[idx(['fromtag', 'from_tag', 'from'])] ?? '';
+        const toTag = cols[idx(['totag', 'to_tag', 'to'])] ?? '';
+        const relationType =
+          cols[idx(['relationtype', 'relation_type', 'type'])] ?? '';
+        const notes = cols[idx(['notes', 'note'])] ?? '';
+        if (!fromTag && !toTag) continue;
+        relations.push({ fromTag, toTag, relationType, notes });
+      } else {
+        const assetTag = cols[idx(['assettag', 'asset_tag', 'tag'])] ?? '';
+        const typeCode = cols[idx(['typecode', 'type_code', 'type'])] ?? '';
+        if (!assetTag) continue;
+        assets.push({
+          assetTag,
+          typeCode,
+          name: cols[idx(['name', 'displayname', 'display_name'])] || undefined,
+          serialNumber:
+            cols[idx(['serialnumber', 'serial_number', 'serial'])] ||
+            undefined,
+          manufacturer: cols[idx(['manufacturer', 'make'])] || undefined,
+          model: cols[idx(['model'])] || undefined,
+          status: cols[idx(['status'])] || undefined,
+          locationCode:
+            cols[idx(['locationcode', 'location_code', 'location'])] ||
+            undefined,
+          notes: cols[idx(['notes', 'note'])] || undefined,
+        });
+      }
+    }
+
+    return { assets, relations };
   }
 }

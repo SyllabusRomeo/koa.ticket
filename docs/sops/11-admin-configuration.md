@@ -125,16 +125,19 @@ Business hours seed: Mon–Fri 08:00–17:00 `Africa/Accra`.
 
 `system_settings` table holds keys such as `app.name` and branding file references (`branding.logoStoredName`, `branding.bannerStoredName`).
 
-### Login branding (sysadmin)
+### Login branding & portal themes (sysadmin)
 
-Admin UI: `/app/admin/branding` — upload organization logo and login page background banner, preview, Save, or Reset to LogIT defaults.
+Admin UI: `/app/admin/branding` — upload organization logo and login banner, choose a **portal theme** (or custom colors), preview, Save, or Reset to LogIT defaults.
+
+Themes set CSS variables (`--color-primary`, etc.) for the whole portal (login + workspace).
 
 | Endpoint | Auth | Notes |
 |----------|------|--------|
-| `GET /api/v1/branding` | Public | `logoUrl`, `loginBannerUrl`, limits |
+| `GET /api/v1/branding` | Public | `logoUrl`, `loginBannerUrl`, `theme` (colors + presets), limits |
 | `GET /api/v1/branding/assets/logo` · `/banner` | Public | Inline image stream |
+| `PATCH /api/v1/branding/theme` | Sysadmin | `{ themeId, colors? }` |
 | `POST /api/v1/branding/logo` · `/banner` | Sysadmin | Multipart `file` |
-| `POST /api/v1/branding/reset` | Sysadmin | Clears custom assets |
+| `POST /api/v1/branding/reset` | Sysadmin | Clears custom assets + theme |
 
 Logo: png/jpg/webp/svg (2 MB). Banner: jpg/png/webp (5 MB). When unset, `/login` keeps the default CSS mark and body gradient.
 

@@ -1,4 +1,10 @@
-import { IsOptional, IsString, MinLength, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsOptional,
+  IsString,
+  MinLength,
+  MaxLength,
+} from 'class-validator';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -21,4 +27,9 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   departmentId?: string | null;
+
+  /** Soft activate / deactivate (login blocked when false). */
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

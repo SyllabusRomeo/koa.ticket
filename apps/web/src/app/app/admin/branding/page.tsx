@@ -2,13 +2,20 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, formatBytes, type AuthUser, type BrandingConfig } from '@/lib/api';
+import {
+  api,
+  formatBytes,
+  type AuthUser,
+  type BrandingConfig,
+  type PortalThemeColors,
+} from '@/lib/api';
 import { hasRole } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
-import { BrandMarkIcon } from '@/lib/nav-icons';
-import { RotateCcw, Save } from 'lucide-react';
+import { applyPortalThemeColors } from '@/components/PortalThemeProvider';
+import { RotateCcw, Save, Paintbrush, Image, ImagePlus, Eye } from 'lucide-react';
+import { SectionHeading } from '@/components/SectionHeading';
 import appStyles from '../../app.module.css';
 import styles from './branding.module.css';
 
@@ -19,6 +26,15 @@ function cacheBust(url: string | null, updatedAt: string | null) {
   return `${url}${sep}v=${encodeURIComponent(updatedAt)}`;
 }
 
+const CUSTOM_FIELDS: Array<{ key: keyof PortalThemeColors; label: string }> = [
+  { key: 'primary', label: 'Primary' },
+  { key: 'primaryLight', label: 'Primary light' },
+  { key: 'secondary', label: 'Secondary' },
+  { key: 'backgroundWarm', label: 'Warm background' },
+  { key: 'backgroundAccent', label: 'Accent wash' },
+  { key: 'textPrimary', label: 'Text' },
+];
+
 export default function BrandingAdminPage() {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -27,12 +43,23 @@ export default function BrandingAdminPage() {
   const [pendingBanner, setPendingBanner] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [themeId, setThemeId] = useState('logit');
+  const [customColors, setCustomColors] = useState<PortalThemeColors | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const logoInput = useRef<HTMLInputElement>(null);
   const bannerInput = useRef<HTMLInputElement>(null);
+
+  function syncThemeFromBranding(b: BrandingConfig) {
+    if (!b.theme) return;
+    setThemeId(b.theme.id);
+    setCustomColors(b.theme.colors);
+    applyPortalThemeColors(b.theme.colors);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -45,7 +72,10 @@ export default function BrandingAdminPage() {
         }
         if (!cancelled) setUser(user);
         const b = await api.branding();
-        if (!cancelled) setBranding(b);
+        if (!cancelled) {
+          setBranding(b);
+          syncThemeFromBranding(b);
+        }
       } catch {
         if (!cancelled) router.replace('/login');
       } finally {
@@ -77,9 +107,33 @@ export default function BrandingAdminPage() {
     return () => URL.revokeObjectURL(url);
   }, [pendingBanner]);
 
-  async function onSave() {
+  function selectPreset(id: string) {
+    const preset = branding?.theme?.presets.find((p) => p.id === id);
+    if (!preset) return;
+    setThemeId(id);
+    setCustomColors(preset.colors);
+    applyPortalThemeColors(preset.colors);
+    setMessage(null);
+  }
+
+  function onCustomColor(key: keyof PortalThemeColors, value: string) {
+    setThemeId('custom');
+    setCustomColors((prev) => {
+      const base =
+        prev ??
+        branding?.theme?.colors ??
+        branding?.theme?.presets[0]?.colors;
+      if (!base) return prev;
+      const next = { ...base, [key]: value };
+      applyPortalThemeColors(next);
+      return next;
+    });
+    setMessage(null);
+  }
+
+  async function onSaveAssets() {
     if (!pendingLogo && !pendingBanner) {
-      setMessage('No changes to save — choose a logo or banner first.');
+      setMessage('No asset changes — choose a logo or banner first.');
       return;
     }
     setBusy(true);
@@ -94,13 +148,44 @@ export default function BrandingAdminPage() {
         next = await api.uploadBrandingBanner(pendingBanner);
       }
       setBranding(next);
+      if (next) syncThemeFromBranding(next);
       setPendingLogo(null);
       setPendingBanner(null);
       if (logoInput.current) logoInput.current.value = '';
       if (bannerInput.current) bannerInput.current.value = '';
-      setMessage('Branding saved. Open /login to confirm the public page.');
+      setMessage('Logo/banner saved. Open /login to confirm the public page.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onSaveTheme() {
+    if (!customColors) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const preset = branding?.theme?.presets.find((p) => p.id === themeId);
+      const isUntouchedPreset =
+        themeId !== 'custom' &&
+        !!preset &&
+        Object.keys(customColors).every(
+          (k) =>
+            customColors[k as keyof PortalThemeColors].toUpperCase() ===
+            preset.colors[k as keyof PortalThemeColors].toUpperCase(),
+        );
+      const next = await api.updateBrandingTheme(
+        isUntouchedPreset
+          ? { themeId, colors: null }
+          : { themeId: 'custom', colors: customColors },
+      );
+      setBranding(next);
+      syncThemeFromBranding(next);
+      setMessage(`Portal theme saved: ${next.theme?.name ?? themeId}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Theme save failed');
     } finally {
       setBusy(false);
     }
@@ -109,7 +194,7 @@ export default function BrandingAdminPage() {
   async function onReset() {
     if (
       !window.confirm(
-        'Reset login branding to LogIT defaults? Custom logo and banner will be removed.',
+        'Reset branding to LogIT defaults? Custom logo, banner, and portal theme will be removed.',
       )
     ) {
       return;
@@ -120,11 +205,12 @@ export default function BrandingAdminPage() {
     try {
       const next = await api.resetBranding();
       setBranding(next);
+      syncThemeFromBranding(next);
       setPendingLogo(null);
       setPendingBanner(null);
       if (logoInput.current) logoInput.current.value = '';
       if (bannerInput.current) bannerInput.current.value = '';
-      setMessage('Branding reset to defaults.');
+      setMessage('Branding reset to LogIT defaults.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Reset failed');
     } finally {
@@ -156,7 +242,9 @@ export default function BrandingAdminPage() {
   );
   const previewLogo = logoPreview ?? liveLogo;
   const previewBanner = bannerPreview ?? liveBanner;
-  const dirty = Boolean(pendingLogo || pendingBanner);
+  const assetDirty = Boolean(pendingLogo || pendingBanner);
+  const presets = branding?.theme?.presets ?? [];
+  const primaryPreview = customColors?.primary ?? '#0F4A40';
 
   return (
     <AppShell user={user} onLogout={logout} title="Branding">
@@ -164,9 +252,8 @@ export default function BrandingAdminPage() {
         <header className={styles.hero}>
           <p className={styles.eyebrow}>Administration · Sysadmin</p>
           <p className={styles.lede}>
-            Customize the public sign-in page with your organization logo and a
-            full-page background banner. Leave blank to keep the default LogIT
-            mark and gradient.
+            Customize portal colors (themes), the public sign-in logo, and login
+            background. Themes apply across the workspace via CSS variables.
           </p>
         </header>
 
@@ -182,7 +269,85 @@ export default function BrandingAdminPage() {
         ) : null}
 
         <section className={styles.panel}>
-          <h2>Logo</h2>
+          <SectionHeading icon={Paintbrush}>Portal theme</SectionHeading>
+          <p className={styles.hint}>
+            Pick a preset or tweak colors for a custom theme. Changes preview
+            immediately; click <strong>Save theme</strong> to persist.
+          </p>
+          <div className={styles.themeGrid}>
+            {presets.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={styles.themeCard}
+                data-active={themeId === p.id || undefined}
+                onClick={() => selectPreset(p.id)}
+              >
+                <span
+                  className={styles.themeSwatch}
+                  style={{
+                    background: `linear-gradient(135deg, ${p.colors.primary}, ${p.colors.secondary})`,
+                  }}
+                  aria-hidden
+                />
+                <span className={styles.themeName}>{p.name}</span>
+                <span className={styles.themeDesc}>{p.description}</span>
+              </button>
+            ))}
+            <button
+              type="button"
+              className={styles.themeCard}
+              data-active={themeId === 'custom' || undefined}
+              onClick={() => {
+                setThemeId('custom');
+                if (customColors) applyPortalThemeColors(customColors);
+              }}
+            >
+              <span
+                className={styles.themeSwatch}
+                style={{
+                  background: `linear-gradient(135deg, ${primaryPreview}, ${customColors?.secondary ?? '#456433'})`,
+                }}
+                aria-hidden
+              />
+              <span className={styles.themeName}>Custom</span>
+              <span className={styles.themeDesc}>
+                Set your own portal color tokens below.
+              </span>
+            </button>
+          </div>
+
+          {customColors ? (
+            <div className={styles.colorGrid}>
+              {CUSTOM_FIELDS.map(({ key, label }) => (
+                <label key={key} className={styles.colorField}>
+                  <span>{label}</span>
+                  <input
+                    type="color"
+                    value={customColors[key]}
+                    onChange={(e) => onCustomColor(key, e.target.value)}
+                  />
+                  <code>{customColors[key]}</code>
+                </label>
+              ))}
+            </div>
+          ) : null}
+
+          <div className={styles.actions} style={{ marginTop: '1rem' }}>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={busy || !customColors}
+              onClick={onSaveTheme}
+            >
+              <Icon icon={Save} size="sm" />
+              {busy ? 'Saving…' : 'Save theme'}
+            </Button>
+          </div>
+        </section>
+
+        <section className={styles.panel}>
+          <SectionHeading icon={Image}>Logo</SectionHeading>
           <p className={styles.hint}>
             PNG, JPG, WebP, or SVG — max{' '}
             {formatBytes(branding?.limits.logo.maxBytes ?? 2 * 1024 * 1024)}.
@@ -194,8 +359,7 @@ export default function BrandingAdminPage() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={previewLogo} alt="Organization logo" />
               ) : (
-                <span className={styles.defaultMark} aria-hidden>
-                </span>
+                <span className={styles.defaultMark} aria-hidden />
               )}
             </div>
             <div className={styles.fileBlock}>
@@ -220,11 +384,11 @@ export default function BrandingAdminPage() {
         </section>
 
         <section className={styles.panel}>
-          <h2>Login banner background</h2>
+          <SectionHeading icon={ImagePlus}>Login banner background</SectionHeading>
           <p className={styles.hint}>
             JPG, PNG, or WebP — max{' '}
             {formatBytes(branding?.limits.banner.maxBytes ?? 5 * 1024 * 1024)}.
-            Covers the full login viewport; falls back to the LogIT gradient when
+            Covers the full login viewport; falls back to the theme gradient when
             unset.
           </p>
           <div
@@ -232,7 +396,7 @@ export default function BrandingAdminPage() {
             style={
               previewBanner
                 ? {
-                    backgroundImage: `linear-gradient(rgba(15, 74, 64, 0.35), rgba(15, 74, 64, 0.45)), url(${previewBanner})`,
+                    backgroundImage: `linear-gradient(color-mix(in srgb, ${primaryPreview} 35%, transparent), color-mix(in srgb, ${primaryPreview} 45%, transparent)), url(${previewBanner})`,
                   }
                 : undefined
             }
@@ -240,7 +404,7 @@ export default function BrandingAdminPage() {
             aria-label="Banner preview"
           >
             <span className={styles.bannerLabel}>
-              {previewBanner ? 'Image banner' : 'Default LogIT gradient'}
+              {previewBanner ? 'Image banner' : 'Theme gradient'}
             </span>
           </div>
           <div className={styles.fileBlock}>
@@ -258,19 +422,19 @@ export default function BrandingAdminPage() {
                 ? `Selected: ${pendingBanner.name}`
                 : branding?.hasBanner
                   ? 'Custom banner active'
-                  : 'Using default gradient'}
+                  : 'Using theme gradient'}
             </p>
           </div>
         </section>
 
         <section className={styles.panel}>
-          <h2>Login preview</h2>
+          <SectionHeading icon={Eye}>Login preview</SectionHeading>
           <div
             className={styles.loginPreview}
             style={
               previewBanner
                 ? {
-                    backgroundImage: `linear-gradient(rgba(251, 241, 218, 0.55), rgba(255, 255, 255, 0.72)), url(${previewBanner})`,
+                    backgroundImage: `linear-gradient(color-mix(in srgb, var(--color-background-warm) 55%, transparent), color-mix(in srgb, var(--color-background) 72%, transparent)), url(${previewBanner})`,
                   }
                 : undefined
             }
@@ -281,8 +445,7 @@ export default function BrandingAdminPage() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={previewLogo} alt="" className={styles.previewLogo} />
               ) : (
-                <span className={styles.defaultMark} aria-hidden>
-                </span>
+                <span className={styles.defaultMark} aria-hidden />
               )}
               <span>LogIT</span>
             </div>
@@ -291,9 +454,14 @@ export default function BrandingAdminPage() {
         </section>
 
         <div className={styles.actions}>
-          <Button type="button" variant="primary" disabled={busy || !dirty} onClick={onSave}>
+          <Button
+            type="button"
+            variant="primary"
+            disabled={busy || !assetDirty}
+            onClick={onSaveAssets}
+          >
             <Icon icon={Save} size="sm" />
-            {busy ? 'Saving…' : 'Save'}
+            {busy ? 'Saving…' : 'Save logo / banner'}
           </Button>
           <Button type="button" variant="secondary" disabled={busy} onClick={onReset}>
             <Icon icon={RotateCcw} size="sm" />
