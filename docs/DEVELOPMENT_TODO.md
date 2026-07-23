@@ -76,7 +76,23 @@ Update statuses here as work lands. Principle: **capture data → workflows → 
 
 **Shipped:** Near-term N1–N5 · High H1–H7 · Medium M1–M10 · **L1–L5** (CMDB, AI, KB deflection, portal themes, immutable audit exports).
 
+**Next product slice:** **Incident Management System (IMS)** — dedicated module on the same URL; see [ENTERPRISE_ROADMAP.md — Phase IMS](./ENTERPRISE_ROADMAP.md#phase-ims--dedicated-incident-management-module).
+
 **Optional polish:** outbound webhook retry worker, bot outbound replies, board presets, SAML / more IdPs.
+
+---
+
+## Next build — Incident Management System (IMS)
+
+Queued from roadmap (2026-07-23). Same host/login as LogIT; **separate module** (`/im` or `/app/im/*`, `/api/v1/im/*`). Full intent: [ENTERPRISE_ROADMAP.md](./ENTERPRISE_ROADMAP.md#phase-ims--dedicated-incident-management-module).
+
+| # | Item | Status | Notes |
+| --- | --- | --- | --- |
+| IMS-0 | Architecture spike (routes, boundaries, ticket link) | `[ ]` | Tomorrow’s build — start here |
+| IMS-1 | Prisma `ImIncident` + severities | `[ ]` | |
+| IMS-2 | Nest `im` API + permissions | `[ ]` | `im:read` / `im:write` / … |
+| IMS-3 | Web `/im` shell + product switcher | `[ ]` | Same URL, different chrome |
+| IMS-4+ | Board, timeline, roles, PIR, bridges | `[ ]` | Follow-on slices |
 
 ---
 

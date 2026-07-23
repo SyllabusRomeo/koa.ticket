@@ -2,9 +2,9 @@
 
 Honest path from today’s modular-monolith platform toward ServiceNow-class / Zendesk-style service desk capabilities. **Not** a clone of any vendor UI — LogIT keeps its own brand (`#0F4A40`, `#EDF4AC`, `#456433`, `#FBF1DA`).
 
-**Related:** [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md) · [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) · [DEVELOPMENT_TODO.md](./DEVELOPMENT_TODO.md) · [INTEGRATIONS_SLACK_TEAMS.md](./INTEGRATIONS_SLACK_TEAMS.md) · [INTEGRATIONS_EMAIL.md](./INTEGRATIONS_EMAIL.md)
+**Related:** [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md) · [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) · [DEVELOPMENT_TODO.md](./DEVELOPMENT_TODO.md) · [USER_AND_DEVELOPER_GUIDE.md](./USER_AND_DEVELOPER_GUIDE.md) · [INTEGRATIONS_SLACK_TEAMS.md](./INTEGRATIONS_SLACK_TEAMS.md) · [INTEGRATIONS_EMAIL.md](./INTEGRATIONS_EMAIL.md)
 
-**Last updated:** 2026-07-22 (through M10)
+**Last updated:** 2026-07-23 (L1–L5 shipped · **IMS module** queued for next build)
 
 ---
 
@@ -12,20 +12,22 @@ Honest path from today’s modular-monolith platform toward ServiceNow-class / Z
 
 Inspired by common service-desk product pillars (omnichannel, ticket management, automation, reporting, integrations, routing, AI, self-service) and the **agent workspace dashboard** pattern (KPI strip → priority/status breakdown → queue).
 
-| Pillar | Now (shipped through M10) | Next (polish) | Later (Phase 3–4 / L1–L5) |
+| Pillar | Now (shipped through L5) | Next (polish + IMS) | Later |
 | --- | --- | --- | --- |
 | **Omnichannel intake** | Web + Slack/Teams (+ simulate) + email webhook/IMAP + channel metadata (`web`/`email`/`slack`/`teams`/`chat`/`api`) + Bot Framework JWT / Slack HMAC | Channel endorsements / outbound bot replies | Voice/portal widgets |
 | **Ticket management** | Lifecycle, assign, comments, attachments, soft-delete, SLA TTR, parent/child, merge, stage duration, origin location, **watchers/worklogs UI**, **MI badge + dashboard**, Problem/Change/CAB | Parent-resolve child actions, bulk actions | Deeper problem/change records |
+| **Incident Management System (IMS)** | ITSM tickets + Major incidents ops dashboard (shared ticket engine) | **Dedicated IMS module** on same site URL — separate product surface, own nav/routes/permissions (see [Phase IMS](#phase-ims--dedicated-incident-management-module)) | Cross-module bridges (ITSM ↔ IMS), war-room, external status pages |
 | **Agent workspace** | Home KPI dashboard + `/app/queue` Kanban + workload + presence collision | Saved board presets, WebSocket push | Personalized dashboards, saved widgets |
 | **Automation / workflows** | Assignment rules (skills + least-open), SLA worker, Routing & SLA admin, email notifications, digests, multi-step approvals, signed outbound webhooks | Webhook retry worker | Visual workflow designer |
 | **Routing / tagging** | Category + location + skill rules → team + auto-assign | Dynamic auto-tagging | Marketplace rule packs |
-| **Reporting / analytics** | Summary + CSV/PDF + workspace metrics + byLocation + **heatmap** + **scheduled exports** + stage bottlenecks | Custom dashboards | Marketplace analytics |
+| **Reporting / analytics** | Summary + CSV/PDF + workspace metrics + byLocation + **heatmap** + **scheduled exports** + stage bottlenecks + KB deflection | Custom dashboards | Marketplace analytics |
 | **Integrations** | Integrations hub, Slack/Teams + email/IMAP + signed outbound webhooks | More chat channels | Marketplace / plugin packs |
-| **Self-service** | Catalog browse + dynamic forms, knowledge, employee tickets, one-click request | Guided resolution | Portal themes |
-| **Org admin** | Locations + **Departments** + Teams + Roles & Access | Soft-deactivate polish | Full org tree designer |
-| **Asset / CMDB** | Asset register MVP+ (filters, CRUD, retire, CSV, ticket link) | Discovery / auto-import | Full CMDB relationships & impact (**L1**) |
-| **AI assists** | — | Suggest similar KB (light) | Draft replies, auto-categorize (**L2**) |
+| **Self-service** | Catalog browse + dynamic forms, knowledge + deflection, employee tickets, portal themes | Guided resolution | Portal widgets |
+| **Org admin** | Locations + **Departments** + Teams + **Users** + Roles & Access | Soft-deactivate polish | Full org tree designer |
+| **Asset / CMDB** | Register + relations + impact BFS + discovery CSV (**L1**) | Deeper CI class hierarchy | Auto-discovery depth |
+| **AI assists** | Classify / summarize / duplicates / SLA risk / related KB (**L2**; heuristic + optional OpenAI) | Draft replies depth | Marketplace AI packs |
 | **Identity / trust** | Session RBAC, **TOTP MFA**, optional **Microsoft Entra OIDC** | SAML / more IdPs | Advanced Conditional Access hooks |
+| **Compliance** | Audit trail + CSV + **immutable export schedules (SHA-256)** (**L5**) | — | Retention / legal hold packs |
 
 ### Omnichannel flow (product north star)
 
@@ -76,36 +78,100 @@ LogIT styling uses forest primary + lime/warm cream — never purple AI-generic 
 | SSO (Entra) / MFA (TOTP), stage analytics, digests, heatmaps/schedules | Done |
 | Signed outbound webhooks, CI + Nginx TLS | Done |
 | Omnichannel `Ticket.channel` metadata | Done |
+| L1–L5: CMDB relations/impact/discovery · AI assists · KB deflection · portal themes · immutable audit exports · Users admin | Done |
 
 ### Phase 2 — Operations polish
 
 Webhook retry worker · outbound bot replies · board presets · bulk ticket actions · business-hour calendar polish  
 
-~~Queue boards / presence / digests / MI ops / IMAP / stage analytics / skills routing / approvals / catalog forms / channel metadata~~ (shipped)
+~~Queue boards / presence / digests / MI ops / IMAP / stage analytics / skills routing / approvals / catalog forms / channel metadata / L1–L5~~ (shipped)
 
-### Phase 3 — Enterprise control plane (Later — L1+)
+### Phase IMS — Dedicated Incident Management Module
 
-**CMDB depth** (discovery, CI relationships, impact) · SAML / more IdPs · workflow designer · parent-resolve child actions · knowledge deflection analytics · portal themes · immutable audit export schedules
+> **Build target:** next engineering cycle (queued for tomorrow’s build planning).  
+> **URL strategy:** same site / host as LogIT (one deployment, one login). IMS is a **completely different module** — own routes, nav chrome, permissions, and domain language — not a rename of today’s ticket list.
 
-> **Asset register (shipped now vs later):** Now = tagged inventory with status lifecycle (`in_stock` / `in_service` / `in_repair` / `retired` / `disposed`), assignment, location, notes, purchase/warranty dates, list filters + search, soft-retire, CSV export, ticket–asset link API. Later = network discovery, CI class hierarchy, relationship graph, change impact analysis (**L1**).
+#### Why a separate module
 
-### Phase 4 — Scale & intelligence (L2+)
+Today’s ITSM already has incidents, major-incident toggles, and `/app/major-incidents`. That remains the **service-desk** path.
 
-AI assists · multi-tenant · marketplace · advanced reporting
+The **Incident Management System (IMS)** is a first-class ops product for structured incident command: severity boards, timelines, stakeholder comms, runbooks, post-incident review — usable by IT, SRE, plant ops, or security without feeling like “just another ticket queue.”
+
+#### Same URL, different module
+
+| Concern | Decision |
+| --- | --- |
+| Host / TLS / SSO session | Shared with LogIT (same `APP_URL`, cookie session) |
+| Entry path (proposed) | `/im` or `/app/im/*` — distinct from `/app/tickets`, `/app/major-incidents` |
+| Product switcher | Header/home control: **Service Desk** ↔ **Incident Management** |
+| API namespace (proposed) | `/api/v1/im/*` Nest module (`ImModule`) — not overloaded ticket CRUD |
+| Data | Prefer `ImIncident` (+ timeline, roles, updates) linked optionally to `Ticket` / assets — avoid forking comments/SLA blindly |
+| RBAC | New permissions e.g. `im:read`, `im:write`, `im:command`, `im:postmortem` in `@logit/shared` |
+| Brand | Same LogIT visual system; IMS-specific labels and layouts |
+
+```text
+https://<same-host>/
+├── /login                    shared identity
+├── /app/*                    Service Desk (ITSM) — current product
+└── /im/*  (or /app/im/*)     Incident Management System — new module
+         ├── board / active
+         ├── incident/:id (timeline, roles, updates)
+         ├── postmortems
+         └── admin (severities, templates)
+```
+
+#### Scope for first IMS slice (build backlog)
+
+| # | Item | Status | Notes |
+| --- | --- | --- | --- |
+| IMS-0 | Architecture spike: routes, module boundary, link-to-ticket strategy | `[ ]` | Document in IMPLEMENTATION_PLAN / guide |
+| IMS-1 | Prisma `ImIncident` (+ severity, status, commander, started/resolved) | `[ ]` | Migration + seed severities |
+| IMS-2 | Nest `im` module + `/api/v1/im` CRUD + permissions | `[ ]` | Session guards; audit events |
+| IMS-3 | Web shell: product switcher + `/im` layout (own nav) | `[ ]` | Same URL/app; separate chrome |
+| IMS-4 | Active incidents board + create/declare flow | `[ ]` | Severity, impact summary, channels |
+| IMS-5 | Incident timeline + stakeholder updates | `[ ]` | Chronological log; public vs internal |
+| IMS-6 | Roles on incident (commander, scribe, comms) | `[ ]` | Distinct from ITSM assignee |
+| IMS-7 | Optional bridge: link ITSM ticket / MI / assets | `[ ]` | Deep-link both ways |
+| IMS-8 | Post-incident review (PIR) draft from timeline | `[ ]` | Export + knowledge promote later |
+| IMS-9 | Docs: SOP + USER guide chapter for IMS | `[ ]` | Mark current vs extension clearly |
+
+#### Explicit non-goals (v1)
+
+- Replacing `/app/tickets` or deleting Major incidents  
+- Separate deployable microservice (stay modular monolith)  
+- Separate IdP / second login  
+- Full status-page SaaS clone (later optional)
+
+#### Mapping to tomorrow’s build
+
+Treat **IMS-0 → IMS-3** as the minimum vertical slice for the next build day: spike + schema + API stub + `/im` shell with product switcher. Deeper timeline/PIR follows in subsequent slices.
+
+Track execution checkboxes in [DEVELOPMENT_TODO.md](./DEVELOPMENT_TODO.md) once work starts; keep this roadmap as the product intent.
+
+### Phase 3 — Enterprise control plane (polish / depth)
+
+SAML / more IdPs · workflow designer · parent-resolve child actions · deeper CI hierarchy · custom report dashboards
+
+~~CMDB relations/impact/discovery · knowledge deflection · portal themes · immutable audit exports~~ (shipped as L1–L5)
+
+### Phase 4 — Scale & intelligence
+
+AI draft-reply depth · multi-tenant · marketplace · advanced reporting · IMS war-room / external status page
 
 ---
 
 ## Principles
 
-1. Modular monolith first  
-2. RBAC always (integrations admin = sysadmin)  
+1. Modular monolith first — **new modules (IMS) ship as Nest + Next slices, not new services**  
+2. RBAC always (integrations admin = sysadmin; IMS gets its own permission codes)  
 3. Secrets in env  
 4. Ephemeral disk awareness for uploads  
 5. Ship vertical slices — structure inspired by industry UX, brand stays LogIT  
-6. Login branding (logo + banner) is sysadmin-configurable via `/app/admin/branding` — defaults remain LogIT when unset
+6. Login branding (logo + banner) is sysadmin-configurable via `/app/admin/branding` — defaults remain LogIT when unset  
+7. **Same URL, clear module boundaries** — shared auth/host; distinct routes, nav, and domain models when the product surface is different
 
 ---
 
 ## Mapping to gaps
 
-See [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md) and [DEVELOPMENT_TODO.md](./DEVELOPMENT_TODO.md) (**L1–L5**). Update these docs when a phase item lands.
+See [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md) and [DEVELOPMENT_TODO.md](./DEVELOPMENT_TODO.md). Update these docs when a phase item lands. IMS is **roadmap-next**, not yet a GAP “shipped” row.
