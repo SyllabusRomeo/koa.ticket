@@ -16,6 +16,9 @@ COPY package.json ./
 COPY packages/shared ./packages/shared
 COPY apps/web ./apps/web
 ENV NEXT_TELEMETRY_DISABLED=1
+# Baked into the client bundle at build time (runtime compose env does not rewrite it).
+ARG NEXT_PUBLIC_API_URL=/api/v1
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN npm run build -w @logit/shared && npm run build -w @logit/web
 
 FROM node:22-alpine AS runner
