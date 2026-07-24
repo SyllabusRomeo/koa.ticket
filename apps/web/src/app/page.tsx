@@ -42,7 +42,7 @@ export default function HomePage() {
       <header className={styles.topbar}>
         <div className={styles.brand}>
           <Icon icon={BrandMarkIcon} size="md" />
-          <span className={styles.brandName}>LogIT</span>
+          <span className={styles.brandName}>LogIt</span>
         </div>
         <nav className={styles.nav} aria-label="Primary">
           <a href="#portal">Portal</a>
@@ -54,7 +54,7 @@ export default function HomePage() {
       <section className={styles.hero} aria-labelledby="hero-heading">
         <p className={styles.eyebrow}>IT Service Management</p>
         <h1 id="hero-heading" className={styles.title}>
-          LogIT
+          LogIt
         </h1>
         <p className={styles.lede}>
           Report issues, request services, and track IT work in one secure place.
@@ -84,7 +84,7 @@ export default function HomePage() {
       </section>
 
       <footer className={styles.footer} id="status">
-        <span>LogIT · Phase 0</span>
+        <span>LogIt · Phase 0</span>
         <span>API health: /health</span>
       </footer>
     </main>

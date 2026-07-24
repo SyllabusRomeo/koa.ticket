@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Explain how LogIT measures response/resolution time and escalates risk.
+Explain how LogIt measures response/resolution time and escalates risk.
 
 ## Concepts
 

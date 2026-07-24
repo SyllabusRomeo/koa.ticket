@@ -2,11 +2,11 @@
 
 ## Purpose
 
-Explain what LogIT does, who it is for, and the expected support journey.
+Explain what LogIt does, who it is for, and the expected support journey.
 
-## What LogIT is
+## What LogIt is
 
-LogIT is an enterprise IT Service Management platform — not a simple ticket CRUD tool. It centralizes:
+LogIt is an enterprise IT Service Management platform — not a simple ticket CRUD tool. It centralizes:
 
 - Incident and service-request reporting (web, email, Slack/Teams)
 - Assignment, prioritization, and SLA tracking
@@ -18,7 +18,7 @@ LogIT is an enterprise IT Service Management platform — not a simple ticket CR
 
 ## Who uses it
 
-| Persona | Primary job in LogIT |
+| Persona | Primary job in LogIt |
 | --- | --- |
 | Employee / Requester | Report issues, request services, track own tickets, read knowledge |
 | IT Agent | Work queue/Kanban, update status, respond, link assets, log time |
@@ -50,7 +50,7 @@ Employee / channel intake
 
 ## Brand
 
-LogIT uses brand colors: primary `#0F4A40`, light `#EDF4AC`, secondary `#456433`, warm background `#FBF1DA`.
+LogIt uses brand colors: primary `#0F4A40`, light `#EDF4AC`, secondary `#456433`, warm background `#FBF1DA`.
 
 ## Related SOPs
 

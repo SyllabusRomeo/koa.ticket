@@ -1,6 +1,6 @@
-# LogIT — Enterprise Roadmap (industry ITSM trajectory)
+# LogIt — Enterprise Roadmap (industry ITSM trajectory)
 
-Honest path from today’s modular-monolith platform toward ServiceNow-class / Zendesk-style service desk capabilities. **Not** a clone of any vendor UI — LogIT keeps its own brand (`#0F4A40`, `#EDF4AC`, `#456433`, `#FBF1DA`).
+Honest path from today’s modular-monolith platform toward ServiceNow-class / Zendesk-style service desk capabilities. **Not** a clone of any vendor UI — LogIt keeps its own brand (`#0F4A40`, `#EDF4AC`, `#456433`, `#FBF1DA`).
 
 **Related:** [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md) · [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) · [DEVELOPMENT_TODO.md](./DEVELOPMENT_TODO.md) · [USER_AND_DEVELOPER_GUIDE.md](./USER_AND_DEVELOPER_GUIDE.md) · [INTEGRATIONS_SLACK_TEAMS.md](./INTEGRATIONS_SLACK_TEAMS.md) · [INTEGRATIONS_EMAIL.md](./INTEGRATIONS_EMAIL.md)
 
@@ -54,7 +54,7 @@ Structure (not visual clone of blue “IT servicedesk” mockups):
 
 **Resolved vs Closed:** Home / Reports “Resolved today” counts tickets with `resolvedAt` set today (Resolved status), not Closed. Closure is a separate terminal confirmation after requester verify.
 
-LogIT styling uses forest primary + lime/warm cream — never purple AI-generic or royal-blue clone themes.
+LogIt styling uses forest primary + lime/warm cream — never purple AI-generic or royal-blue clone themes.
 
 ---
 
@@ -89,7 +89,7 @@ Webhook retry worker · outbound bot replies · board presets · bulk ticket act
 ### Phase IMS — Dedicated Incident Management Module
 
 > **Build target:** next engineering cycle (queued for tomorrow’s build planning).  
-> **URL strategy:** same site / host as LogIT (one deployment, one login). IMS is a **completely different module** — own routes, nav chrome, permissions, and domain language — not a rename of today’s ticket list.
+> **URL strategy:** same site / host as LogIt (one deployment, one login). IMS is a **completely different module** — own routes, nav chrome, permissions, and domain language — not a rename of today’s ticket list.
 
 #### Why a separate module
 
@@ -101,13 +101,13 @@ The **Incident Management System (IMS)** is a first-class ops product for struct
 
 | Concern | Decision |
 | --- | --- |
-| Host / TLS / SSO session | Shared with LogIT (same `APP_URL`, cookie session) |
+| Host / TLS / SSO session | Shared with LogIt (same `APP_URL`, cookie session) |
 | Entry path (proposed) | `/im` or `/app/im/*` — distinct from `/app/tickets`, `/app/major-incidents` |
 | Product switcher | Header/home control: **Service Desk** ↔ **Incident Management** |
 | API namespace (proposed) | `/api/v1/im/*` Nest module (`ImModule`) — not overloaded ticket CRUD |
 | Data | Prefer `ImIncident` (+ timeline, roles, updates) linked optionally to `Ticket` / assets — avoid forking comments/SLA blindly |
 | RBAC | New permissions e.g. `im:read`, `im:write`, `im:command`, `im:postmortem` in `@logit/shared` |
-| Brand | Same LogIT visual system; IMS-specific labels and layouts |
+| Brand | Same LogIt visual system; IMS-specific labels and layouts |
 
 ```text
 https://<same-host>/
@@ -166,8 +166,8 @@ AI draft-reply depth · multi-tenant · marketplace · advanced reporting · IMS
 2. RBAC always (integrations admin = sysadmin; IMS gets its own permission codes)  
 3. Secrets in env  
 4. Ephemeral disk awareness for uploads  
-5. Ship vertical slices — structure inspired by industry UX, brand stays LogIT  
-6. Login branding (logo + banner) is sysadmin-configurable via `/app/admin/branding` — defaults remain LogIT when unset  
+5. Ship vertical slices — structure inspired by industry UX, brand stays LogIt  
+6. Login branding (logo + banner) is sysadmin-configurable via `/app/admin/branding` — defaults remain LogIt when unset  
 7. **Same URL, clear module boundaries** — shared auth/host; distinct routes, nav, and domain models when the product surface is different
 
 ---

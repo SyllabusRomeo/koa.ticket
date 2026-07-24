@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Describe how LogIT is structured so operators and developers can reason about changes, failures, and scaling.
+Describe how LogIt is structured so operators and developers can reason about changes, failures, and scaling.
 
 ## Architectural principle
 
@@ -16,7 +16,7 @@ Browser / Client / Slack / Teams / Email
       ▼
 Nginx (reverse proxy, TLS in prod)
       │
-      ├──► Web (Next.js) — LogIT UI
+      ├──► Web (Next.js) — LogIt UI
       │
       └──► API (NestJS) — /api/v1/*
                │

@@ -59,7 +59,7 @@ async function bootstrap() {
 
   const port = Number(process.env.PORT ?? process.env.API_PORT ?? 4100);
   await app.listen(port, '0.0.0.0');
-  console.log(`LogIT API listening on 0.0.0.0:${port}`);
+  console.log(`LogIt API listening on 0.0.0.0:${port}`);
 }
 
 bootstrap();

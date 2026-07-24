@@ -1,4 +1,4 @@
-# LogIT — Production (TLS + CI)
+# LogIt — Production (TLS + CI)
 
 Short runbook for production HTTPS and continuous integration. Complements [SOP-04 Docker](./sops/04-docker-deployment.md) and [SOP-05 Hetzner](./sops/05-hetzner-production.md).
 

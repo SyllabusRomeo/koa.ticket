@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Protect LogIT data and prove restores work.
+Protect LogIt data and prove restores work.
 
 ## What to back up
 

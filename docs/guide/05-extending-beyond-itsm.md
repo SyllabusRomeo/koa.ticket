@@ -2,13 +2,13 @@
 
 ← [Developer guide](./04-developer-guide.md) · [Book home](../USER_AND_DEVELOPER_GUIDE.md)
 
-> **Extension opportunity** — designs in this chapter are **not** shipped product features. They show how LogIT’s modular monolith can grow into a broader **business operations platform**, especially for manufacturing, while reusing tickets, catalog, assets/CMDB, approvals, SLA, knowledge, and audit.
+> **Extension opportunity** — designs in this chapter are **not** shipped product features. They show how LogIt’s modular monolith can grow into a broader **business operations platform**, especially for manufacturing, while reusing tickets, catalog, assets/CMDB, approvals, SLA, knowledge, and audit.
 
 ---
 
 ## 26. Extension principles
 
-LogIT already encodes a reusable spine:
+LogIt already encodes a reusable spine:
 
 | Spine capability | Business meaning outside IT |
 | --- | --- |
@@ -74,9 +74,9 @@ A discrete or process manufacturer wants **one operational backbone** for:
 - Spare parts and tooling as CIs  
 - Shift handoff knowledge  
 
-LogIT today already covers the IT-shaped versions of these. The extension is mostly **domain modeling + UX labeling + integrations**.
+LogIt today already covers the IT-shaped versions of these. The extension is mostly **domain modeling + UX labeling + integrations**.
 
-### Mapping: manufacturing need → LogIT spine
+### Mapping: manufacturing need → LogIt spine
 
 | Manufacturing need | Use today (current) | Extend with (opportunity) |
 | --- | --- | --- |
@@ -170,7 +170,7 @@ Model parts as assets (`in_stock` / `in_service`); `uses` / `depends_on` to equi
 
 ### Plant org setup (using current admin)
 
-| LogIT admin object | Manufacturing use |
+| LogIt admin object | Manufacturing use |
 | --- | --- |
 | Locations | Plants / buildings / lines as sites |
 | Departments | Production, Maintenance, Quality, EHS, Warehouse |
@@ -184,7 +184,7 @@ You may later rename role **display names** for plant language while keeping cod
 
 | System | Direction | Mechanism |
 | --- | --- | --- |
-| MES / SCADA alarms | In → LogIT | Inbound webhook / email → ticket |
+| MES / SCADA alarms | In → LogIt | Inbound webhook / email → ticket |
 | ERP (SAP/Odoo) | Bi-di | Outbound HMAC webhooks + API |
 | CMMS legacy | Out | Webhook on work order status |
 | SSO | In | Existing Entra OIDC |
@@ -274,9 +274,9 @@ flowchart LR
 | One giant `misc JSON` blob for all industries | Unqueryable mess | Explicit columns/tables per domain |
 | Ignoring uploads durability on PaaS | Lost attachments | Volume / object storage |
 | Renaming IT concepts without training | Confused users | Domain labels in UI + SOP glossary |
-| Building manufacturing ERP inside LogIT | Scope explosion | Integrate via webhooks/API; own the **case & control** plane |
+| Building manufacturing ERP inside LogIt | Scope explosion | Integrate via webhooks/API; own the **case & control** plane |
 
-### What LogIT should remain good at
+### What LogIt should remain good at
 
 Even when extended, keep the product centered on:
 
@@ -289,7 +289,7 @@ Even when extended, keep the product centered on:
 
 ## Closing
 
-LogIT today is a **complete modular ITSM platform through L5**. The same architecture is a credible **operations case platform** for manufacturing and other industries — if you extend with discipline: shared ticket spine, explicit domain tables, permissions, audit, and clear docs that separate **shipped** from **planned**.
+LogIt today is a **complete modular ITSM platform through L5**. The same architecture is a credible **operations case platform** for manufacturing and other industries — if you extend with discipline: shared ticket spine, explicit domain tables, permissions, audit, and clear docs that separate **shipped** from **planned**.
 
 When you add a domain module, update:
 

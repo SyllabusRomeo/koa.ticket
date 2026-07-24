@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Issue (or renew) Let's Encrypt certs for LogIT Nginx TLS.
+# Issue (or renew) Let's Encrypt certs for LogIt Nginx TLS.
 # Usage:
 #   ./scripts/init-letsencrypt.sh app.example.com you@example.com
 #

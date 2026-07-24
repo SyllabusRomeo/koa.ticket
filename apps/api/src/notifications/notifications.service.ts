@@ -91,10 +91,10 @@ export class NotificationsService {
     await this.email.send({
       to: user.email,
       subject: params.title,
-      text: `${params.body}\n\n${url}\n\n— LogIT`,
+      text: `${params.body}\n\n${url}\n\n— LogIt`,
       html: `<p>${escapeHtml(params.body).replace(/\n/g, '<br/>')}</p>
-<p><a href="${escapeHtml(url)}">Open in LogIT</a></p>
-<p>— LogIT</p>`,
+<p><a href="${escapeHtml(url)}">Open in LogIt</a></p>
+<p>— LogIt</p>`,
     });
   }
 

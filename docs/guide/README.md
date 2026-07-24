@@ -1,4 +1,4 @@
-# LogIT Guide — Chapter index
+# LogIt Guide — Chapter index
 
 Book entry point: **[USER_AND_DEVELOPER_GUIDE.md](../USER_AND_DEVELOPER_GUIDE.md)**
 

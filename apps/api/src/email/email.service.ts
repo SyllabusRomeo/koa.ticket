@@ -242,13 +242,13 @@ export class EmailService {
       `Ticket: ${opts.ticketNumber}`,
       `Open: ${url}`,
       '',
-      '— LogIT',
+      '— LogIt',
     ].join('\n');
     const html = `<p><strong>${escapeHtml(opts.eventLabel)}</strong></p>
 <p>${escapeHtml(opts.body).replace(/\n/g, '<br/>')}</p>
 <p>Ticket: <code>${escapeHtml(opts.ticketNumber)}</code><br/>
-<a href="${escapeHtml(url)}">Open in LogIT</a></p>
-<p>— LogIT</p>`;
+<a href="${escapeHtml(url)}">Open in LogIt</a></p>
+<p>— LogIt</p>`;
 
     let ticketId = opts.ticketId;
     let inReplyTo = opts.inReplyTo;

@@ -126,9 +126,9 @@ export class AuditExportScheduleRunner
 
     const exportPayload = await this.audit.buildScheduledAuditExport(row);
     const rangeLabel = `${exportPayload.range.from} → ${exportPayload.range.to}`;
-    const subject = `LogIT ${row.cadence} audit export (SHA-256)`;
+    const subject = `LogIt ${row.cadence} audit export (SHA-256)`;
     const text = [
-      'Your scheduled LogIT audit CSV is attached.',
+      'Your scheduled LogIt audit CSV is attached.',
       '',
       `Cadence: ${row.cadence}`,
       `Rows: ${exportPayload.rowCount}`,
@@ -136,19 +136,19 @@ export class AuditExportScheduleRunner
       `SHA-256: ${exportPayload.contentSha256}`,
       '',
       'Store this hash with the file to verify integrity later.',
-      'Manage schedules in LogIT → Audit trail.',
-      '— LogIT',
+      'Manage schedules in LogIt → Audit trail.',
+      '— LogIt',
     ].join('\n');
 
     const sendResult = await this.email.send({
       to: row.email,
       subject,
       text,
-      html: `<p>Your scheduled LogIT audit CSV is attached.</p>
+      html: `<p>Your scheduled LogIt audit CSV is attached.</p>
 <p>${escapeHtml(rangeLabel)} · ${escapeHtml(row.cadence)} · ${exportPayload.rowCount} rows</p>
 <p><code>SHA-256: ${escapeHtml(exportPayload.contentSha256)}</code></p>
 <p>Store this hash with the file to verify integrity later.</p>
-<p>— LogIT</p>`,
+<p>— LogIt</p>`,
       attachments: [
         {
           filename: exportPayload.filename,

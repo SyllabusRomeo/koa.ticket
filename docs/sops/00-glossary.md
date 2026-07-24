@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Define common LogIT terms so users share one vocabulary.
+Define common LogIt terms so users share one vocabulary.
 
 ## Core terms
 
 | Term | Meaning |
 | --- | --- |
-| **LogIT** | The IT Service Management (ITSM) platform |
+| **LogIt** | The IT Service Management (ITSM) platform |
 | **Requester / Employee** | Person who opens a ticket |
 | **Agent** | IT staff who works tickets |
 | **Queue / Team** | Support group that owns tickets (e.g. Service Desk) |

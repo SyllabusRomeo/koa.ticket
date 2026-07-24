@@ -259,7 +259,7 @@ export class NotificationDigestService {
     const text = [
       `Hi ${opts.firstName},`,
       '',
-      `Your ${label.toLowerCase()} LogIT digest — ${count} unread notification${count === 1 ? '' : 's'}:`,
+      `Your ${label.toLowerCase()} LogIt digest — ${count} unread notification${count === 1 ? '' : 's'}:`,
       moreNote,
       ...lines,
       '',
@@ -267,7 +267,7 @@ export class NotificationDigestService {
       '',
       'In-app items stay unread until you open them.',
       '',
-      '— LogIT',
+      '— LogIt',
     ].join('\n');
 
     const htmlItems = unread
@@ -282,15 +282,15 @@ export class NotificationDigestService {
       .join('');
 
     const html = `<p>Hi ${escapeHtml(opts.firstName)},</p>
-<p>Your <strong>${escapeHtml(label.toLowerCase())}</strong> LogIT digest — <strong>${count}</strong> unread notification${count === 1 ? '' : 's'}:${count >= MAX_ITEMS ? ` (showing ${MAX_ITEMS} most recent)` : ''}</p>
+<p>Your <strong>${escapeHtml(label.toLowerCase())}</strong> LogIt digest — <strong>${count}</strong> unread notification${count === 1 ? '' : 's'}:${count >= MAX_ITEMS ? ` (showing ${MAX_ITEMS} most recent)` : ''}</p>
 <ul>${htmlItems}</ul>
 <p><a href="${escapeHtml(inboxUrl)}">Open notification inbox</a></p>
 <p><em>In-app items stay unread until you open them.</em></p>
-<p>— LogIT</p>`;
+<p>— LogIt</p>`;
 
     const result = await this.email.send({
       to: opts.email,
-      subject: `[LogIT] ${label} digest — ${count} unread`,
+      subject: `[LogIt] ${label} digest — ${count} unread`,
       text,
       html,
     });

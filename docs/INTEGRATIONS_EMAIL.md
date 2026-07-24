@@ -1,6 +1,6 @@
-# Email inbound / outbound — LogIT omnichannel
+# Email inbound / outbound — LogIt omnichannel
 
-LogIT sends ticket event emails over SMTP (nodemailer), accepts inbound parse webhooks, and can poll IMAP for new mail. Threading uses **Message-ID / In-Reply-To / References** plus subject ticket tokens.
+LogIt sends ticket event emails over SMTP (nodemailer), accepts inbound parse webhooks, and can poll IMAP for new mail. Threading uses **Message-ID / In-Reply-To / References** plus subject ticket tokens.
 
 **Admin UI:** `/app/admin/integrations` (sysadmin) — Email (SMTP) + IMAP status, inbound webhook URL, manual IMAP poll  
 **Related:** [INTEGRATIONS_SLACK_TEAMS.md](./INTEGRATIONS_SLACK_TEAMS.md) · [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md)
@@ -62,7 +62,7 @@ Compatible with SendGrid Inbound Parse / Mailgun-style routes:
 
 | Field | Notes |
 | --- | --- |
-| `from` / `sender` | Sender; mapped to a LogIT user by email when possible |
+| `from` / `sender` | Sender; mapped to a LogIt user by email when possible |
 | `subject` | Used for ticket token + new-ticket title |
 | `text` / `plain` / `body-plain` | Preferred body |
 | `html` / `body-html` | Used if text missing (tags stripped) |

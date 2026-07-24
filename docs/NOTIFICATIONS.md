@@ -1,4 +1,4 @@
-# LogIT — Alerts & notifications workflow
+# LogIt — Alerts & notifications workflow
 
 Industry-aligned event model for ITSM ticket lifecycle alerts.
 

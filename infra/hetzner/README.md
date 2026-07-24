@@ -1,4 +1,4 @@
-# LogIT on Hetzner — production checklist
+# LogIt on Hetzner — production checklist
 
 ## Ports (local vs prod)
 

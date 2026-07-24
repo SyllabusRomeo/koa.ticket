@@ -1,5 +1,5 @@
 /**
- * Extract LogIT ticket numbers from inbound email subjects.
+ * Extract LogIt ticket numbers from inbound email subjects.
  * Prefers bracket tokens like [INC-2026-000123], else bare INC-2026-000123.
  */
 const BRACKETED =

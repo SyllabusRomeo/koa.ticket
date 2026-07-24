@@ -342,7 +342,7 @@ export default function ProfilePage() {
         <header className={styles.hero}>
           <p className={styles.eyebrow}>Account</p>
           <p className={styles.intro}>
-            Update how you appear in LogIT, set your home location, change your
+            Update how you appear in LogIt, set your home location, change your
             password, manage notification alerts, and two-factor authentication.
           </p>
         </header>

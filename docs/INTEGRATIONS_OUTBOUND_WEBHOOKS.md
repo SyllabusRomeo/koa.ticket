@@ -1,6 +1,6 @@
 # Outbound webhooks (signed)
 
-LogIT can POST JSON payloads to your HTTPS endpoints when tickets change. Each delivery is signed with HMAC-SHA256 so receivers can verify authenticity.
+LogIt can POST JSON payloads to your HTTPS endpoints when tickets change. Each delivery is signed with HMAC-SHA256 so receivers can verify authenticity.
 
 **Admin UI:** `/app/admin/integrations` → Outbound webhooks (sysadmin)  
 **API:** `GET/POST/PATCH/DELETE /api/v1/webhooks/endpoints` (`settings:manage`)
@@ -34,10 +34,10 @@ Secrets are **per endpoint** (stored in the database), not in env.
 
 | Header | Value |
 | --- | --- |
-| `X-LogIT-Signature` | `sha256=<hex>` HMAC-SHA256 of the **raw request body** using the endpoint secret |
-| `X-LogIT-Event` | Event type (e.g. `ticket.created`) |
-| `X-LogIT-Delivery-Id` | UUID for this attempt |
-| `X-LogIT-Timestamp` | Unix seconds |
+| `X-LogIt-Signature` | `sha256=<hex>` HMAC-SHA256 of the **raw request body** using the endpoint secret |
+| `X-LogIt-Event` | Event type (e.g. `ticket.created`) |
+| `X-LogIt-Delivery-Id` | UUID for this attempt |
+| `X-LogIt-Timestamp` | Unix seconds |
 
 ### Verify (Node.js)
 
@@ -55,13 +55,13 @@ function verify(rawBody, signatureHeader, secret) {
 
 // Express: use express.raw({ type: 'application/json' }) or capture raw body
 app.post('/logit-hooks', (req, res) => {
-  const ok = verify(req.body, req.get('X-LogIT-Signature'), process.env.LOGIT_SECRET);
+  const ok = verify(req.body, req.get('X-LogIt-Signature'), process.env.LOGIT_SECRET);
   if (!ok) return res.status(401).send('bad signature');
   res.sendStatus(204);
 });
 ```
 
-Use the **exact bytes** of the body LogIT sent — do not re-serialize JSON before verifying.
+Use the **exact bytes** of the body LogIt sent — do not re-serialize JSON before verifying.
 
 ## Configure
 

@@ -107,8 +107,8 @@ const ROLE_DEFS: Array<{
 async function main() {
   await prisma.systemSetting.upsert({
     where: { key: 'app.name' },
-    update: { value: 'LogIT' },
-    create: { key: 'app.name', value: 'LogIT' },
+    update: { value: 'LogIt' },
+    create: { key: 'app.name', value: 'LogIt' },
   });
 
   for (const code of Object.values(PERMISSIONS)) {
@@ -217,7 +217,7 @@ async function main() {
   const adminEmail = (
     process.env.SEED_ADMIN_EMAIL ?? 'admin@logit.local'
   ).toLowerCase();
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'LogIT-Admin-2026!';
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'LogIt-Admin-2026!';
   const passwordHash = await argon2.hash(adminPassword, {
     type: argon2.argon2id,
   });
@@ -267,7 +267,7 @@ async function main() {
     where: { code: ROLES.EMPLOYEE },
   });
   const demoEmail = 'employee@logit.local';
-  const demoHash = await argon2.hash('LogIT-Employee-2026!', {
+  const demoHash = await argon2.hash('LogIt-Employee-2026!', {
     type: argon2.argon2id,
   });
   const employee = await prisma.user.upsert({
@@ -361,7 +361,7 @@ async function main() {
 
   const agent = await upsertDemoUser({
     email: 'agent@logit.local',
-    password: 'LogIT-Agent-2026!',
+    password: 'LogIt-Agent-2026!',
     firstName: 'Kojo',
     lastName: 'Asante',
     roleCode: ROLES.AGENT,
@@ -370,7 +370,7 @@ async function main() {
   });
   const senior = await upsertDemoUser({
     email: 'senior@logit.local',
-    password: 'LogIT-Senior-2026!',
+    password: 'LogIt-Senior-2026!',
     firstName: 'Efua',
     lastName: 'Boateng',
     roleCode: ROLES.SENIOR_AGENT,
@@ -379,7 +379,7 @@ async function main() {
   });
   const manager = await upsertDemoUser({
     email: 'manager@logit.local',
-    password: 'LogIT-Manager-2026!',
+    password: 'LogIt-Manager-2026!',
     firstName: 'Yaw',
     lastName: 'Osei',
     roleCode: ROLES.IT_MANAGER,
@@ -389,7 +389,7 @@ async function main() {
   });
   const approver = await upsertDemoUser({
     email: 'approver@logit.local',
-    password: 'LogIT-Approver-2026!',
+    password: 'LogIt-Approver-2026!',
     firstName: 'Akosua',
     lastName: 'Addo',
     roleCode: ROLES.APPROVER,
@@ -397,7 +397,7 @@ async function main() {
   });
   const auditor = await upsertDemoUser({
     email: 'auditor@logit.local',
-    password: 'LogIT-Auditor-2026!',
+    password: 'LogIt-Auditor-2026!',
     firstName: 'Nana',
     lastName: 'Owusu',
     roleCode: ROLES.AUDITOR,
@@ -776,7 +776,7 @@ async function main() {
     where: { slug: 'reset-password-m365' },
     update: {
       title: 'Reset Microsoft 365 password',
-      body: '1. Go to portal.office.com\n2. Click Forgot password\n3. Follow the prompts.\nIf locked out, raise an Access Request in LogIT.',
+      body: '1. Go to portal.office.com\n2. Click Forgot password\n3. Follow the prompts.\nIf locked out, raise an Access Request in LogIt.',
       status: 'published',
       publishedAt: new Date(),
       category: 'Accounts',
@@ -784,7 +784,7 @@ async function main() {
     create: {
       slug: 'reset-password-m365',
       title: 'Reset Microsoft 365 password',
-      body: '1. Go to portal.office.com\n2. Click Forgot password\n3. Follow the prompts.\nIf locked out, raise an Access Request in LogIT.',
+      body: '1. Go to portal.office.com\n2. Click Forgot password\n3. Follow the prompts.\nIf locked out, raise an Access Request in LogIt.',
       status: 'published',
       publishedAt: new Date(),
       category: 'Accounts',
@@ -1625,7 +1625,7 @@ async function main() {
     where: { slug: 'connect-corporate-vpn' },
     update: {
       title: 'Connect to corporate VPN',
-      body: '<p>Install GlobalProtect, sign in with your LogIT email, and choose the <strong>HQ</strong> portal.</p><p>If sessions drop, see the VPN known error article or raise an incident.</p>',
+      body: '<p>Install GlobalProtect, sign in with your LogIt email, and choose the <strong>HQ</strong> portal.</p><p>If sessions drop, see the VPN known error article or raise an incident.</p>',
       status: 'published',
       publishedAt: new Date(),
       category: 'Network',
@@ -1633,7 +1633,7 @@ async function main() {
     create: {
       slug: 'connect-corporate-vpn',
       title: 'Connect to corporate VPN',
-      body: '<p>Install GlobalProtect, sign in with your LogIT email, and choose the <strong>HQ</strong> portal.</p>',
+      body: '<p>Install GlobalProtect, sign in with your LogIt email, and choose the <strong>HQ</strong> portal.</p>',
       status: 'published',
       publishedAt: new Date(),
       category: 'Network',
@@ -1900,15 +1900,15 @@ async function main() {
     });
   }
 
-  console.log('LogIT seed complete (Phase 1–11 MVP + demo sample data).');
+  console.log('LogIt seed complete (Phase 1–11 MVP + demo sample data).');
   console.log('Demo accounts (development only — never use in production):');
   console.log(`  sysadmin     ${adminEmail} / ${adminPassword}`);
-  console.log('  employee     employee@logit.local / LogIT-Employee-2026!');
-  console.log('  agent        agent@logit.local / LogIT-Agent-2026!');
-  console.log('  senior_agent senior@logit.local / LogIT-Senior-2026!');
-  console.log('  it_manager   manager@logit.local / LogIT-Manager-2026!');
-  console.log('  approver     approver@logit.local / LogIT-Approver-2026!');
-  console.log('  auditor      auditor@logit.local / LogIT-Auditor-2026!');
+  console.log('  employee     employee@logit.local / LogIt-Employee-2026!');
+  console.log('  agent        agent@logit.local / LogIt-Agent-2026!');
+  console.log('  senior_agent senior@logit.local / LogIt-Senior-2026!');
+  console.log('  it_manager   manager@logit.local / LogIt-Manager-2026!');
+  console.log('  approver     approver@logit.local / LogIt-Approver-2026!');
+  console.log('  auditor      auditor@logit.local / LogIt-Auditor-2026!');
   console.log('Sample tickets: INC/REQ/ACC/SEC/PRB/CHG queues, Major ops, Approvals, KB, Catalog, Assets.');
 }
 

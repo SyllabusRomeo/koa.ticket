@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Diagnose common LogIT failures quickly.
+Diagnose common LogIt failures quickly.
 
 ## Health checks
 
@@ -51,7 +51,7 @@ If ready is degraded, fix dependencies before chasing UI bugs.
 
 ### Port already in use
 
-LogIT defaults: web **3100**, API **4100**, Nginx **8180**. Change `.env` + `apps/web/.env.local` together.
+LogIt defaults: web **3100**, API **4100**, Nginx **8180**. Change `.env` + `apps/web/.env.local` together.
 
 ### Prisma generate EPERM
 

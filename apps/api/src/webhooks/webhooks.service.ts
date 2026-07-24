@@ -228,7 +228,7 @@ export class WebhooksService {
       event: 'webhook.ping' as const,
       sentAt: new Date().toISOString(),
       endpointId: endpoint.id,
-      message: 'LogIT webhook test ping',
+      message: 'LogIt webhook test ping',
     };
     const result = await this.deliverOne(endpoint, 'webhook.ping', payload);
     return {
@@ -291,11 +291,11 @@ export class WebhooksService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'User-Agent': 'LogIT-Webhooks/1.0',
-          'X-LogIT-Signature': signatureHeader,
-          'X-LogIT-Event': eventType,
-          'X-LogIT-Delivery-Id': deliveryId,
-          'X-LogIT-Timestamp': timestamp,
+          'User-Agent': 'LogIt-Webhooks/1.0',
+          'X-LogIt-Signature': signatureHeader,
+          'X-LogIt-Event': eventType,
+          'X-LogIt-Delivery-Id': deliveryId,
+          'X-LogIt-Timestamp': timestamp,
         },
         body: rawBody,
         signal: controller.signal,

@@ -3,7 +3,7 @@ import './globals.css';
 import { PortalThemeProvider } from '@/components/PortalThemeProvider';
 
 export const metadata: Metadata = {
-  title: 'LogIT — IT Service Management',
+  title: 'LogIt — IT Service Management',
   description: 'Enterprise IT service desk and service management platform',
 };
 

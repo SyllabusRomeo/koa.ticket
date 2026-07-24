@@ -2,17 +2,17 @@
 
 ## Purpose
 
-Teach requesters how to use LogIT day to day.
+Teach requesters how to use LogIt day to day.
 
 ## Before you start
 
-- You need an active LogIT account (IT creates it), or your org may offer **Sign in with Microsoft**.
+- You need an active LogIt account (IT creates it), or your org may offer **Sign in with Microsoft**.
 - Use a supported modern browser.
 - Prefer corporate network/VPN policies as directed by IT.
 
 ## Sign in
 
-1. Go to the LogIT portal URL provided by IT.
+1. Go to the LogIt portal URL provided by IT.
 2. Sign in with your email and password, or Microsoft SSO if enabled ([SOP-07](./07-sign-in-and-security.md)).
 3. If MFA is enabled on your account, enter the authenticator code when prompted.
 

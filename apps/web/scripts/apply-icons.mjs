@@ -1,5 +1,5 @@
 /**
- * One-shot patcher: adds lucide Icon usage across major LogIT pages.
+ * One-shot patcher: adds lucide Icon usage across major LogIt pages.
  * Run: node apps/web/scripts/apply-icons.mjs
  */
 import { readFileSync, writeFileSync, existsSync } from 'fs';

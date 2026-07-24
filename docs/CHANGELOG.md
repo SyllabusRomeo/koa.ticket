@@ -1,4 +1,4 @@
-# LogIT — Changelog (shipped through M10)
+# LogIt — Changelog (shipped through M10)
 
 Concise product summary. Detail lives in [DEVELOPMENT_TODO.md](./docs/DEVELOPMENT_TODO.md) and [GAP_ASSESSMENT.md](./docs/GAP_ASSESSMENT.md).
 
@@ -50,3 +50,5 @@ Concise product summary. Detail lives in [DEVELOPMENT_TODO.md](./docs/DEVELOPMEN
 ## Documentation
 
 **User & Developer Guide (book):** [USER_AND_DEVELOPER_GUIDE.md](./USER_AND_DEVELOPER_GUIDE.md) — product map, setup, operations flows, developer guide, and extension blueprints (manufacturing + other industries) under [guide/](./guide/).
+
+**Brand name:** product display name is **LogIt** (“log it”) — not LogIT.

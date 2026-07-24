@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Control how LogIT changes move from development to production.
+Control how LogIt changes move from development to production.
 
 ## Source control
 

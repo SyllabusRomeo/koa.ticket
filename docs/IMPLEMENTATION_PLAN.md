@@ -1,4 +1,4 @@
-# LogIT — Implementation Plan
+# LogIt — Implementation Plan
 
 Enterprise ITSM platform per PRD v1.0. Modular monolith, Docker-first, Hetzner-ready.
 
@@ -18,7 +18,7 @@ Enterprise ITSM platform per PRD v1.0. Modular monolith, Docker-first, Hetzner-r
 | Containers | Docker Compose | Single-server Hetzner deploy |
 | Auth | Session cookies + Argon2id + optional TOTP MFA + Entra OIDC | SAML / more IdPs later |
 
-**Brand:** LogIT — primary `#0F4A40`, light `#EDF4AC`, secondary `#456433`, warm `#FBF1DA`.
+**Brand:** LogIt — primary `#0F4A40`, light `#EDF4AC`, secondary `#456433`, warm `#FBF1DA`.
 
 ---
 
@@ -26,7 +26,7 @@ Enterprise ITSM platform per PRD v1.0. Modular monolith, Docker-first, Hetzner-r
 
 - [x] Monorepo (`apps/api`, `apps/web`, `apps/worker`, `packages/shared`)
 - [x] Docker Compose: postgres, redis, api, worker, web, nginx
-- [x] LogIT design tokens + base layout shell
+- [x] LogIt design tokens + base layout shell
 - [x] Health endpoints: `/health`, `/health/ready`, `/health/live`
 - [x] `.env.example`, `.gitignore`, seed stub
 - [x] Git init
@@ -99,7 +99,7 @@ See also [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md) and [NOTIFICATIONS.md](./NOTIF
 - [x] Role-aware workspace dashboard
 - [x] Tickets / queue / problems / changes / major-incidents / knowledge / catalog / assets / reports nav
 - [x] Major-incident ops dashboard
-- [x] LogIT brand UI
+- [x] LogIt brand UI
 
 ## Phase 8 — Knowledge & catalog (done — MVP+)
 

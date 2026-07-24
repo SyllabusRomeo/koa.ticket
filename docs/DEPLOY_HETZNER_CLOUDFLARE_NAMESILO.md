@@ -1,8 +1,8 @@
-# LogIT — Production deploy: Namesilo + Cloudflare + Hetzner + GitHub
+# LogIt — Production deploy: Namesilo + Cloudflare + Hetzner + GitHub
 
 **Audience:** you are going live on a Hetzner VPS, with the domain at **NameSilo**, DNS/WAF at **Cloudflare**, and app code from **GitHub** (`SyllabusRomeo/koa.ticket`).
 
-**Goal:** `https://<subdomain>.<your-domain>` serves LogIT (Nginx → web/api/worker) with TLS, secure cookies, and a repeatable `git pull` + Compose deploy.
+**Goal:** `https://<subdomain>.<your-domain>` serves LogIt (Nginx → web/api/worker) with TLS, secure cookies, and a repeatable `git pull` + Compose deploy.
 
 **Complements:** [PRODUCTION.md](./PRODUCTION.md) · [SOP-05](./sops/05-hetzner-production.md) · [infra/hetzner/README.md](../infra/hetzner/README.md)
 
@@ -226,7 +226,7 @@ nano .env   # or vim
 
 ```env
 NODE_ENV=production
-APP_NAME=LogIT
+APP_NAME=LogIt
 APP_URL=https://logit.example.com
 APP_PUBLIC_URL=https://logit.example.com
 API_PUBLIC_URL=https://logit.example.com/api/v1
@@ -250,7 +250,7 @@ UPLOAD_DIR=./data/uploads
 
 # Seed passwords: leave EXPOSE_RESET_TOKENS unset/false in prod
 EXPOSE_RESET_TOKENS=false
-# After first login, change/disable demo seed users — do not leave LogIT-Admin-2026! live
+# After first login, change/disable demo seed users — do not leave LogIt-Admin-2026! live
 
 # Optional: SMTP, IMAP, Slack, Teams, Entra — fill when ready
 ```
@@ -284,7 +284,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api wget -q
 
 ## 6. TLS on the origin (Let’s Encrypt) **with Cloudflare**
 
-LogIT’s script: `./scripts/init-letsencrypt.sh <domain> <email>` (HTTP-01 via webroot). That needs **port 80** on the origin to answer ACME for `logit.example.com`.
+LogIt’s script: `./scripts/init-letsencrypt.sh <domain> <email>` (HTTP-01 via webroot). That needs **port 80** on the origin to answer ACME for `logit.example.com`.
 
 ### Recommended bootstrap order (avoids Cloudflare SSL loops)
 
@@ -387,7 +387,7 @@ For bad migrations, restore Postgres from backup first ([SOP-17](./sops/17-backu
 1. Log into NameSilo → domain → **NameServers**.  
 2. Set Cloudflare nameservers; save.  
 3. Do **not** add the subdomain A record at NameSilo afterward (Cloudflare zone owns DNS).  
-4. Renew/domain lock/WHOIS privacy stay in NameSilo as usual — unrelated to LogIT.
+4. Renew/domain lock/WHOIS privacy stay in NameSilo as usual — unrelated to LogIt.
 
 If you refuse to move NS to Cloudflare: create the subdomain **A** at NameSilo pointing to Hetzner, and put Cloudflare in front only via a CNAME setup that NameSilo/Cloudflare both support — this is more error-prone; Option A is strongly preferred.
 

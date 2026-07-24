@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Run LogIT as containers (all-in-one or split) for staging-like or single-server demos.
+Run LogIt as containers (all-in-one or split) for staging-like or single-server demos.
 
 ## Services in `docker-compose.yml`
 

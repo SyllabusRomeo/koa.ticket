@@ -380,7 +380,7 @@ export default function IntegrationsAdminPage() {
           <p className={styles.eyebrow}>Administration · Sysadmin</p>
           <p className={styles.lede}>
             Connect Slack, Microsoft Teams, and email so people can create and
-            update LogIT tickets from chat or mailbox. Configure signed outbound
+            update LogIt tickets from chat or mailbox. Configure signed outbound
             webhooks for external systems. Chat secrets live in environment
             variables; outbound webhook secrets are stored per endpoint.
           </p>
@@ -475,11 +475,11 @@ export default function IntegrationsAdminPage() {
         <section className={styles.panel}>
           <PanelHeading icon={Webhook}>Outbound webhooks</PanelHeading>
           <p className={styles.hint}>
-            LogIT POSTs JSON to your URL on ticket events. Verify{' '}
-            <code>X-LogIT-Signature</code> (HMAC-SHA256 of the raw body,{' '}
+            LogIt POSTs JSON to your URL on ticket events. Verify{' '}
+            <code>X-LogIt-Signature</code> (HMAC-SHA256 of the raw body,{' '}
             <code>sha256=&lt;hex&gt;</code>) with the endpoint secret. Also check{' '}
-            <code>X-LogIT-Event</code>, <code>X-LogIT-Delivery-Id</code>,{' '}
-            <code>X-LogIT-Timestamp</code>. See{' '}
+            <code>X-LogIt-Event</code>, <code>X-LogIt-Delivery-Id</code>,{' '}
+            <code>X-LogIt-Timestamp</code>. See{' '}
             <code>docs/INTEGRATIONS_OUTBOUND_WEBHOOKS.md</code>.
           </p>
 
@@ -780,7 +780,7 @@ export default function IntegrationsAdminPage() {
             </li>
             <li>
               Prefer reply-header threading; subject tokens remain a fallback
-              (LogIT outbound includes <code>[TICKET-…]</code>).
+              (LogIt outbound includes <code>[TICKET-…]</code>).
             </li>
           </ol>
           {status?.email?.imap?.configured ? (

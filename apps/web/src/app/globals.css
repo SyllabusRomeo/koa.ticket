@@ -73,7 +73,7 @@ button {
   font-family: inherit;
 }
 
-/* Shared text-field baseline — LogIT form controls (exclude chrome inputs). */
+/* Shared text-field baseline — LogIt form controls (exclude chrome inputs). */
 input:not([type]),
 input[type='text'],
 input[type='email'],

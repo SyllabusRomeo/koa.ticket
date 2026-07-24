@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Stand up LogIT on a developer workstation for coding and demos.
+Stand up LogIt on a developer workstation for coding and demos.
 
 ## Prerequisites
 
@@ -109,13 +109,13 @@ On a typical Windows laptop, **Docker Desktop / WSL2** is the largest controllab
 
 | Name | Email | Password | Role | What they can access |
 | --- | --- | --- | --- | --- |
-| Administrator | `admin@logit.local` | `LogIT-Admin-2026!` | `sysadmin` | Full platform (users, org, SLA, settings, all tickets) |
-| Ama Mensah | `employee@logit.local` | `LogIT-Employee-2026!` | `employee` | Own tickets, create tickets, knowledge, catalog |
-| Kojo Asante | `agent@logit.local` | `LogIT-Agent-2026!` | `agent` | Queue tickets, assign, internal notes, assets read, Service Desk |
-| Efua Boateng | `senior@logit.local` | `LogIT-Senior-2026!` | `senior_agent` | Agent + knowledge/asset write, escalations |
-| Yaw Osei | `manager@logit.local` | `LogIT-Manager-2026!` | `it_manager` | All tickets, reports, audit read, org manage, Service Desk lead |
-| Akosua Addo | `approver@logit.local` | `LogIT-Approver-2026!` | `approver` | Approvals page — approve/reject pending service/access requests |
-| Nana Owusu | `auditor@logit.local` | `LogIT-Auditor-2026!` | `auditor` | Audit, reports, tickets/assets read-focused |
+| Administrator | `admin@logit.local` | `LogIt-Admin-2026!` | `sysadmin` | Full platform (users, org, SLA, settings, all tickets) |
+| Ama Mensah | `employee@logit.local` | `LogIt-Employee-2026!` | `employee` | Own tickets, create tickets, knowledge, catalog |
+| Kojo Asante | `agent@logit.local` | `LogIt-Agent-2026!` | `agent` | Queue tickets, assign, internal notes, assets read, Service Desk |
+| Efua Boateng | `senior@logit.local` | `LogIt-Senior-2026!` | `senior_agent` | Agent + knowledge/asset write, escalations |
+| Yaw Osei | `manager@logit.local` | `LogIt-Manager-2026!` | `it_manager` | All tickets, reports, audit read, org manage, Service Desk lead |
+| Akosua Addo | `approver@logit.local` | `LogIt-Approver-2026!` | `approver` | Approvals page — approve/reject pending service/access requests |
+| Nana Owusu | `auditor@logit.local` | `LogIt-Auditor-2026!` | `auditor` | Audit, reports, tickets/assets read-focused |
 
 Re-seed anytime with `npm run db:seed` (idempotent upserts).
 

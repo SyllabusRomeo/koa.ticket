@@ -1,5 +1,5 @@
 /**
- * LogIT action buttons — industry ITSM hierarchy, brand greens.
+ * LogIt action buttons — industry ITSM hierarchy, brand greens.
  * See docs/UX_BUTTONS.md for when to use each variant.
  */
 
@@ -96,7 +96,7 @@
   outline-color: var(--color-danger);
 }
 
-/* Success — Resolve / Approve (LogIT secondary green) */
+/* Success — Resolve / Approve (LogIt secondary green) */
 .success {
   background: var(--color-secondary);
   color: #fff;

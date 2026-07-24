@@ -127,7 +127,7 @@ Business hours seed: Mon–Fri 08:00–17:00 `Africa/Accra`.
 
 ### Login branding & portal themes (sysadmin)
 
-Admin UI: `/app/admin/branding` — upload organization logo and login banner, choose a **portal theme** (or custom colors), preview, Save, or Reset to LogIT defaults.
+Admin UI: `/app/admin/branding` — upload organization logo and login banner, choose a **portal theme** (or custom colors), preview, Save, or Reset to LogIt defaults.
 
 Themes set CSS variables (`--color-primary`, etc.) for the whole portal (login + workspace).
 

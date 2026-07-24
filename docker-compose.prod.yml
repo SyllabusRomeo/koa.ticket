@@ -1,4 +1,4 @@
-# Production overrides for LogIT on Hetzner / single-server Docker.
+# Production overrides for LogIt on Hetzner / single-server Docker.
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 # TLS bootstrap (after DNS points here):

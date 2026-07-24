@@ -188,13 +188,13 @@ export function AppShell({
           <Link
             href="/app"
             className={shell.brand}
-            aria-label="LogIT workspace home"
+            aria-label="LogIt workspace home"
             title="Workspace home"
           >
             <span className={shell.mark} aria-hidden>
               <Icon icon={BrandMarkIcon} size="md" />
             </span>
-            <span className={shell.brandName}>LogIT</span>
+            <span className={shell.brandName}>LogIt</span>
           </Link>
 
           <nav className={shell.primaryNav} aria-label="Workspace">

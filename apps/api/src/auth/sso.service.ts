@@ -188,7 +188,7 @@ export class SsoService {
         this.config.get('ENTRA_AUTO_PROVISION') === '1';
       if (!auto) {
         throw new UnauthorizedException(
-          'No LogIT account matches this Microsoft identity. Ask an admin to create your user.',
+          'No LogIt account matches this Microsoft identity. Ask an admin to create your user.',
         );
       }
       user = await this.provisionEntraUser(email, subject, claims);

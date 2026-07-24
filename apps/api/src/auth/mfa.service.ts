@@ -18,7 +18,7 @@ export class MfaService {
     private readonly passwords: PasswordService,
     config: ConfigService,
   ) {
-    this.issuer = config.get('APP_NAME') ?? 'LogIT';
+    this.issuer = config.get('APP_NAME') ?? 'LogIt';
   }
 
   private buildTotp(secret: string, label: string) {

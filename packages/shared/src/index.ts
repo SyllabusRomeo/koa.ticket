@@ -1,6 +1,6 @@
-/** Shared LogIT constants & types (API + web + worker). */
+/** Shared LogIt constants & types (API + web + worker). */
 
-export const APP_NAME = 'LogIT' as const;
+export const APP_NAME = 'LogIt' as const;
 
 export const TICKET_TYPE_PREFIX = {
   INCIDENT: 'INC',
@@ -123,7 +123,7 @@ export const ASSET_RELATION_TYPE_LABELS: Record<AssetRelationType, string> = {
   member_of: 'Member of',
 };
 
-/** LogIT brand tokens — keep in sync with apps/web CSS variables. */
+/** LogIt brand tokens — keep in sync with apps/web CSS variables. */
 export const BRAND = {
   primary: '#0F4A40',
   primaryLight: '#EDF4AC',
@@ -163,8 +163,8 @@ export type PortalThemePreset = {
 export const PORTAL_THEME_PRESETS: PortalThemePreset[] = [
   {
     id: 'logit',
-    name: 'LogIT Forest',
-    description: 'Default LogIT forest primary with lime and warm cream.',
+    name: 'LogIt Forest',
+    description: 'Default LogIt forest primary with lime and warm cream.',
     colors: { ...BRAND },
   },
   {

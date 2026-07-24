@@ -1,6 +1,6 @@
-# LogIT — Action button variants
+# LogIt — Action button variants
 
-Industry ITSM principle: **one clear next step**, quieter alternatives, and destructive actions that look different. Visual language stays LogIT (forest greens `#0F4A40` / `#456433`, lime `#EDF4AC`, warm `#FBF1DA`) — not a blue Service Desk clone.
+Industry ITSM principle: **one clear next step**, quieter alternatives, and destructive actions that look different. Visual language stays LogIt (forest greens `#0F4A40` / `#456433`, lime `#EDF4AC`, warm `#FBF1DA`) — not a blue Service Desk clone.
 
 Shared styles: `apps/web/src/components/Button.module.css` (+ `Button` / `buttonClass` in `Button.tsx`). App pages also expose aliases via `app.module.css` (`.btn`, `.btnSecondary`, …).
 
@@ -24,7 +24,7 @@ Shared styles: `apps/web/src/components/Button.module.css` (+ `Button` / `button
 
 ## Icons
 
-- Use **lucide-react** line icons via `Icon` (`apps/web/src/components/Icon.tsx`) — sizes 16/20/24, `currentColor`, LogIT brand greens.
+- Use **lucide-react** line icons via `Icon` (`apps/web/src/components/Icon.tsx`) — sizes 16/20/24, `currentColor`, LogIt brand greens.
 - Prefer **icon + text** on key actions (New ticket, Save, Delete, Attach, Approve/Reject, Sign out). Icon-only controls need an `aria-label`.
 - Decorative icons: `aria-hidden` (the `Icon` wrapper sets this). Never emoji or multicolored glyphs.
 - See `.cursor/rules/logit-icons.mdc`.

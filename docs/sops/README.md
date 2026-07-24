@@ -1,10 +1,10 @@
-# LogIT — Standard Operating Procedures (SOP) Index
+# LogIt — Standard Operating Procedures (SOP) Index
 
-**Product:** LogIT — Enterprise IT Service Management  
+**Product:** LogIt — Enterprise IT Service Management  
 **Audience:** End users, IT agents, managers, system administrators, auditors, developers  
 **Version:** 1.2 (aligned with phases 0–11 + N1–N5 / H1–H7 / M1–M10)
 
-Use this index to find the right procedure. Each SOP is written so a new user can follow it without prior LogIT experience.
+Use this index to find the right procedure. Each SOP is written so a new user can follow it without prior LogIt experience.
 
 For the **full book** (product map, setup, flows, developer guide, manufacturing extensions), start at **[USER_AND_DEVELOPER_GUIDE.md](../USER_AND_DEVELOPER_GUIDE.md)**.
 
@@ -15,7 +15,7 @@ For the **full book** (product map, setup, flows, developer guide, manufacturing
 | # | SOP | Who should read it |
 | --- | --- | --- |
 | [00](./00-glossary.md) | Glossary & ticket language | Everyone |
-| [01](./01-system-overview.md) | What LogIT is and who uses it | Everyone |
+| [01](./01-system-overview.md) | What LogIt is and who uses it | Everyone |
 | [02](./02-system-architecture.md) | System architecture | Admins, developers, architects |
 | [03](./03-technical-setup-local.md) | Local technical setup | Developers, admins |
 | [04](./04-docker-deployment.md) | Docker Compose deployment | Admins, DevOps |

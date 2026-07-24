@@ -1,4 +1,4 @@
-# LogIT
+# LogIt
 
 Enterprise IT Service Management platform (PRD-aligned). Self-hosted, Docker-first, Hetzner-ready.
 
@@ -6,7 +6,7 @@ Enterprise IT Service Management platform (PRD-aligned). Self-hosted, Docker-fir
 
 - **API:** NestJS + Prisma + PostgreSQL
 - **Worker:** SLA ticker (Redis-ready)
-- **Web:** Next.js (LogIT brand UI)
+- **Web:** Next.js (LogIt brand UI)
 - **Edge:** Nginx reverse proxy
 
 ## Local ports
@@ -41,13 +41,13 @@ Full table: [docs/sops/03-technical-setup-local.md](docs/sops/03-technical-setup
 
 | Role | Email | Password |
 | --- | --- | --- |
-| sysadmin | `admin@logit.local` | `LogIT-Admin-2026!` |
-| employee | `employee@logit.local` | `LogIT-Employee-2026!` |
-| agent | `agent@logit.local` | `LogIT-Agent-2026!` |
-| senior_agent | `senior@logit.local` | `LogIT-Senior-2026!` |
-| it_manager | `manager@logit.local` | `LogIT-Manager-2026!` |
-| approver | `approver@logit.local` | `LogIT-Approver-2026!` |
-| auditor | `auditor@logit.local` | `LogIT-Auditor-2026!` |
+| sysadmin | `admin@logit.local` | `LogIt-Admin-2026!` |
+| employee | `employee@logit.local` | `LogIt-Employee-2026!` |
+| agent | `agent@logit.local` | `LogIt-Agent-2026!` |
+| senior_agent | `senior@logit.local` | `LogIt-Senior-2026!` |
+| it_manager | `manager@logit.local` | `LogIt-Manager-2026!` |
+| approver | `approver@logit.local` | `LogIt-Approver-2026!` |
+| auditor | `auditor@logit.local` | `LogIt-Auditor-2026!` |
 
 ## Docker full stack
 
@@ -79,4 +79,4 @@ Start at **[docs/USER_AND_DEVELOPER_GUIDE.md](docs/USER_AND_DEVELOPER_GUIDE.md)*
 
 ## Brand
 
-LogIT — primary `#0F4A40`, light `#EDF4AC`, secondary `#456433`, warm `#FBF1DA`.
+LogIt — primary `#0F4A40`, light `#EDF4AC`, secondary `#456433`, warm `#FBF1DA`.

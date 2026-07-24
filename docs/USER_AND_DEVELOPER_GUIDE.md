@@ -1,10 +1,10 @@
-# LogIT — User & Developer Guide
+# LogIt — User & Developer Guide
 
-**Product:** LogIT — Enterprise IT Service Management  
+**Product:** LogIt — Enterprise IT Service Management  
 **Audience:** Requesters, agents, managers, approvers, auditors, administrators, and developers  
 **Edition:** 2026-07-23 (aligned with N1–N5 · H1–H7 · M1–M10 · L1–L5)
 
-This is the **book-style master guide** for LogIT. It explains what the system is, how to set it up, how to run day-to-day work, how developers extend it, and how the same patterns can grow beyond ITSM (including manufacturing).
+This is the **book-style master guide** for LogIt. It explains what the system is, how to set it up, how to run day-to-day work, how developers extend it, and how the same patterns can grow beyond ITSM (including manufacturing).
 
 Deep step-by-step operator procedures also live in [sops/](./sops/README.md). This guide is the narrative map; SOPs are the field manuals.
 
@@ -14,7 +14,7 @@ Deep step-by-step operator procedures also live in [sops/](./sops/README.md). Th
 
 | If you are… | Start with |
 | --- | --- |
-| New to LogIT (any role) | [Part I — Product & capabilities](./guide/01-product-capabilities-roles.md) |
+| New to LogIt (any role) | [Part I — Product & capabilities](./guide/01-product-capabilities-roles.md) |
 | Setting up a laptop or server | [Part II — Setup & configuration](./guide/02-setup-configuration.md) |
 | Using the product daily | [Part III — Operations playbook](./guide/03-operations-use-cases.md) |
 | Building or deploying code | [Part IV — Developer guide](./guide/04-developer-guide.md) |
@@ -25,7 +25,7 @@ Deep step-by-step operator procedures also live in [sops/](./sops/README.md). Th
 ## Table of contents
 
 ### Part I — Product & capabilities
-1. [What LogIT is](./guide/01-product-capabilities-roles.md#1-what-logit-is)
+1. [What LogIt is](./guide/01-product-capabilities-roles.md#1-what-logit-is)
 2. [Capabilities map (360°)](./guide/01-product-capabilities-roles.md#2-capabilities-map-360)
 3. [Personas, roles & permissions](./guide/01-product-capabilities-roles.md#3-personas-roles--permissions)
 4. [Architecture at a glance](./guide/01-product-capabilities-roles.md#4-architecture-at-a-glance)
@@ -74,7 +74,7 @@ Deep step-by-step operator procedures also live in [sops/](./sops/README.md). Th
 | Label in this book | Meaning |
 | --- | --- |
 | **Current product** | Built and usable in this repo today (through L5) |
-| **Extension opportunity** | Design pattern for growing LogIT — **not** shipped features |
+| **Extension opportunity** | Design pattern for growing LogIt — **not** shipped features |
 
 Do not treat Part V manufacturing/HR/fleet modules as existing screens unless this guide explicitly says they are current product.
 

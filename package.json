@@ -2,7 +2,7 @@
   "name": "logit",
   "private": true,
   "version": "0.1.0",
-  "description": "LogIT — Enterprise IT Service Management platform",
+  "description": "LogIt — Enterprise IT Service Management platform",
   "workspaces": [
     "apps/*",
     "packages/*"

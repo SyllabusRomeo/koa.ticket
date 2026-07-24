@@ -201,7 +201,7 @@ export function RichTextEditor({
         onPaste={onPaste}
       />
       <p className={styles.hint}>
-        Format with the toolbar. Images upload to LogIT and embed inline.
+        Format with the toolbar. Images upload to LogIt and embed inline.
       </p>
     </div>
   );

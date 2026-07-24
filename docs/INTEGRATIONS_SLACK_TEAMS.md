@@ -1,6 +1,6 @@
 # Slack & Microsoft Teams — create tickets from chat
 
-LogIT Phase-1 integrations: a user messages the bot (slash command or @mention) → LogIT creates a ticket → reply includes ticket number and deep link.
+LogIt Phase-1 integrations: a user messages the bot (slash command or @mention) → LogIt creates a ticket → reply includes ticket number and deep link.
 
 Tickets are stamped `channel=slack` or `channel=teams` (simulate → `chat`) plus `channelMeta` (user/channel/thread ids). Portal creates use `web`.
 
@@ -56,7 +56,7 @@ Examples:
 
 ```text
 /logit laptop broken priority:high
-@LogIT create: VPN down priority:p2
+@LogIt create: VPN down priority:p2
 Printer offline impact:medium urgency:low type:incident
 ```
 
@@ -73,7 +73,7 @@ Tokens: `priority:p1|p2|high|medium|low`, `impact:`, `urgency:`, `type:`.
 5. Copy **Signing Secret** → `SLACK_SIGNING_SECRET`.
 6. Install app to workspace.
 
-LogIT verifies `X-Slack-Signature` = `v0=` + HMAC-SHA256 of `v0:{timestamp}:{rawBody}` using the signing secret, and rejects timestamps older than 5 minutes. Raw body capture is enabled in the API (`main.ts`) so signature checks match Slack’s bytes.
+LogIt verifies `X-Slack-Signature` = `v0=` + HMAC-SHA256 of `v0:{timestamp}:{rawBody}` using the signing secret, and rejects timestamps older than 5 minutes. Raw body capture is enabled in the API (`main.ts`) so signature checks match Slack’s bytes.
 
 ### Example slash payload handling
 
@@ -96,7 +96,7 @@ https://your-app/app/tickets/INC-2026-000123
    - `TEAMS_APP_ID=<Microsoft App ID>` (or `MICROSOFT_APP_ID`)
    - Optionally keep `TEAMS_APP_PASSWORD` for future outbound replies (not required for inbound verify)
 4. Enable the **Microsoft Teams** channel on the bot.
-5. Users message the bot with `create: …` or plain text; LogIT replies with ticket number + link.
+5. Users message the bot with `create: …` or plain text; LogIt replies with ticket number + link.
 
 Inbound requests from the Bot Connector include:
 
@@ -104,7 +104,7 @@ Inbound requests from the Bot Connector include:
 Authorization: Bearer <JWT>
 ```
 
-LogIT validates (per [Bot Connector authentication](https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-authentication)):
+LogIt validates (per [Bot Connector authentication](https://learn.microsoft.com/en-us/azure/bot-service/rest-api/bot-framework-rest-connector-authentication)):
 
 | Check | Expected |
 | --- | --- |

@@ -5,7 +5,7 @@ describe('webhook signature format', () => {
     const secret = 'test-secret';
     const rawBody = JSON.stringify({
       event: 'webhook.ping',
-      message: 'LogIT webhook test ping',
+      message: 'LogIt webhook test ping',
     });
     const hex = createHmac('sha256', secret).update(rawBody).digest('hex');
     const header = `sha256=${hex}`;

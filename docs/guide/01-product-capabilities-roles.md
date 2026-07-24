@@ -4,9 +4,9 @@
 
 ---
 
-## 1. What LogIT is
+## 1. What LogIt is
 
-LogIT is a **self-hosted enterprise IT Service Management (ITSM)** platform. It is not a bare ticket form — it is an operating system for IT work:
+LogIt is a **self-hosted enterprise IT Service Management (ITSM)** platform. It is not a bare ticket form — it is an operating system for IT work:
 
 - Capture demand from **web, email, Slack, Teams, chat, and API**
 - Route and prioritize work with **skills, teams, locations, and SLA**
@@ -108,7 +108,7 @@ Webhook auto-retry worker, SAML / more IdPs, bot outbound replies, board presets
 
 ### Personas
 
-| Persona | Job in LogIT |
+| Persona | Job in LogIt |
 | --- | --- |
 | Employee / requester | Create & track own tickets; catalog; knowledge |
 | IT agent | Queue work, respond, assign, link assets |
@@ -145,7 +145,7 @@ Key codes (from `@logit/shared`):
 
 ### Demo accounts (development only)
 
-After `npm run db:seed` — passwords are `LogIT-<Role>-2026!` style:
+After `npm run db:seed` — passwords are `LogIt-<Role>-2026!` style:
 
 | Email | Role |
 | --- | --- |
@@ -157,7 +157,7 @@ After `npm run db:seed` — passwords are `LogIT-<Role>-2026!` style:
 | `approver@logit.local` | approver |
 | `auditor@logit.local` | auditor |
 
-Default admin password (seed): `LogIT-Admin-2026!` — **dev only; rotate in any shared environment.**
+Default admin password (seed): `LogIt-Admin-2026!` — **dev only; rotate in any shared environment.**
 
 Full table: [SOP-03](../sops/03-technical-setup-local.md) · [SOP-06](../sops/06-roles-and-permissions.md).
 

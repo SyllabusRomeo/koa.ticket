@@ -1,4 +1,4 @@
-/** Canonical in-app / email notification event types for LogIT. */
+/** Canonical in-app / email notification event types for LogIt. */
 export const NOTIFICATION_EVENTS = [
   {
     type: 'ticket.created',

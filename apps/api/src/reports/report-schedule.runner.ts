@@ -131,25 +131,25 @@ export class ReportScheduleRunner
         ? `Created ${exportPayload.range.from ?? '…'} → ${exportPayload.range.to ?? '…'}`
         : 'All time';
 
-    const subject = `LogIT ${row.cadence} report (${row.format.toUpperCase()})`;
+    const subject = `LogIt ${row.cadence} report (${row.format.toUpperCase()})`;
     const text = [
-      'Your scheduled LogIT export is attached.',
+      'Your scheduled LogIt export is attached.',
       '',
       `Cadence: ${row.cadence}`,
       `Format: ${row.format}`,
       rangeLabel,
       '',
-      'Manage schedules in LogIT → Reports.',
-      '— LogIT',
+      'Manage schedules in LogIt → Reports.',
+      '— LogIt',
     ].join('\n');
 
     const sendResult = await this.email.send({
       to: row.email,
       subject,
       text,
-      html: `<p>Your scheduled LogIT export is attached.</p>
+      html: `<p>Your scheduled LogIt export is attached.</p>
 <p>${escapeHtml(rangeLabel)} · ${escapeHtml(row.cadence)} · ${escapeHtml(row.format.toUpperCase())}</p>
-<p>— LogIT</p>`,
+<p>— LogIt</p>`,
       attachments: [
         {
           filename: exportPayload.filename,

@@ -46,7 +46,7 @@ Full detail: [SOP-03](../sops/03-technical-setup-local.md).
 
 ### Smoke test after seed
 
-1. Login as `admin@logit.local` / `LogIT-Admin-2026!`
+1. Login as `admin@logit.local` / `LogIt-Admin-2026!`
 2. Create a ticket as employee (second browser/session)
 3. Assign / comment as agent
 4. Confirm `/health/ready` on API

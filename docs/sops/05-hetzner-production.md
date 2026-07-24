@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Deploy LogIT to Hetzner infrastructure safely.
+Deploy LogIt to Hetzner infrastructure safely.
 
 ## Recommended topology
 

@@ -62,7 +62,7 @@ export class HealthService {
   health() {
     return {
       status: 'ok',
-      app: 'LogIT',
+      app: 'LogIt',
       version: '0.1.0',
       timestamp: new Date().toISOString(),
     };

@@ -33,7 +33,7 @@ Existing users that previously had multiple `user_roles` rows keep their first l
 
 ## Demo accounts (development only)
 
-Use these after `npm run db:seed`. Passwords follow `LogIT-<Role>-2026!` (except admin/employee naming).
+Use these after `npm run db:seed`. Passwords follow `LogIt-<Role>-2026!` (except admin/employee naming).
 
 | Email | Role | Access summary |
 | --- | --- | --- |
@@ -45,7 +45,7 @@ Use these after `npm run db:seed`. Passwords follow `LogIT-<Role>-2026!` (except
 | `approver@logit.local` | `approver` | **Approvals** queue: approve/reject service & access requests |
 | `auditor@logit.local` | `auditor` | Compliance/read: audit trails, reports, historical tickets/assets |
 
-There is **no separate admin application** — elevated access is role-based inside LogIT.
+There is **no separate admin application** — elevated access is role-based inside LogIt.
 
 Credentials table (with passwords): [SOP-03 Seed accounts](./03-technical-setup-local.md#seed-accounts-development-only).
 

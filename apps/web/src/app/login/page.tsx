@@ -19,7 +19,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('admin@logit.local');
-  const [password, setPassword] = useState('LogIT-Admin-2026!');
+  const [password, setPassword] = useState('LogIt-Admin-2026!');
   const [mfaToken, setMfaToken] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +39,7 @@ function LoginForm() {
         const b = await api.branding();
         if (!cancelled) setBranding(b);
       } catch {
-        /* keep default LogIT look if branding API unavailable */
+        /* keep default LogIt look if branding API unavailable */
       }
     })();
     return () => {
@@ -138,7 +138,7 @@ function LoginForm() {
       }
     >
       <header className={styles.brand}>
-        <a href="/" className={styles.brandLink} aria-label="LogIT homepage">
+        <a href="/" className={styles.brandLink} aria-label="LogIt homepage">
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img className={styles.logo} src={logoUrl} alt="" />
@@ -147,7 +147,7 @@ function LoginForm() {
               <Icon icon={BrandMarkIcon} size="md" />
             </span>
           )}
-          <span className={styles.name}>LogIT</span>
+          <span className={styles.name}>LogIt</span>
         </a>
       </header>
 

@@ -1,4 +1,4 @@
-# LogIT — Development To-do
+# LogIt — Development To-do
 
 Living checklist derived from [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md) and [ENTERPRISE_ROADMAP.md](./ENTERPRISE_ROADMAP.md).  
 Update statuses here as work lands. Principle: **capture data → workflows → real-time → analytics → automation → AI.**
@@ -84,7 +84,7 @@ Update statuses here as work lands. Principle: **capture data → workflows → 
 
 ## Next build — Incident Management System (IMS)
 
-Queued from roadmap (2026-07-23). Same host/login as LogIT; **separate module** (`/im` or `/app/im/*`, `/api/v1/im/*`). Full intent: [ENTERPRISE_ROADMAP.md](./ENTERPRISE_ROADMAP.md#phase-ims--dedicated-incident-management-module).
+Queued from roadmap (2026-07-23). Same host/login as LogIt; **separate module** (`/im` or `/app/im/*`, `/api/v1/im/*`). Full intent: [ENTERPRISE_ROADMAP.md](./ENTERPRISE_ROADMAP.md#phase-ims--dedicated-incident-management-module).
 
 | # | Item | Status | Notes |
 | --- | --- | --- | --- |

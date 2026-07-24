@@ -101,7 +101,7 @@ export class IntegrationsService {
       appPublicUrl: publicUrl,
       examples: [
         '/logit laptop broken priority:high',
-        '@LogIT create: VPN down priority:p2',
+        '@LogIt create: VPN down priority:p2',
         'Printer offline impact:medium urgency:low',
       ],
     };

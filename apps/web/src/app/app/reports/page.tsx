@@ -307,7 +307,7 @@ export default function ReportsPage() {
     <AppShell user={user} onLogout={logout} title="Reports">
       <div className={styles.layout}>
         <section className={styles.hero}>
-          <p className={styles.eyebrow}>LogIT reporting hub</p>
+          <p className={styles.eyebrow}>LogIt reporting hub</p>
           <p className={styles.lede}>
             Operational snapshot for IT managers — KPIs, heatmaps, breakdowns,
             and scheduled exports for leadership packs.

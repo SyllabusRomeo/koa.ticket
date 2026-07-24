@@ -1,4 +1,4 @@
-# LogIT — Gap Assessment vs PRD v2.0 / Technical Feature Roadmap
+# LogIt — Gap Assessment vs PRD v2.0 / Technical Feature Roadmap
 
 Honest status after competitive PRD V.20 (Notion), **Product Requirements Document – ITSM Platform** PDF, and **Technical Feature Roadmap** PDF.
 
@@ -6,7 +6,7 @@ Honest status after competitive PRD V.20 (Notion), **Product Requirements Docume
 
 **Last updated:** 2026-07-23
 
-**Verdict:** LogIT is a **strong modular-monolith ITSM platform** through **L5** — tickets, RBAC (roles/extras), org admin (including Users create/deactivate), SLA/routing, knowledge, catalog forms, assets/CMDB relations, approvals, audit + immutable export schedules, email/IMAP + Slack/Teams, presence, queue/Kanban, Problem/Change/CAB, MI dashboard, SSO/MFA, analytics/digests/heatmaps, webhooks, CI/TLS, AI assists, KB deflection, portal themes. It is **not** yet ServiceNow/Jira SM complete. Remaining work is polish (webhook retries, SAML, bot outbound, etc.).
+**Verdict:** LogIt is a **strong modular-monolith ITSM platform** through **L5** — tickets, RBAC (roles/extras), org admin (including Users create/deactivate), SLA/routing, knowledge, catalog forms, assets/CMDB relations, approvals, audit + immutable export schedules, email/IMAP + Slack/Teams, presence, queue/Kanban, Problem/Change/CAB, MI dashboard, SSO/MFA, analytics/digests/heatmaps, webhooks, CI/TLS, AI assists, KB deflection, portal themes. It is **not** yet ServiceNow/Jira SM complete. Remaining work is polish (webhook retries, SAML, bot outbound, etc.).
 
 ---
 
@@ -51,7 +51,7 @@ Honest status after competitive PRD V.20 (Notion), **Product Requirements Docume
 
 ## Capability matrix (PRD + tech roadmap)
 
-| Area | Done in LogIT | Pending vs PRD / roadmap | Priority |
+| Area | Done in LogIt | Pending vs PRD / roadmap | Priority |
 | --- | --- | --- | --- |
 | Ticket lifecycle | Full + channel + merge + parent/child | Bulk actions polish | Low |
 | Watchers / work logs / presence | Done | WebSocket push polish | Low |

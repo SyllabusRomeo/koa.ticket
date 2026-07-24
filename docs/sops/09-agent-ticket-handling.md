@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Standardize how IT agents triage, work, and close tickets in LogIT.
+Standardize how IT agents triage, work, and close tickets in LogIt.
 
 ## Access
 
@@ -36,7 +36,7 @@ For each new ticket:
 
 Assignment rules can send tickets to teams (seed example: Network category → Service Desk).  
 Rules may also match **ticket origin location**.  
-When a rule enables **auto-assign**, LogIT picks the least-loaded eligible agent on that team (optionally filtered by skill).  
+When a rule enables **auto-assign**, LogIt picks the least-loaded eligible agent on that team (optionally filtered by skill).  
 Configure rules and skills in **Routing & SLA** (`/app/admin/routing`) or see the summary on ticket detail.  
 If wrong queue or person, reassign and notify.
 

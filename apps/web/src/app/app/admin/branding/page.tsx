@@ -194,7 +194,7 @@ export default function BrandingAdminPage() {
   async function onReset() {
     if (
       !window.confirm(
-        'Reset branding to LogIT defaults? Custom logo, banner, and portal theme will be removed.',
+        'Reset branding to LogIt defaults? Custom logo, banner, and portal theme will be removed.',
       )
     ) {
       return;
@@ -210,7 +210,7 @@ export default function BrandingAdminPage() {
       setPendingBanner(null);
       if (logoInput.current) logoInput.current.value = '';
       if (bannerInput.current) bannerInput.current.value = '';
-      setMessage('Branding reset to LogIT defaults.');
+      setMessage('Branding reset to LogIt defaults.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Reset failed');
     } finally {
@@ -377,7 +377,7 @@ export default function BrandingAdminPage() {
                   ? `Selected: ${pendingLogo.name}`
                   : branding?.hasLogo
                     ? 'Custom logo active'
-                    : 'Using default LogIT mark'}
+                    : 'Using default LogIt mark'}
               </p>
             </div>
           </div>
@@ -447,7 +447,7 @@ export default function BrandingAdminPage() {
               ) : (
                 <span className={styles.defaultMark} aria-hidden />
               )}
-              <span>LogIT</span>
+              <span>LogIt</span>
             </div>
             <div className={styles.previewCard}>Sign in</div>
           </div>

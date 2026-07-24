@@ -801,7 +801,7 @@ export class ReportsService {
     doc
       .fontSize(20)
       .fillColor('#0f4a40')
-      .text('LogIT Report', { continued: false });
+      .text('LogIt Report', { continued: false });
     doc
       .moveDown(0.3)
       .fontSize(10)
