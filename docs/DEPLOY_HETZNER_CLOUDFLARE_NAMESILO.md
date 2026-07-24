@@ -42,7 +42,7 @@ GitHub            →  source of truth; server pulls main/master (or CI deploys 
 | Subdomain host | `logit` → public URL `https://logit.example.com` |
 | Hetzner public IPv4 | `203.0.113.10` |
 | Admin email (Let’s Encrypt) | `ops@example.com` |
-| SSH user | `deploy` |
+| SSH user | `romeo` (or `deploy`) — not root day-to-day |
 
 ---
 
@@ -198,48 +198,109 @@ The laptop → Hetzner key (§4.1) is **not** the same as the server → GitHub 
 - In the create wizard, under **SSH keys**, select the key you added in §4.1 (and/or rely on “default key”)
 - Prefer SSH key auth only; disable password root login after first setup
 
-### 4.3 Hardening (first SSH session)
+### 4.3 Hardening (first SSH session as `root`)
 
 ```bash
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y git curl ufw fail2ban ca-certificates
+apt update && apt upgrade -y
+apt install -y git curl ufw fail2ban ca-certificates gnupg
 
 # Firewall: SSH + HTTP/HTTPS only
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
-sudo ufw allow OpenSSH
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw enable
-sudo ufw status
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow OpenSSH
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw enable
+ufw status
 ```
 
 Also mirror the same in **Hetzner Cloud Firewall** (attach to the server): allow TCP 22 (preferably your admin IP only), 80, 443. **Do not** open 5432 or 6379.
 
-### 4.4 Install Docker Engine + Compose plugin
+### 4.4 Create an app operator user (do **not** use `root` day-to-day)
 
-Follow current Docker docs for Ubuntu, then:
+Pick a username (examples: `romeo`, `deploy`). Run as **`root`**:
 
 ```bash
+# Replace romeo with your chosen username everywhere below
+adduser romeo
+# Set a password when prompted (used for sudo). SSH login still uses your key.
+# Optional GECOS prompts (Full Name, etc.) — Enter to skip or fill as you like.
+
+usermod -aG sudo romeo
+```
+
+> **Do not run `usermod -aG docker …` yet.** The `docker` group only exists **after** Docker is installed. If you see `usermod: group 'docker' does not exist`, install Docker next (§4.5), then add the group (§4.6).
+
+Copy your laptop SSH key from `root` onto the new user so you can log in without root:
+
+```bash
+mkdir -p /home/romeo/.ssh
+cp /root/.ssh/authorized_keys /home/romeo/.ssh/
+chown -R romeo:romeo /home/romeo/.ssh
+chmod 700 /home/romeo/.ssh
+chmod 600 /home/romeo/.ssh/authorized_keys
+```
+
+App directory owned by that user:
+
+```bash
+mkdir -p /opt/logit
+chown -R romeo:romeo /opt/logit
+```
+
+### 4.5 Install Docker Engine + Compose plugin (Ubuntu)
+
+Still as **`root`** on Ubuntu (Hetzner). This creates the `docker` group:
+
+```bash
+apt update
+apt install -y ca-certificates curl gnupg
+
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+  > /etc/apt/sources.list.d/docker.list
+
+apt update
+apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+systemctl enable --now docker
 docker version
 docker compose version
+systemctl status docker --no-pager
 ```
 
-### 4.5 Deploy user (recommended)
+### 4.6 Tie the user to Docker + LogIt files
 
 ```bash
-sudo adduser deploy
-sudo usermod -aG docker deploy
-# Ensure your laptop public key is in /home/deploy/.ssh/authorized_keys
-# (Hetzner injects the selected key for root; copy it for deploy if needed)
-mkdir -p /home/deploy/.ssh
-sudo cp /root/.ssh/authorized_keys /home/deploy/.ssh/
-sudo chown -R deploy:deploy /home/deploy/.ssh
-sudo chmod 700 /home/deploy/.ssh
-sudo chmod 600 /home/deploy/.ssh/authorized_keys
+usermod -aG docker romeo
+usermod -aG sudo romeo   # idempotent if already done
+id romeo                 # should list sudo and docker
+chown -R romeo:romeo /opt/logit
 ```
 
-Then prefer: `ssh deploy@YOUR_SERVER_IP`.
+### 4.7 Log in as the operator (required after group changes)
+
+Group membership applies only on a **new** login. From Windows:
+
+```powershell
+ssh -i $env:USERPROFILE\.ssh\id_ed25519 romeo@YOUR_SERVER_IP
+```
+
+On the server:
+
+```bash
+docker ps
+# must work without sudo — if "permission denied", disconnect and SSH again
+```
+
+From here on: clone, `.env`, and `docker compose` as **`romeo`** under `/opt/logit`. Use `sudo` only for OS packages / UFW. Linux user `romeo` is **not** the same as LogIt login `admin@logit.local`.
+
+Optional later: disable root SSH (`PermitRootLogin no`) after confirming `romeo` + sudo works.
 
 ---
 
@@ -481,16 +542,17 @@ More: [SOP-18](./sops/18-troubleshooting.md).
 ## 11. Suggested go-live order (single afternoon)
 
 1. Create laptop SSH key and add it in Hetzner (**§4.1**).  
-2. Cloudflare zone active (NameSilo NS updated).  
-3. Create the VPS with that SSH key selected; note the public IP.  
-4. Create grey-cloud `A` → Hetzner IP.  
-5. Harden VPS + Docker + clone repo + `.env`.  
-6. `compose up -d --build` + Let’s Encrypt script.  
-7. Verify `/health/ready` on HTTPS (direct to origin).  
-8. Cloudflare **Full (strict)** + orange cloud + WAF basics.  
-9. Browser login test; rotate seed passwords; MFA.  
-10. Schedule backups; document the subdomain and server IP in your ops notes.  
-11. Next releases: GitHub push → CI green → server `git pull` + compose rebuild.
+2. Create the VPS with that SSH key selected; note the public IP.  
+3. As `root`: harden firewall (**§4.3**).  
+4. Create operator user e.g. `romeo` + copy SSH keys + `/opt/logit` (**§4.4**).  
+5. Install Docker (**§4.5**), then `usermod -aG docker romeo` (**§4.6**).  
+6. SSH in as `romeo`; confirm `docker ps` works (**§4.7**).  
+7. Cloudflare zone active (NameSilo NS); grey-cloud `A` → Hetzner IP.  
+8. As `romeo`: clone repo + `.env` + `compose up -d --build` + Let’s Encrypt.  
+9. Verify `/health/ready` on HTTPS (direct to origin).  
+10. Cloudflare **Full (strict)** + orange cloud + WAF basics.  
+11. Browser login test; rotate seed passwords; MFA.  
+12. Schedule backups; next releases via `git pull` as `romeo`.
 
 ---
 

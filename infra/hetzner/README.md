@@ -25,6 +25,15 @@
 
 Full steps: [docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md §4.1](../../docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md#41-create-an-ssh-key-on-your-pc-windows-and-add-it-in-hetzner)
 
+## Operator user + Docker (not root day-to-day)
+
+1. `adduser <name>` + `usermod -aG sudo <name>` + copy root `authorized_keys`.  
+2. Install Docker CE (**creates** the `docker` group).  
+3. **Then** `usermod -aG docker <name>`; own `/opt/logit`.  
+4. Re-SSH as that user; `docker ps` without sudo.
+
+Scripts: [DEPLOY §4.4–4.7](../../docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md#44-create-an-app-operator-user-do-not-use-root-day-to-day)
+
 ## TLS
 
 - Terminate TLS at Nginx (`infra/nginx/tls.conf` via `docker-compose.prod.yml`)

@@ -34,6 +34,21 @@ Summary:
 3. Never upload the private key (`id_ed25519` without `.pub`).
 4. Create the server with that key selected; connect with `ssh root@SERVER_IP`.
 
+### App operator user + Docker (after first root login)
+
+**Order matters:** create user → install Docker → *then* `usermod -aG docker <user>`.  
+Running `usermod -aG docker` before Docker exists fails with `group 'docker' does not exist`.
+
+Full copy-paste scripts (example user `romeo`, app dir `/opt/logit`):
+
+[DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md §4.4–4.7](../DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md#44-create-an-app-operator-user-do-not-use-root-day-to-day)
+
+1. `adduser romeo` + `usermod -aG sudo romeo` + copy `authorized_keys` from root.  
+2. Install Docker CE + Compose plugin (official apt repo).  
+3. `usermod -aG docker romeo`; `chown -R romeo:romeo /opt/logit`.  
+4. Re-login as `romeo`; `docker ps` without sudo.  
+5. Clone/run LogIt as `romeo` — not as root.
+
 ## Procedure (high level)
 
 ### 1. Server hardening
