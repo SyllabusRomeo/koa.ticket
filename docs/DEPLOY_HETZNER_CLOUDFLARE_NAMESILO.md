@@ -131,14 +131,74 @@ Cloudflare proxy only forwards **80/443** to the origin. Your Hetzner firewall s
 
 ## 4. Prepare the Hetzner server
 
-### 4.1 Create the VPS
+### 4.1 Create an SSH key on your PC (Windows) and add it in Hetzner
+
+Do this **before** creating the VPS so the server is born with key auth (no password root login).
+
+Hetzner Cloud UI: **Security → SSH Keys → Add SSH key** (dialog: “Add an SSH key”). The key must be **OpenSSH format**.
+
+#### A. Generate the keypair (PowerShell on your laptop)
+
+OpenSSH Client is included with modern Windows (`C:\Windows\System32\OpenSSH\`).
+
+```powershell
+# Create ~/.ssh if needed, then generate Ed25519 (recommended)
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.ssh" | Out-Null
+ssh-keygen -t ed25519 -C "logit-hetzner" -f "$env:USERPROFILE\.ssh\id_ed25519"
+```
+
+- When asked for a passphrase: set one for stronger laptop security, or press Enter for none (simpler; protect the private file).
+- This creates:
+  - **Public** (safe to paste into Hetzner): `%USERPROFILE%\.ssh\id_ed25519.pub`
+  - **Private** (never share / never paste into Hetzner): `%USERPROFILE%\.ssh\id_ed25519`
+
+Show the public key to copy:
+
+```powershell
+Get-Content "$env:USERPROFILE\.ssh\id_ed25519.pub"
+```
+
+It should look like one line:
+
+```text
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... logit-hetzner
+```
+
+#### B. Paste into Hetzner “Add an SSH key”
+
+| Field | What to enter |
+| --- | --- |
+| **SSH key** * | Entire contents of `id_ed25519.pub` (one line starting with `ssh-ed25519`) |
+| **Name** * | Friendly label, e.g. `laptop-logit` or `Jeff-PC` |
+| **Set as default key** | Optional — auto-attach this key to new servers |
+
+Click **Add SSH key**. The **Add SSH key** button stays disabled until both required fields are filled.
+
+> Never paste the private key file (`id_ed25519` without `.pub`). Hetzner only needs the public half.
+
+#### C. Connect after the server exists
+
+```powershell
+ssh root@YOUR_SERVER_IP
+# If needed:
+ssh -i $env:USERPROFILE\.ssh\id_ed25519 root@YOUR_SERVER_IP
+```
+
+First connect may ask to trust the host fingerprint — type `yes`.
+
+#### D. Separate key for GitHub deploy-from-server (later)
+
+The laptop → Hetzner key (§4.1) is **not** the same as the server → GitHub **deploy key** in §5.1. Create the deploy key on the VPS after the machine exists.
+
+### 4.2 Create the VPS
 
 - Ubuntu 22.04/24.04 LTS (or Debian stable)
 - Size: start ≥ 2 vCPU / 4 GB RAM for Compose (Postgres + Redis + api + web + worker + Nginx)
 - Attach IPv4 (and IPv6 if you use AAAA)
-- SSH key auth; disable password root login after first setup
+- In the create wizard, under **SSH keys**, select the key you added in §4.1 (and/or rely on “default key”)
+- Prefer SSH key auth only; disable password root login after first setup
 
-### 4.2 Hardening (first SSH session)
+### 4.3 Hardening (first SSH session)
 
 ```bash
 sudo apt update && sudo apt upgrade -y
@@ -156,7 +216,7 @@ sudo ufw status
 
 Also mirror the same in **Hetzner Cloud Firewall** (attach to the server): allow TCP 22 (preferably your admin IP only), 80, 443. **Do not** open 5432 or 6379.
 
-### 4.3 Install Docker Engine + Compose plugin
+### 4.4 Install Docker Engine + Compose plugin
 
 Follow current Docker docs for Ubuntu, then:
 
@@ -165,13 +225,21 @@ docker version
 docker compose version
 ```
 
-### 4.4 Deploy user (recommended)
+### 4.5 Deploy user (recommended)
 
 ```bash
 sudo adduser deploy
 sudo usermod -aG docker deploy
-# Copy your SSH public key into /home/deploy/.ssh/authorized_keys
+# Ensure your laptop public key is in /home/deploy/.ssh/authorized_keys
+# (Hetzner injects the selected key for root; copy it for deploy if needed)
+mkdir -p /home/deploy/.ssh
+sudo cp /root/.ssh/authorized_keys /home/deploy/.ssh/
+sudo chown -R deploy:deploy /home/deploy/.ssh
+sudo chmod 700 /home/deploy/.ssh
+sudo chmod 600 /home/deploy/.ssh/authorized_keys
 ```
+
+Then prefer: `ssh deploy@YOUR_SERVER_IP`.
 
 ---
 
@@ -412,15 +480,17 @@ More: [SOP-18](./sops/18-troubleshooting.md).
 
 ## 11. Suggested go-live order (single afternoon)
 
-1. Cloudflare zone active (NameSilo NS updated).  
-2. Create grey-cloud `A` → Hetzner IP.  
-3. Harden VPS + Docker + clone repo + `.env`.  
-4. `compose up -d --build` + Let’s Encrypt script.  
-5. Verify `/health/ready` on HTTPS (direct to origin).  
-6. Cloudflare **Full (strict)** + orange cloud + WAF basics.  
-7. Browser login test; rotate seed passwords; MFA.  
-8. Schedule backups; document the subdomain and server IP in your ops notes.  
-9. Next releases: GitHub push → CI green → server `git pull` + compose rebuild.
+1. Create laptop SSH key and add it in Hetzner (**§4.1**).  
+2. Cloudflare zone active (NameSilo NS updated).  
+3. Create the VPS with that SSH key selected; note the public IP.  
+4. Create grey-cloud `A` → Hetzner IP.  
+5. Harden VPS + Docker + clone repo + `.env`.  
+6. `compose up -d --build` + Let’s Encrypt script.  
+7. Verify `/health/ready` on HTTPS (direct to origin).  
+8. Cloudflare **Full (strict)** + orange cloud + WAF basics.  
+9. Browser login test; rotate seed passwords; MFA.  
+10. Schedule backups; document the subdomain and server IP in your ops notes.  
+11. Next releases: GitHub push → CI green → server `git pull` + compose rebuild.
 
 ---
 

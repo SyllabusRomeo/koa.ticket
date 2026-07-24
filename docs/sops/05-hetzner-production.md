@@ -21,6 +21,19 @@ Internet → DNS → Firewall → Nginx (TLS) → api / web / worker
 - Strong secrets generated (DB password, `SESSION_SECRET`, SMTP later)
 - SSH key auth; password root login disabled
 
+### SSH key for Hetzner (do before creating the VPS)
+
+Full Windows walkthrough (generate Ed25519 → paste into **Security → SSH Keys → Add SSH key** → select key when creating the server):
+
+[DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md §4.1](../DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md#41-create-an-ssh-key-on-your-pc-windows-and-add-it-in-hetzner)
+
+Summary:
+
+1. On your PC: `ssh-keygen -t ed25519 -C "logit-hetzner" -f %USERPROFILE%\.ssh\id_ed25519`
+2. Copy **only** `id_ed25519.pub` into Hetzner’s **SSH key** field; set a **Name**; optionally **Set as default key**.
+3. Never upload the private key (`id_ed25519` without `.pub`).
+4. Create the server with that key selected; connect with `ssh root@SERVER_IP`.
+
 ## Procedure (high level)
 
 ### 1. Server hardening

@@ -15,6 +15,16 @@
 - Public: 80, 443 only (SSH restricted to admin IPs)
 - Never expose Postgres or Redis publicly
 
+## SSH keys (before creating the server)
+
+1. Generate on your laptop (Windows OpenSSH):  
+   `ssh-keygen -t ed25519 -C "logit-hetzner" -f %USERPROFILE%\.ssh\id_ed25519`
+2. Hetzner Cloud → **Security → SSH Keys → Add SSH key** — paste **public** `.pub` only; give it a name; optional default.
+3. When creating the VPS, select that key.
+4. Connect: `ssh -i %USERPROFILE%\.ssh\id_ed25519 root@SERVER_IP`
+
+Full steps: [docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md §4.1](../../docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md#41-create-an-ssh-key-on-your-pc-windows-and-add-it-in-hetzner)
+
 ## TLS
 
 - Terminate TLS at Nginx (`infra/nginx/tls.conf` via `docker-compose.prod.yml`)
