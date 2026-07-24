@@ -1,0 +1,29 @@
+# Git / IDE
+.git
+.gitignore
+.cursor
+.vscode
+*.md
+!README.md
+
+# Secrets & local env (never bake into images)
+.env
+.env.*
+!.env.example
+
+# Dependencies & build artifacts
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/coverage
+**/.turbo
+
+# Host TLS / ACME data (often root-owned; breaks `docker build` context)
+infra/certs/**
+!infra/certs/.gitkeep
+infra/certbot/**
+
+# Misc
+*.log
+.DS_Store
