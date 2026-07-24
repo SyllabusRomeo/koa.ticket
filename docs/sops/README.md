@@ -39,6 +39,7 @@ For the **full book** (product map, setup, flows, developer guide, manufacturing
 Also see product docs:
 
 - [User & Developer Guide](../USER_AND_DEVELOPER_GUIDE.md) — book-style master guide
+- [NameSilo + Cloudflare + Hetzner deploy](../DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md) — production triad + GitHub
 - [Enterprise roadmap](../ENTERPRISE_ROADMAP.md) — now / polish / later
 - [Gap assessment](../GAP_ASSESSMENT.md) — **shipped vs pending** matrix
 - [Development to-do](../DEVELOPMENT_TODO.md) — live checklist

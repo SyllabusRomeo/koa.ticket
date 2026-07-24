@@ -71,7 +71,7 @@ docker compose up --build
 ## Phases
 
 See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).  
-Hetzner production: [infra/hetzner/README.md](infra/hetzner/README.md) · TLS/CI: [docs/PRODUCTION.md](docs/PRODUCTION.md).
+Hetzner production: [infra/hetzner/README.md](infra/hetzner/README.md) · TLS/CI: [docs/PRODUCTION.md](docs/PRODUCTION.md) · **NameSilo + Cloudflare + GitHub:** [docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md](docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md).
 
 ## SOPs (user & operator guides)
 

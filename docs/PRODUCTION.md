@@ -96,6 +96,7 @@ Re-run `./scripts/init-letsencrypt.sh <domain> <email>` periodically, or schedul
 
 ## Related
 
+- [DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md](./DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md) — **step-by-step** NameSilo + Cloudflare + Hetzner + GitHub
 - [infra/hetzner/README.md](../infra/hetzner/README.md) — firewall / production gate
 - [SOP-17 Backup](./sops/17-backup-and-recovery.md)
 - [NOTIFICATIONS.md](./NOTIFICATIONS.md) — digests

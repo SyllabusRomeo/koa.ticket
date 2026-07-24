@@ -97,6 +97,7 @@ Details: `infra/hetzner/README.md`
 
 ## Related SOPs
 
+- [NameSilo + Cloudflare + Hetzner + GitHub](../DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md) — full step-by-step triad
 - [17 Backup and recovery](./17-backup-and-recovery.md)
 - [18 Troubleshooting](./18-troubleshooting.md)
 - [PRODUCTION.md](../PRODUCTION.md) — CI + TLS runbook

@@ -50,3 +50,9 @@
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ./scripts/init-letsencrypt.sh your.domain.example you@example.com
 ```
+
+## Full triad guide (NameSilo + Cloudflare + GitHub)
+
+Step-by-step production tutorial (subdomain, WAF/SSL, VPS, clone/pull deploys):
+
+[docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md](../../docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md)
