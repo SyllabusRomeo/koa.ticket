@@ -54,8 +54,13 @@ docker run --rm \
   -d "$DOMAIN"
 
 # Point Nginx at the live certs (overwrite bootstrap).
-cp -L "$CERT_DIR/live/$DOMAIN/fullchain.pem" "$CERT_DIR/fullchain.pem"
-cp -L "$CERT_DIR/live/$DOMAIN/privkey.pem" "$CERT_DIR/privkey.pem"
+# Certbot writes as root into the volume — copy via Docker so we don't need sudo.
+echo ">> Installing live certs for Nginx…"
+docker run --rm -v "$CERT_DIR:/certs" alpine:3.20 \
+  sh -c "cp -L /certs/live/$DOMAIN/fullchain.pem /certs/fullchain.pem \
+    && cp -L /certs/live/$DOMAIN/privkey.pem /certs/privkey.pem \
+    && chmod 644 /certs/fullchain.pem \
+    && chmod 600 /certs/privkey.pem"
 
 echo ">> Reloading Nginx…"
 docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T nginx nginx -s reload
