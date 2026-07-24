@@ -220,9 +220,10 @@ export default function TicketDetailPage() {
         await load();
         try {
           const meta = await api.ticketMeta();
-          if (!cancelled && meta.locations?.length) {
+          const metaLocs = meta.locations;
+          if (!cancelled && metaLocs?.length) {
             setLocations((prev) => {
-              const byId = new Map(meta.locations.map((l) => [l.id, l]));
+              const byId = new Map(metaLocs.map((l) => [l.id, l]));
               for (const l of prev) {
                 if (!byId.has(l.id)) byId.set(l.id, l);
               }
