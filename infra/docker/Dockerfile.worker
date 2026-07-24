@@ -25,5 +25,7 @@ COPY --from=build /app/apps/worker/dist ./apps/worker/dist
 COPY --from=build /app/apps/worker/package.json ./apps/worker/package.json
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json
+COPY infra/docker/worker-entrypoint.sh /app/apps/worker/entrypoint.sh
+RUN chmod +x /app/apps/worker/entrypoint.sh
 WORKDIR /app/apps/worker
-CMD ["node", "dist/main.js"]
+CMD ["./entrypoint.sh"]

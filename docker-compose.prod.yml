@@ -40,8 +40,10 @@ services:
 
   postgres:
     restart: unless-stopped
-    ports: []
+    ports: !override
+      []
 
   redis:
     restart: unless-stopped
-    ports: []
+    ports: !override
+      []
