@@ -22,12 +22,11 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-# Next standalone for apps/web places server.js at the image workdir root
-COPY --from=build /app/apps/web/public ./public
+# With outputFileTracingRoot = monorepo root, standalone includes apps/web/server.js
+COPY --from=build /app/apps/web/public ./apps/web/public
 COPY --from=build /app/apps/web/.next/standalone ./
-COPY --from=build /app/apps/web/.next/static ./.next/static
+COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
-# Standalone layout varies by Next/monorepo tracing — try both common paths
-CMD ["sh", "-c", "if [ -f ./server.js ]; then exec node ./server.js; elif [ -f ./apps/web/server.js ]; then exec node ./apps/web/server.js; else echo 'standalone server.js not found'; ls -la; exit 1; fi"]
+CMD ["sh", "-c", "if [ -f ./apps/web/server.js ]; then exec node ./apps/web/server.js; elif [ -f ./server.js ]; then exec node ./server.js; else echo 'standalone server.js not found'; find . -name server.js | head; ls -la; exit 1; fi"]
