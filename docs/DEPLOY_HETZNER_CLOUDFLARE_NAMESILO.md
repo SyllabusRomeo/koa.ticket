@@ -427,15 +427,21 @@ PASSWORD_MIN_LENGTH=12
 POSTGRES_USER=logit
 POSTGRES_PASSWORD=<strong-unique-password>
 POSTGRES_DB=logit
-# Inside Compose the services override DB host to "postgres" — keep example URLs
-# consistent with docker-compose.yml; do not publish Postgres to the internet.
+# Prefer a password without + / = if you can — those chars are URL-encoded by the
+# API/worker entrypoints when building DATABASE_URL. Encoding is automatic; still
+# avoid copying a raw password into a hand-built DATABASE_URL.
+# Inside Compose the services override DB host to "postgres".
+
+# Optional seed overrides (printed at end of seed — use those exact values to log in)
+# SEED_ADMIN_EMAIL=admin@logit.local
+# SEED_ADMIN_PASSWORD=<strong-unique>   # if unset, seed uses LogIt-Admin-2026!
 
 # Uploads persist in Docker volume; path inside containers is fine as in compose
 UPLOAD_DIR=./data/uploads
 
 # Seed passwords: leave EXPOSE_RESET_TOKENS unset/false in prod
 EXPOSE_RESET_TOKENS=false
-# After first login, change/disable demo seed users — do not leave LogIt-Admin-2026! live
+# After first login, rotate/disable demo seed users — never leave seed passwords live
 
 # Optional: SMTP, IMAP, Slack, Teams, Entra — fill when ready
 ```
@@ -447,6 +453,9 @@ openssl rand -base64 48
 ```
 
 > Compose prod overlay already forces `COOKIE_SECURE=true` and `TRUST_PROXY=1` on the API. Still set them in `.env` for clarity and non-Compose tools.
+>
+> **`WEB_ORIGIN` must live in `.env`**, not only in your shell. After editing `.env`, recreate the API container so it reloads env:  
+> `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate api`
 
 ### 5.4 First container start (before or with TLS bootstrap)
 
@@ -454,16 +463,54 @@ openssl rand -base64 48
 cd /opt/logit
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
-docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f api --tail=100
+docker compose -f docker-compose.yml -f docker-compose.prod.yml logs api --tail=40
+docker compose -f docker-compose.yml -f docker-compose.prod.yml logs worker --tail=40
 ```
 
-API should migrate on start. Confirm locally on the box:
+**Healthy signs:**
+
+| Service | Expect |
+| --- | --- |
+| `api` | Log line `LogIt API listening on 0.0.0.0:4000` (not `:5432`) |
+| `worker` | `Up` (not `Restarting`) and `SLA tick …` |
+| `web` | Next.js `Ready` |
+| `postgres` / `redis` | `healthy` |
+
+Confirm API on the box (port **4000** inside the container):
 
 ```bash
-curl -sS http://127.0.0.1/health/ready || true
-# Until Nginx/certs are ready, you can exec into api:
-docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api wget -qO- http://127.0.0.1:4000/health/ready
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api \
+  wget -qO- http://127.0.0.1:4000/health/ready
+# Expect: {"status":"ok","checks":{"database":"up","redis":"up"},...}
 ```
+
+### 5.5 Seed demo / bootstrap admin (empty DB)
+
+Migrations run on API start. **Users are not created until you seed** (especially after wiping `logit_postgres_data`).
+
+Do **not** use bare `npx prisma db seed` inside the API container — `DATABASE_URL` is built by the entrypoint for the main process and is usually **missing** in a fresh `exec` shell.
+
+```bash
+cd /opt/logit
+bash ./scripts/docker-seed.sh
+```
+
+Read the printed credentials carefully. If `.env` sets `SEED_ADMIN_PASSWORD`, that value is what you must use (not the docs default `LogIt-Admin-2026!`).
+
+### 5.6 Nuances learned on the first Hetzner go-live
+
+| Symptom | Cause | Fix (already in repo) |
+| --- | --- | --- |
+| API listens on **`:5432`**; `wget …:4000` connection refused | Entrypoint used shell var `PORT` for Postgres, which **overwrote** Compose `PORT=4000` | Use `PGPORT` for DB; force `PORT`/`API_PORT=4000` (`infra/docker/api-entrypoint.sh`) |
+| Worker `Restarting (1)` | Worker image never ran `prisma generate` | `Dockerfile.worker` generates from `apps/api/prisma` |
+| Login **Failed to fetch** (site HTML loads) | Browser called `http://localhost:4100` — `NEXT_PUBLIC_API_URL` is **baked at image build**; runtime Compose env does not rewrite the client bundle | `Dockerfile.web` / Compose build arg `NEXT_PUBLIC_API_URL=/api/v1`; rebuild **web** after changes |
+| `docker build` → `permission denied` under `infra/certs/…` | Certbot wrote root-owned files; Docker send context tried to read them | `.dockerignore` excludes `infra/certs/**` and `infra/certbot/**` |
+| `./scripts/init-letsencrypt.sh: Permission denied` | Script mode was `100644` in git | Mode `100755` in git; or `bash ./scripts/…` |
+| LE succeeds then `cp: … Permission denied` | Host user cannot read root-owned `live/` certs | Script copies via `docker run alpine … cp -L` into `fullchain.pem` / `privkey.pem` |
+| Seed prints nothing / no users | `prisma db seed` without seed config / without `DATABASE_URL` | `bash ./scripts/docker-seed.sh` |
+| Shell `WEB_ORIGIN=…` but CORS still wrong | Env not in container | Put in `.env`, then `--force-recreate api` |
+
+Shell scripts are forced to LF via [`.gitattributes`](../.gitattributes) (`*.sh text eol=lf`) so Windows checkouts do not break Alpine entrypoints.
 
 ---
 
@@ -475,24 +522,25 @@ LogIt’s script: `./scripts/init-letsencrypt.sh <domain> <email>` (HTTP-01 via 
 
 1. Cloudflare DNS for `logit` → Hetzner IP, **Proxy = DNS only (grey cloud)**.
 2. Hetzner UFW/Cloud Firewall: 80 + 443 open.
-3. On server:
+3. On server (prefer `bash` if execute bit is missing):
 
 ```bash
 cd /opt/logit
-chmod +x scripts/init-letsencrypt.sh
-./scripts/init-letsencrypt.sh logit.koaimpact.app ops@koaimpact.app
+bash ./scripts/init-letsencrypt.sh logit.koaimpact.app ops@koaimpact.app
 ```
+
+The script: starts Nginx → Certbot webroot → **copies** live PEMs into `infra/certs/fullchain.pem` + `privkey.pem` (via Docker, as root) → `nginx -s reload`.
 
 4. Confirm:
 
 ```bash
-curl -sSI https://logit.koaimpact.app/health/ready
+curl -fsS https://logit.koaimpact.app/health/ready
 # Expect JSON with database/redis up
 ```
 
 5. Cloudflare SSL mode → **Full (strict)**.
 6. Turn **Proxy = Proxied (orange cloud)** on the `A` record.
-7. Re-test in a browser: `https://logit.koaimpact.app/login`.
+7. Re-test in a browser: `https://logit.koaimpact.app/login` (hard-refresh after any web image rebuild).
 
 ### If HTTP-01 fails behind orange cloud
 
@@ -500,15 +548,29 @@ curl -sSI https://logit.koaimpact.app/health/ready
 - Use **Cloudflare Origin CA** cert installed as `infra/certs/fullchain.pem` + `privkey.pem` (then Full strict works without Let’s Encrypt); **or**
 - Use DNS-01 with Cloudflare API (advanced; not in the stock script).
 
+### If cert was issued but Nginx still has the self-signed bootstrap
+
+Certbot may have succeeded while the host `cp` failed (older script). Finish manually:
+
+```bash
+docker run --rm -v /opt/logit/infra/certs:/certs alpine:3.20 \
+  sh -c 'cp -L /certs/live/logit.koaimpact.app/fullchain.pem /certs/fullchain.pem \
+    && cp -L /certs/live/logit.koaimpact.app/privkey.pem /certs/privkey.pem \
+    && chmod 644 /certs/fullchain.pem && chmod 600 /certs/privkey.pem'
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T nginx nginx -s reload
+```
+
 ### Renewal
 
-Re-run `./scripts/init-letsencrypt.sh logit.koaimpact.app ops@koaimpact.app` periodically, or automate `certbot renew` + copy live certs into `infra/certs/` and reload Nginx ([PRODUCTION.md](./PRODUCTION.md)).
+Re-run `bash ./scripts/init-letsencrypt.sh logit.koaimpact.app ops@koaimpact.app` periodically, or automate `certbot renew` + the same Docker copy into `infra/certs/` + Nginx reload ([PRODUCTION.md](./PRODUCTION.md)).
 
 ---
 
 ## 7. Post-deploy verification checklist
 
 - [ ] `https://logit.koaimpact.app/health/ready` → `status: ok`, DB + Redis up  
+- [ ] API log shows listen on **`0.0.0.0:4000`**; worker **Up** with SLA ticks  
+- [ ] DevTools Network: login `POST` goes to **`/api/v1/auth/login`** on the same host (not `localhost:4100`)  
 - [ ] Login over HTTPS; session cookie has **Secure**  
 - [ ] Create ticket as employee; agent sees queue  
 - [ ] Change seed admin password; enable MFA for privileged accounts  
@@ -526,23 +588,27 @@ Production gate also listed in [infra/hetzner/README.md](../infra/hetzner/README
 
 ### 8.1 Manual pull (simple, reliable)
 
-On the server:
+On the server (as the operator user, e.g. `romeo`):
 
 ```bash
 cd /opt/logit
 git fetch origin
-git checkout main
 git pull --ff-only origin main
+git rev-parse --short HEAD   # confirm expected SHA before rebuilding
 
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api npx prisma migrate deploy --schema=prisma/schema.prisma
-# (If migrate runs automatically on API start in your image, the exec step may be redundant — check api logs.)
+# Rebuild only what changed when possible; web MUST rebuild if NEXT_PUBLIC_* or web code changed
+docker compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache web api worker
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# After .env edits that affect the API:
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate api
 
 docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
-curl -sS https://logit.koaimpact.app/health/ready
+curl -fsS https://logit.koaimpact.app/health/ready
 ```
 
-Keep `main` and `master` aligned if you push both (as in recent releases).
+Migrations run in the API entrypoint on start. Keep `main` and `master` aligned if you push both.
+
+> Do not rebuild while root-owned files under `infra/certs/` would enter the build context — `.dockerignore` excludes them. If an old checkout lacks that file, pull latest or `chmod`/`chown` carefully before `docker build`.
 
 ### 8.2 Optional: GitHub Actions deploy over SSH
 
@@ -585,11 +651,18 @@ If you refuse to move NS to Cloudflare: create the subdomain **A** at NameSilo p
 | 525 / 526 in browser | Cloudflare Full strict but origin cert invalid | Grey-cloud → fix LE/Origin CA → Full strict → orange |
 | 521 / 522 | Origin down or Hetzner firewall blocking 80/443 | `compose ps`, UFW, Hetzner firewall |
 | ACME / Let’s Encrypt fails | Orange cloud or port 80 closed | Grey cloud + open 80; re-run init script |
-| Login works then cookie lost | `COOKIE_SECURE` / not HTTPS / wrong `WEB_ORIGIN` | Set URLs to `https://logit.koaimpact.app`, Full strict, `TRUST_PROXY=1` |
-| CORS errors | `WEB_ORIGIN` mismatch | Exact public origin, no trailing slash mismatch |
+| LE OK but `cp … Permission denied` | Root-owned certbot files | Docker alpine copy (script does this); see §6 |
+| `init-letsencrypt.sh: Permission denied` | Not executable | `bash ./scripts/init-letsencrypt.sh …` |
+| Login **Failed to fetch** | Client bundle still points at `localhost:4100` | Rebuild **web** with `NEXT_PUBLIC_API_URL=/api/v1`; hard-refresh |
+| Login works then cookie lost | `COOKIE_SECURE` / not HTTPS / wrong `WEB_ORIGIN` | Set URLs to `https://logit.koaimpact.app`, Full strict, `TRUST_PROXY=1`; recreate API after `.env` change |
+| CORS errors | `WEB_ORIGIN` mismatch or not loaded | Exact public origin in `.env` (no trailing slash); `--force-recreate api` |
+| Health `wget …:4000` refused; API log `:5432` | Entrypoint clobbered HTTP `PORT` | Pull fix (`PGPORT`); recreate API; expect listen `:4000` |
+| Worker Restarting | Missing Prisma client in worker image | Pull `Dockerfile.worker` with `prisma generate`; rebuild worker |
+| `docker build` permission denied on `infra/certs` | Root-owned LE tree in context | Pull `.dockerignore`; do not `chown` certs into the image |
+| Seed / no admin user | Empty DB after volume wipe | `bash ./scripts/docker-seed.sh`; use **printed** password |
 | Slack/Teams webhooks 403 | Cloudflare WAF/Bot challenge | WAF exception for integration paths |
 | DB connection errors after reboot | Compose not up / volume issue | `compose up -d`; check `postgres` health |
-| Old UI after deploy | Browser cache / web image not rebuilt | `--build`, hard refresh; confirm `git rev-parse HEAD` |
+| Old UI after deploy | Browser cache / web image not rebuilt | `--no-cache` web build, hard refresh; confirm `git rev-parse HEAD` |
 
 More: [SOP-18](./sops/18-troubleshooting.md).
 
@@ -604,11 +677,12 @@ More: [SOP-18](./sops/18-troubleshooting.md).
 5. Install Docker (**§4.5**), then `usermod -aG docker romeo` (**§4.6**).  
 6. SSH in as `romeo`; confirm `docker ps` works (**§4.7**).  
 7. Cloudflare zone active (NameSilo NS); grey-cloud `A` → Hetzner IP.  
-8. As `romeo`: clone repo + `.env` + `compose up -d --build` + Let’s Encrypt.  
-9. Verify `/health/ready` on HTTPS (direct to origin).  
-10. Cloudflare **Full (strict)** + orange cloud + WAF basics.  
-11. Browser login test; rotate seed passwords; MFA.  
-12. Schedule backups; next releases via `git pull` as `romeo`.
+8. As `romeo`: clone repo + production `.env` (**§5.3**) + `compose up -d --build` (**§5.4**).  
+9. Confirm API on `:4000` and worker Up; run **`bash ./scripts/docker-seed.sh`** (**§5.5**).  
+10. Let’s Encrypt with grey cloud (**§6**); verify HTTPS `/health/ready`.  
+11. Cloudflare **Full (strict)** + orange cloud + WAF basics.  
+12. Browser login (Network tab: `/api/v1/auth/login`); rotate seed passwords; MFA.  
+13. Schedule backups; next releases via `git pull` as `romeo` (**§8**).
 
 ---
 

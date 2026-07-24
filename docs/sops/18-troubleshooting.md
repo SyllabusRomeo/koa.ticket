@@ -18,11 +18,25 @@ If ready is degraded, fix dependencies before chasing UI bugs.
 
 ### Cannot sign in
 
-1. Confirm API up on 4100 (or prod URL).
-2. Confirm `WEB_ORIGIN` includes the exact web origin.
+1. Confirm API up: prod health `https://<host>/health/ready` or `exec api wget -qO- http://127.0.0.1:4000/health/ready`.
+2. Confirm `WEB_ORIGIN` includes the exact web origin (in `.env`, then recreate API).
 3. Browser must send cookies (`credentials: include`); mixed HTTP/HTTPS breaks Secure cookies.
-4. Check lockout / wrong password; reset if needed.
-5. Inspect API logs for validation errors.
+4. In DevTools → Network: login must call **`/api/v1/auth/login` on the same host**. If it calls `http://localhost:4100`, rebuild the **web** image with `NEXT_PUBLIC_API_URL=/api/v1` and hard-refresh.
+5. Check lockout / wrong password; after seed, use the **printed** password (`SEED_ADMIN_PASSWORD` may override docs defaults).
+6. Inspect API logs for validation errors.
+
+### Production Docker (Hetzner / Compose)
+
+| Symptom | Check |
+| --- | --- |
+| API listening on `:5432` | Entrypoint must use `PGPORT` for Postgres; HTTP `PORT=4000`. Pull latest entrypoint and recreate API. |
+| Worker `Restarting` | Worker image must run `prisma generate`. Rebuild worker. |
+| `docker build` permission denied under `infra/certs` | Ensure `.dockerignore` excludes cert dirs (Certbot files are root-owned). |
+| Let’s Encrypt `cp` permission denied | Copy via Docker alpine (see `scripts/init-letsencrypt.sh`); then `nginx -s reload`. |
+| No users after fresh volume | `bash ./scripts/docker-seed.sh` (not bare `prisma db seed` in exec). |
+| CORS after editing `.env` | `up -d --force-recreate api` so the container reloads env. |
+
+Full deploy nuances: [DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md §5.6](../DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md#56-nuances-learned-on-the-first-hetzner-go-live).
 
 ### Tickets not visible
 

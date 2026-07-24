@@ -78,42 +78,61 @@ API_PUBLIC_URL=https://logit.koaimpact.app/api/v1
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api \
+  wget -qO- http://127.0.0.1:4000/health/ready
 ```
+
+Expect API log **`listening on 0.0.0.0:4000`** and worker **Up** (not Restarting).
 
 Prod overlay typically:
 
 - Restarts `unless-stopped`
 - Removes public DB/Redis port publishing
 - Publishes Nginx on 80/443
+- Bakes web `NEXT_PUBLIC_API_URL=/api/v1` at **build** time
 
-### 4. TLS
+After `.env` changes that the API reads (`WEB_ORIGIN`, secrets):  
 
-Use the production Nginx TLS config (Let's Encrypt):
+`docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate api`
+
+### 4. Seed (empty / wiped database)
 
 ```bash
-chmod +x scripts/init-letsencrypt.sh
-./scripts/init-letsencrypt.sh logit.koaimpact.app you@koaimpact.app
+bash ./scripts/docker-seed.sh
+```
+
+Do not rely on `docker compose exec api npx prisma db seed` alone — rebuild `DATABASE_URL` like the entrypoint (the helper script does). Use the **printed** admin password.
+
+### 5. TLS
+
+Use the production Nginx TLS config (Let's Encrypt). Cloudflare: **grey cloud** until certs succeed, then **Full (strict)** + orange.
+
+```bash
+bash ./scripts/init-letsencrypt.sh logit.koaimpact.app you@koaimpact.app
 ```
 
 - Config: `infra/nginx/tls.conf` (HTTP → HTTPS redirect + ACME webroot)
-- Certs: `infra/certs/fullchain.pem` + `privkey.pem` (gitignored)
-- Details: [PRODUCTION.md](../PRODUCTION.md)
+- Certs: `infra/certs/fullchain.pem` + `privkey.pem` (gitignored; copied from Certbot `live/` via Docker)
+- Details: [PRODUCTION.md](../PRODUCTION.md) · full nuances: [DEPLOY §5.6](../DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md#56-nuances-learned-on-the-first-hetzner-go-live)
 
 Prod overlay also sets `COOKIE_SECURE=true` and `TRUST_PROXY=1` on the API.
-### 5. Post-deploy verification
+
+### 6. Post-deploy verification
 
 - [ ] `https://logit.koaimpact.app/health/ready` returns ok
+- [ ] Login `POST` hits same-origin `/api/v1/auth/login` (not localhost)
 - [ ] Login works over HTTPS; cookie Secure flag set
 - [ ] Create a test ticket as employee
 - [ ] Agent can see queue ticket
 - [ ] Worker logs show SLA ticks
 - [ ] Backup script runs successfully
 
-### 6. Production gate (must pass)
+### 7. Production gate (must pass)
 
 Before go-live:
 
-- No debug mode / default seed passwords
+- No debug mode / default seed passwords left active
 - No secrets in Git
 - HTTPS enforced
 - Firewall correct

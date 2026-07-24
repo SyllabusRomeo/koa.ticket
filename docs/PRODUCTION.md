@@ -40,12 +40,15 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 | --- | --- |
 | Nginx TLS config | `infra/nginx/tls.conf` |
 | Certs (gitignored) | `infra/certs/fullchain.pem`, `privkey.pem` |
+| ACME / LE state | `infra/certs/live/…` (root-owned; do not commit) |
 | ACME webroot | `infra/certbot/www/` |
 | Bootstrap script | `scripts/init-letsencrypt.sh` |
+| Prod DB seed helper | `scripts/docker-seed.sh` |
+| Build context excludes | `.dockerignore` (`infra/certs/**`, `.env`, …) |
 
 ### Issue certificates
 
-1. Point DNS **A/AAAA** at the server; open **80** and **443**.
+1. Point DNS **A/AAAA** at the server (**grey cloud** if using Cloudflare); open **80** and **443**.
 2. Create production `.env` on the host (never commit):
 
 ```env
@@ -60,17 +63,18 @@ APP_PUBLIC_URL=https://logit.koaimpact.app
 API_PUBLIC_URL=https://logit.koaimpact.app/api/v1
 ```
 
-3. Bootstrap TLS (creates temporary self-signed, obtains LE cert, reloads Nginx):
+3. Bootstrap TLS (creates temporary self-signed if needed, obtains LE cert, copies PEMs for Nginx, reloads):
 
 ```bash
-chmod +x scripts/init-letsencrypt.sh
-./scripts/init-letsencrypt.sh logit.koaimpact.app ops@koaimpact.app
+bash ./scripts/init-letsencrypt.sh logit.koaimpact.app ops@koaimpact.app
 # Use any reachable mailbox you control for Let's Encrypt notices
 
-# Optional dry-run CA: STAGING=1 ./scripts/init-letsencrypt.sh ...
+# Optional dry-run CA: STAGING=1 bash ./scripts/init-letsencrypt.sh ...
 ```
 
-4. Verify: `https://logit.koaimpact.app/health/ready`
+4. Verify: `curl -fsS https://logit.koaimpact.app/health/ready`
+
+5. Seed users (empty DB): `bash ./scripts/docker-seed.sh` — use the **printed** admin password (`SEED_ADMIN_PASSWORD` if set in `.env`).
 
 ### Secure cookies & proxy trust
 
@@ -78,9 +82,15 @@ chmod +x scripts/init-letsencrypt.sh
 | --- | --- | --- |
 | `COOKIE_SECURE` | `true` | Session cookie only sent over HTTPS |
 | `TRUST_PROXY` | `1` | Trust one hop (Nginx); correct `req.ip` from `X-Forwarded-For` |
-| `WEB_ORIGIN` | `https://logit.koaimpact.app` | CORS allowlist |
+| `WEB_ORIGIN` | `https://logit.koaimpact.app` | CORS allowlist (must be in `.env`; recreate API after edits) |
 
-API and web already bind **`0.0.0.0:$PORT`** (Render / Docker friendly).
+API binds **`0.0.0.0:4000`** in Compose (`PORT` / `API_PORT`). Do not confuse with `POSTGRES_PORT=5432` — the entrypoint uses `PGPORT` for the DB URL so it never overwrites the HTTP port.
+
+### Web client API URL (important)
+
+`NEXT_PUBLIC_API_URL` is **compiled into the Next.js client** at **image build** time. Setting it only in Compose `environment:` at runtime does **not** change browser requests.
+
+Production images bake `NEXT_PUBLIC_API_URL=/api/v1` (same-origin via Nginx). After changing that value or web code, rebuild the **web** image (`--no-cache` if unsure) and hard-refresh browsers.
 
 ### Background pollers (API process)
 
@@ -94,7 +104,19 @@ Requires SMTP for digest and scheduled-report delivery.
 
 ### Renewal
 
-Re-run `./scripts/init-letsencrypt.sh <domain> <email>` periodically, or schedule `certbot renew` and copy live certs into `infra/certs/` then `nginx -s reload`.
+Re-run `bash ./scripts/init-letsencrypt.sh <domain> <email>` periodically. The script copies live certs into `infra/certs/fullchain.pem` + `privkey.pem` via Docker (Certbot files are root-owned) then reloads Nginx.
+
+### Production pitfalls (quick)
+
+See the fuller table in [DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md §5.6](./DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md#56-nuances-learned-on-the-first-hetzner-go-live).
+
+| Pitfall | Reminder |
+| --- | --- |
+| API on `:5432` | Entrypoint must not assign Postgres port to `PORT` |
+| Worker restart loop | Worker image must `prisma generate` |
+| Login Failed to fetch | Rebuild web with `/api/v1`, not localhost |
+| Build fails on `infra/certs` | Rely on `.dockerignore` |
+| `prisma db seed` in `exec` | Use `scripts/docker-seed.sh` |
 
 ## Related
 

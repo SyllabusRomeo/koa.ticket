@@ -37,7 +37,8 @@ Scripts: [DEPLOY §4.4–4.7](../../docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md#4
 ## TLS
 
 - Terminate TLS at Nginx (`infra/nginx/tls.conf` via `docker-compose.prod.yml`)
-- Bootstrap: `./scripts/init-letsencrypt.sh logit.koaimpact.app you@koaimpact.app`
+- Bootstrap: `bash ./scripts/init-letsencrypt.sh logit.koaimpact.app you@koaimpact.app`
+- Certbot writes root-owned files under `infra/certs/`; the script copies PEMs for Nginx via Docker
 - Prefer Let's Encrypt with automated renewal (re-run script or `certbot renew` + copy + reload)
 - Redirect HTTP → HTTPS; set `COOKIE_SECURE=true` and `TRUST_PROXY=1`
 - Full runbook: [docs/PRODUCTION.md](../../docs/PRODUCTION.md)
@@ -54,9 +55,11 @@ Scripts: [DEPLOY §4.4–4.7](../../docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md#4
 
 ## Production gate (PRD §91)
 
-- [ ] No debug mode / default credentials
+- [ ] No debug mode / default credentials (rotate seed admin after `docker-seed.sh`)
 - [ ] HTTPS + secure cookies (`COOKIE_SECURE=true`)
 - [ ] `TRUST_PROXY=1` behind Nginx
+- [ ] `WEB_ORIGIN` matches public HTTPS origin; API recreated after `.env` edits
+- [ ] Web image rebuilt so client uses `/api/v1` (not localhost)
 - [ ] Rate limiting on login
 - [ ] Health checks: `/health`, `/health/ready`, `/health/live`
 - [ ] Dependency + image scans
@@ -67,8 +70,13 @@ Scripts: [DEPLOY §4.4–4.7](../../docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md#4
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-./scripts/init-letsencrypt.sh logit.koaimpact.app you@koaimpact.app
+# Expect API on :4000 and worker Up — see DEPLOY §5.4 / §5.6
+bash ./scripts/docker-seed.sh
+bash ./scripts/init-letsencrypt.sh logit.koaimpact.app you@koaimpact.app
 ```
+
+Go-live pitfalls (PORT vs Postgres, web bake, certs, seed):  
+[DEPLOY §5.6](../../docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md#56-nuances-learned-on-the-first-hetzner-go-live)
 
 ## Full triad guide (NameSilo + Cloudflare + GitHub)
 

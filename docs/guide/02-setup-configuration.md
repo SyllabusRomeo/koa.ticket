@@ -69,13 +69,15 @@ docker compose up --build
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
-See [SOP-04](../sops/04-docker-deployment.md), [SOP-05](../sops/05-hetzner-production.md), [PRODUCTION.md](../PRODUCTION.md).
+See [SOP-04](../sops/04-docker-deployment.md), [SOP-05](../sops/05-hetzner-production.md), [PRODUCTION.md](../PRODUCTION.md), and the full Hetzner go-live nuances in [DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md §5.6](../DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md#56-nuances-learned-on-the-first-hetzner-go-live).
 
 ### Platform constraints (e.g. Render / containers)
 
-- Bind HTTP to `0.0.0.0:$PORT`
+- Bind HTTP to `0.0.0.0:$PORT` (Compose API uses **4000**; do not let Postgres `5432` overwrite it)
 - Treat local disk as **ephemeral** — use Postgres + durable volume/object storage for uploads
 - Paths are **case-sensitive** on Linux
+- `NEXT_PUBLIC_API_URL` is **build-time** for Next — production Docker bakes `/api/v1`; rebuild the web image after changing it
+- Prod seed: `bash ./scripts/docker-seed.sh` (not bare `prisma db seed` in a container exec)
 
 ---
 
