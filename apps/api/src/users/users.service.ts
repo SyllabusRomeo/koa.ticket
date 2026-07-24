@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PasswordService } from '../auth/password.service';
+import { SessionService } from '../auth/session.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -31,6 +33,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
+    private readonly sessions: SessionService,
   ) {}
 
   private mapUser(u: {
@@ -303,6 +306,75 @@ export class UsersService {
     });
 
     return this.getById(userId);
+  }
+
+  /**
+   * Admin-issued temporary password. Forces change on next login and revokes sessions.
+   */
+  async resetPassword(id: string, actorId: string) {
+    const existing = await this.prisma.user.findFirst({
+      where: { id, deletedAt: null },
+    });
+    if (!existing) throw new NotFoundException('User not found');
+    if (existing.authProvider !== 'local') {
+      throw new BadRequestException(
+        'Password reset is only available for local accounts (not SSO)',
+      );
+    }
+
+    const plain = `Tmp-${randomBytes(9).toString('base64url')}A1`;
+    const policyError = this.passwords.validatePolicy(plain);
+    if (policyError) throw new BadRequestException(policyError);
+
+    const passwordHash = await this.passwords.hash(plain);
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        passwordHash,
+        mustChangePassword: true,
+        passwordChangedAt: null,
+        failedLoginCount: 0,
+        lockedUntil: null,
+      },
+    });
+    await this.sessions.revokeAllForUser(id);
+
+    return {
+      user: {
+        id: existing.id,
+        email: existing.email,
+        firstName: existing.firstName,
+        lastName: existing.lastName,
+        mustChangePassword: true,
+      },
+      temporaryPassword: plain,
+      resetBy: actorId,
+    };
+  }
+
+  /** Soft-delete: deactivate, free email for reuse, revoke sessions. */
+  async softDelete(id: string, actorId: string) {
+    if (id === actorId) {
+      throw new ForbiddenException('You cannot delete your own account');
+    }
+    const existing = await this.prisma.user.findFirst({
+      where: { id, deletedAt: null },
+    });
+    if (!existing) throw new NotFoundException('User not found');
+
+    const freedEmail = `deleted.${id}.${existing.email}`.slice(0, 190);
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        deletedAt: new Date(),
+        isActive: false,
+        email: freedEmail,
+        username: null,
+      },
+    });
+    await this.sessions.revokeAllForUser(id);
+
+    return { ok: true, id, formerEmail: existing.email };
   }
 
   async rolesMatrix() {

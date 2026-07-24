@@ -18,8 +18,8 @@ function cacheBust(url: string | null, updatedAt: string | null) {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState('admin@logit.local');
-  const [password, setPassword] = useState('LogIt-Admin-2026!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [mfaToken, setMfaToken] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState('');
   const [error, setError] = useState<string | null>(null);

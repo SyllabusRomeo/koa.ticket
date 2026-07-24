@@ -1837,6 +1837,27 @@ export const api = {
       body: JSON.stringify(body),
     });
   },
+  resetUserPassword(id: string) {
+    return request<{
+      user: {
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        mustChangePassword: boolean;
+      };
+      temporaryPassword: string;
+    }>(`/users/${encodeURIComponent(id)}/reset-password`, {
+      method: 'POST',
+      body: '{}',
+    });
+  },
+  deleteUser(id: string) {
+    return request<{ ok: boolean; id: string; formerEmail: string }>(
+      `/users/${encodeURIComponent(id)}`,
+      { method: 'DELETE' },
+    );
+  },
   rolesMatrix() {
     return request<{
       roles: Array<{

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -9,7 +10,8 @@ import {
 } from '@nestjs/common';
 import { IsArray, IsOptional, IsString } from 'class-validator';
 import { PERMISSIONS } from '@logit/shared';
-import { RequirePermissions } from '../auth/decorators';
+import { CurrentUser, RequirePermissions } from '../auth/decorators';
+import type { AuthUserView } from '../auth/auth.service';
 import { SessionAuthGuard } from '../auth/guards/session-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -68,6 +70,21 @@ export class UsersController {
   @RequirePermissions(PERMISSIONS.USERS_MANAGE)
   update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.users.update(id, dto);
+  }
+
+  @Post(':id/reset-password')
+  @RequirePermissions(PERMISSIONS.USERS_MANAGE)
+  resetPassword(
+    @Param('id') id: string,
+    @CurrentUser() actor: AuthUserView,
+  ) {
+    return this.users.resetPassword(id, actor.id);
+  }
+
+  @Delete(':id')
+  @RequirePermissions(PERMISSIONS.USERS_MANAGE)
+  remove(@Param('id') id: string, @CurrentUser() actor: AuthUserView) {
+    return this.users.softDelete(id, actor.id);
   }
 
   @Patch(':id/roles')

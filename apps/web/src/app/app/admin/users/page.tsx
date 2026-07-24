@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Save, UserPlus, Users } from 'lucide-react';
+import { Plus, Save, Trash2, KeyRound, UserPlus, Users } from 'lucide-react';
 import {
   api,
   type AuthUser,
@@ -251,12 +251,68 @@ export default function UsersAdminPage() {
     setBusy(true);
     setError(null);
     setMessage(null);
+    setTempPassword(null);
     try {
       await api.updateUser(selected.id, { isActive: next });
       await refresh();
       setMessage(next ? 'User activated.' : 'User deactivated.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Update failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onResetPassword() {
+    if (!canManage || !selected) return;
+    if (
+      !window.confirm(
+        `Reset password for ${selected.email}? They will be signed out and must change the temporary password on next login.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    setTempPassword(null);
+    try {
+      const result = await api.resetUserPassword(selected.id);
+      setTempPassword(result.temporaryPassword);
+      setMessage(
+        `Password reset for ${result.user.email}. Share the temporary password below — they must change it on next login.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Password reset failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onDeleteUser() {
+    if (!canManage || !selected || !user) return;
+    if (selected.id === user.id) {
+      setError('You cannot delete your own account.');
+      return;
+    }
+    if (
+      !window.confirm(
+        `Permanently remove ${selected.email} from the user directory? Their tickets stay in the system; they will not be able to sign in. This cannot be undone from the UI.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    setTempPassword(null);
+    try {
+      const result = await api.deleteUser(selected.id);
+      setSelectedId('');
+      await refresh();
+      setMessage(`Deleted ${result.formerEmail}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Delete failed');
     } finally {
       setBusy(false);
     }
@@ -276,8 +332,8 @@ export default function UsersAdminPage() {
         <header className={styles.hero}>
           <p className={styles.eyebrow}>Administration</p>
           <p className={styles.lede}>
-            Create accounts, set home location and department, and activate or
-            deactivate sign-in. Assign fine-grained permissions under{' '}
+            Create accounts, set home location and department, reset passwords,
+            deactivate or delete sign-in. Assign fine-grained permissions under{' '}
             <a href="/app/admin/roles">Roles &amp; Access</a>.
           </p>
         </header>
@@ -586,6 +642,24 @@ export default function UsersAdminPage() {
                         onClick={toggleActive}
                       >
                         {selected.isActive ? 'Deactivate' : 'Activate'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={onResetPassword}
+                      >
+                        <Icon icon={KeyRound} size="sm" />
+                        Reset password
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={busy || selected.id === user.id}
+                        onClick={onDeleteUser}
+                      >
+                        <Icon icon={Trash2} size="sm" />
+                        Delete
                       </Button>
                       <ButtonLink
                         href="/app/admin/roles"
