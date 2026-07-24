@@ -465,6 +465,8 @@ export class TicketsService {
       queue?: string;
       majorIncident?: boolean;
       channel?: string;
+      /** Free-text: ticket number, title, description, requester/assignee */
+      q?: string;
     } = {},
   ) {
     const where: Prisma.TicketWhereInput = {
@@ -501,6 +503,42 @@ export class TicketsService {
       }
     } else if (orgWide && opts.assigneeId) {
       where.assigneeId = opts.assigneeId;
+    }
+
+    const q = opts.q?.trim();
+    if (q) {
+      where.AND = [
+        ...(Array.isArray(where.AND)
+          ? where.AND
+          : where.AND
+            ? [where.AND]
+            : []),
+        {
+          OR: [
+            { number: { contains: q, mode: 'insensitive' } },
+            { title: { contains: q, mode: 'insensitive' } },
+            { description: { contains: q, mode: 'insensitive' } },
+            {
+              requester: {
+                OR: [
+                  { email: { contains: q, mode: 'insensitive' } },
+                  { firstName: { contains: q, mode: 'insensitive' } },
+                  { lastName: { contains: q, mode: 'insensitive' } },
+                ],
+              },
+            },
+            {
+              assignee: {
+                OR: [
+                  { email: { contains: q, mode: 'insensitive' } },
+                  { firstName: { contains: q, mode: 'insensitive' } },
+                  { lastName: { contains: q, mode: 'insensitive' } },
+                ],
+              },
+            },
+          ],
+        },
+      ];
     }
 
     const tickets = await this.prisma.ticket.findMany({

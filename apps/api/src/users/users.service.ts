@@ -157,6 +157,27 @@ export class UsersService {
     });
     if (!existing) throw new NotFoundException('User not found');
 
+    let nextEmail: string | undefined;
+    if (dto.email !== undefined) {
+      nextEmail = dto.email.trim().toLowerCase();
+      if (!nextEmail) {
+        throw new BadRequestException('Email is required');
+      }
+      if (nextEmail !== existing.email) {
+        const clash = await this.prisma.user.findFirst({
+          where: {
+            email: nextEmail,
+            deletedAt: null,
+            NOT: { id },
+          },
+          select: { id: true },
+        });
+        if (clash) {
+          throw new BadRequestException('Email already in use');
+        }
+      }
+    }
+
     if (dto.locationId !== undefined && dto.locationId !== null && dto.locationId.trim()) {
       const loc = await this.prisma.location.findFirst({
         where: { id: dto.locationId.trim(), deletedAt: null },
@@ -177,6 +198,7 @@ export class UsersService {
     await this.prisma.user.update({
       where: { id },
       data: {
+        ...(nextEmail !== undefined ? { email: nextEmail } : {}),
         firstName: dto.firstName?.trim(),
         lastName: dto.lastName?.trim(),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),

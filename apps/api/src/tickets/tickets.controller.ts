@@ -80,6 +80,7 @@ export class TicketsController {
     @Query('queue') queue?: string,
     @Query('majorIncident') majorIncident?: string,
     @Query('channel') channel?: string,
+    @Query('q') q?: string,
   ) {
     return this.tickets.list(user, {
       locationId,
@@ -88,6 +89,7 @@ export class TicketsController {
       assigneeId,
       queue,
       channel,
+      q,
       majorIncident:
         majorIncident === '1' || majorIncident === 'true'
           ? true

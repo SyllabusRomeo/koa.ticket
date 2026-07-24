@@ -56,6 +56,8 @@ function TicketsPageInner() {
   const [locationId, setLocationId] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
   const [filterChannel, setFilterChannel] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQ, setSearchQ] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -83,13 +85,19 @@ function TicketsPageInner() {
     setQueueFilterState(parseQueue(searchParams.get('queue')));
   }, [searchParams]);
 
-  async function load(locFilter?: string, channelFilter?: string) {
+  async function load(
+    locFilter?: string,
+    channelFilter?: string,
+    qFilter?: string,
+  ) {
     const locationFilter = locFilter ?? filterLocation;
     const channel = channelFilter ?? filterChannel;
+    const q = (qFilter ?? searchQ).trim();
     const [list, meta] = await Promise.all([
       api.listTickets({
         ...(locationFilter ? { locationId: locationFilter } : {}),
         ...(channel ? { channel } : {}),
+        ...(q ? { q } : {}),
       }),
       api.ticketMeta(),
     ]);
@@ -101,6 +109,18 @@ function TicketsPageInner() {
     }
     if (!categoryCode && meta.categories[0]) {
       setCategoryCode(meta.categories[0].code);
+    }
+  }
+
+  async function applySearch(e?: FormEvent) {
+    e?.preventDefault();
+    const next = searchInput.trim();
+    setSearchQ(next);
+    setLoading(true);
+    try {
+      await load(undefined, undefined, next);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -446,6 +466,46 @@ function TicketsPageInner() {
                 : 'Showing only tickets you requested, are assigned, or watch — not the full organization queue.'}
             </p>
           ) : null}
+          <form className={styles.searchBar} onSubmit={applySearch}>
+            <label className={styles.searchField} htmlFor="ticket-q">
+              Search tickets
+              <input
+                id="ticket-q"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Number, title, keywords, requester…"
+                aria-label="Search tickets by number, title, or keywords"
+              />
+            </label>
+            <Button type="submit" variant="secondary" disabled={loading}>
+              Search
+            </Button>
+            {searchQ ? (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={loading}
+                onClick={async () => {
+                  setSearchInput('');
+                  setSearchQ('');
+                  setLoading(true);
+                  try {
+                    await load(undefined, undefined, '');
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+              >
+                Clear
+              </Button>
+            ) : null}
+          </form>
+          {searchQ ? (
+            <p className={styles.hint} style={{ marginTop: 0 }}>
+              Results for “{searchQ}” ({filteredTickets.length}
+              {filteredTickets.length === 200 ? '+' : ''})
+            </p>
+          ) : null}
           {showQueueChips ? (
             <div
               className={styles.filterChips}
@@ -551,6 +611,28 @@ function TicketsPageInner() {
           {filteredTickets.length === 0 ? (
             <EmptyState icon={Ticket} className={styles.empty}>
               {tickets.length === 0 ? (
+                searchQ ? (
+                  <>
+                    No tickets match “{searchQ}”. Try another number or keyword, or{' '}
+                    <button
+                      type="button"
+                      className={styles.linkish}
+                      onClick={async () => {
+                        setSearchInput('');
+                        setSearchQ('');
+                        setLoading(true);
+                        try {
+                          await load(undefined, undefined, '');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                    >
+                      clear search
+                    </button>
+                    .
+                  </>
+                ) : (
                 <>
                   No tickets yet.
                   {canWrite ? (
@@ -566,6 +648,7 @@ function TicketsPageInner() {
                     </>
                   )}
                 </>
+                )
               ) : (
                 <>No tickets match this filter.</>
               )}

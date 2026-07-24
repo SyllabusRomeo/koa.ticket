@@ -64,6 +64,7 @@ export default function UsersAdminPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState(EMPTY_CREATE);
   const [edit, setEdit] = useState({
+    email: '',
     firstName: '',
     lastName: '',
     locationId: '',
@@ -152,6 +153,7 @@ export default function UsersAdminPage() {
   useEffect(() => {
     if (!selected) return;
     setEdit({
+      email: selected.email,
       firstName: selected.firstName,
       lastName: selected.lastName,
       locationId: selected.locationId ?? '',
@@ -219,6 +221,7 @@ export default function UsersAdminPage() {
     setMessage(null);
     try {
       await api.updateUser(selected.id, {
+        email: edit.email.trim(),
         firstName: edit.firstName.trim(),
         lastName: edit.lastName.trim(),
         locationId: edit.locationId || null,
@@ -226,7 +229,7 @@ export default function UsersAdminPage() {
         isActive: edit.isActive,
       });
       await refresh();
-      setMessage(`Updated ${selected.email}.`);
+      setMessage(`Updated ${edit.email.trim().toLowerCase()}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Update failed');
     } finally {
@@ -480,8 +483,22 @@ export default function UsersAdminPage() {
                     <h2 className={styles.sectionTitle}>
                       {selected.firstName} {selected.lastName}
                     </h2>
-                    <p className={styles.hint}>{selected.email}</p>
                     <div className={styles.formGrid}>
+                      <label className={styles.field}>
+                        Email
+                        <input
+                          required
+                          type="email"
+                          autoComplete="off"
+                          value={edit.email}
+                          onChange={(e) =>
+                            setEdit((f) => ({
+                              ...f,
+                              email: e.target.value,
+                            }))
+                          }
+                        />
+                      </label>
                       <label className={styles.field}>
                         First name
                         <input

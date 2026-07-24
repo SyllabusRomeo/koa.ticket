@@ -69,7 +69,7 @@ Examples: Service Desk, Infrastructure, Applications, Security. Seed creates **S
 
 - List: `GET /api/v1/users` (`users:read`) — includes `locationId` / `location`
 - Create: `POST /api/v1/users` (`users:manage`) with a single primary role via `roleCodes` (length 0–1), optional temp password, optional `locationId`
-- Update profile: `PATCH /api/v1/users/:id` — `locationId`, name, department
+- Update profile: `PATCH /api/v1/users/:id` — `email`, `locationId`, name, department, `isActive` (email must be unique)
 - Assign access: **Roles & Access** UI (also sets home location) or `PATCH /api/v1/users/:id/roles` with `roleCode` + optional `extraPermissionCodes` (additive). See [SOP-06](./06-roles-and-permissions.md).
 
 Disable users by setting inactive / soft-delete practices (expand UI later). Prefer deactivation over hard delete.

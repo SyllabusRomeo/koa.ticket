@@ -559,6 +559,8 @@ export const api = {
     statusCode?: string;
     typeCode?: string;
     channel?: string;
+    /** Ticket number, title, description, requester/assignee */
+    q?: string;
   } = {}) {
     const qs = new URLSearchParams();
     if (params.locationId) qs.set('locationId', params.locationId);
@@ -568,6 +570,7 @@ export const api = {
     if (params.statusCode) qs.set('statusCode', params.statusCode);
     if (params.typeCode) qs.set('typeCode', params.typeCode);
     if (params.channel) qs.set('channel', params.channel);
+    if (params.q?.trim()) qs.set('q', params.q.trim());
     const query = qs.toString();
     return request<TicketSummary[]>(`/tickets${query ? `?${query}` : ''}`);
   },
@@ -1821,6 +1824,7 @@ export const api = {
   updateUser(
     id: string,
     body: {
+      email?: string;
       firstName?: string;
       lastName?: string;
       locationId?: string | null;
