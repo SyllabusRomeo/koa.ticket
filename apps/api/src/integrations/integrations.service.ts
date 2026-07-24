@@ -356,6 +356,70 @@ export class IntegrationsService {
     };
   }
 
+  /** Monitoring ingest: Bearer MONITORING_INGEST_SECRET → incident ticket. */
+  async createFromMonitoringAlert(
+    authHeader: string | undefined,
+    body: {
+      title?: string;
+      description?: string;
+      severity?: string;
+      source?: string;
+    },
+  ) {
+    const secret = this.config.get<string>('MONITORING_INGEST_SECRET')?.trim();
+    if (!secret) {
+      throw new UnauthorizedException('Monitoring ingest is not configured');
+    }
+    if (!authHeader?.trim()) {
+      throw new UnauthorizedException('Missing monitoring authorization');
+    }
+    const token = authHeader.startsWith('Bearer ')
+      ? authHeader.slice(7).trim()
+      : authHeader.trim();
+    const a = Buffer.from(token);
+    const b = Buffer.from(secret);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      throw new UnauthorizedException('Invalid monitoring ingest secret');
+    }
+
+    const title = (body.title ?? '').trim() || 'Monitoring alert';
+    const description =
+      (body.description ?? '').trim() ||
+      `Alert from ${body.source?.trim() || 'monitoring'}`;
+    const severity = (body.severity ?? 'medium').trim().toLowerCase();
+    const impactUrgency =
+      severity === 'critical' || severity === 'high' || severity === 'sev1'
+        ? { impact: 'high', urgency: 'high' }
+        : severity === 'low' || severity === 'sev4'
+          ? { impact: 'low', urgency: 'low' }
+          : { impact: 'medium', urgency: 'medium' };
+
+    const actor = await this.resolveActor({});
+    const ticket = (await this.tickets.create(actor, {
+      title: title.slice(0, 200),
+      description: `${description}\n\n---\nSource: ${body.source?.trim() || 'monitoring'}\nSeverity: ${severity}`,
+      typeCode: 'incident',
+      impact: impactUrgency.impact,
+      urgency: impactUrgency.urgency,
+      majorIncident:
+        severity === 'critical' || severity === 'sev1' || severity === 'high',
+      channel: 'api',
+      channelMeta: {
+        intake: 'monitoring',
+        source: body.source ?? null,
+        severity,
+      },
+    })) as unknown as { id: string; number: string; title: string };
+
+    return {
+      ok: true,
+      ticketNumber: ticket.number,
+      ticketId: ticket.id,
+      title: ticket.title,
+      url: this.ticketUrl(ticket.number),
+    };
+  }
+
   assertSysadmin(user: AuthUserView) {
     if (!user.roles.includes(ROLES.SYSADMIN)) {
       throw new ForbiddenException('Sysadmin only');

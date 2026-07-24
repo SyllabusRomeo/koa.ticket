@@ -4,9 +4,9 @@ Honest status after competitive PRD V.20 (Notion), **Product Requirements Docume
 
 **Sources:** [Notion New PRD V.20](https://cliff-seeker-02f.notion.site/New-PRD-V-20-39c9521ce1f480469374dfe64329a26c) · local PDFs · [ENTERPRISE_ROADMAP.md](./ENTERPRISE_ROADMAP.md) · [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) · [DEVELOPMENT_TODO.md](./DEVELOPMENT_TODO.md)
 
-**Last updated:** 2026-07-23
+**Last updated:** 2026-07-24
 
-**Verdict:** LogIt is a **strong modular-monolith ITSM platform** through **L5** — tickets, RBAC (roles/extras), org admin (including Users create/deactivate), SLA/routing, knowledge, catalog forms, assets/CMDB relations, approvals, audit + immutable export schedules, email/IMAP + Slack/Teams, presence, queue/Kanban, Problem/Change/CAB, MI dashboard, SSO/MFA, analytics/digests/heatmaps, webhooks, CI/TLS, AI assists, KB deflection, portal themes. It is **not** yet ServiceNow/Jira SM complete. Remaining work is polish (webhook retries, SAML, bot outbound, etc.).
+**Verdict:** LogIt is a **strong modular-monolith ITSM platform** through **L5** plus a **partial IMS MVP** (2026-07-24) — tickets, RBAC, org admin, business-hours SLA + escalations, knowledge, catalog, assets/CMDB, approvals, audit exports, email/IMAP + Slack/Teams, presence, queue/Kanban, Problem/Change/CAB, MI dashboard, `/app/im` board, SSO/MFA, analytics/digests/heatmaps/IMS KPIs, webhooks, automation rules, monitoring ingest, AI assists, KB deflection, portal themes. It is **not** yet ServiceNow/Jira SM complete. Remaining work is IMS polish (war-room, PIR) and optional (webhook retries, SAML, bot outbound).
 
 ---
 
@@ -36,6 +36,7 @@ Honest status after competitive PRD V.20 (Notion), **Product Requirements Docume
 | Notifications | Bell + inbox + prefs + digests |
 | Outbound webhooks · CI/TLS | HMAC endpoints; GitHub Actions; Nginx TLS docs |
 | AI assists | Classify / summarize / duplicates / SLA risk (+ optional OpenAI) |
+| IMS MVP (partial) | `/app/im` board/timeline, IM permissions, optional ITSM ticket link; resolution codes, restricted SEC, saved views, automation on create, monitoring ingest, IMS KPIs |
 
 ### Pending / gaps
 

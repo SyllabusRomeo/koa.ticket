@@ -138,6 +138,11 @@ export type TicketSummary = {
   channel?: string | null;
   channelMeta?: Record<string, unknown> | null;
   majorIncident?: boolean;
+  impact?: string | null;
+  urgency?: string | null;
+  restricted?: boolean;
+  resolutionCode?: { id: string; code: string; name: string } | null;
+  resolutionCodeId?: string | null;
   createdAt: string;
   /** Resolution target (ticket.dueAt or active resolution SLA). */
   dueAt?: string | null;
@@ -683,7 +688,11 @@ export const api = {
       locationId?: string | null;
       title?: string;
       description?: string;
+      impact?: string;
+      urgency?: string;
       majorIncident?: boolean;
+      restricted?: boolean;
+      resolutionCodeId?: string | null;
       rootCause?: string | null;
       workaround?: string | null;
       changeRisk?: string | null;
@@ -801,7 +810,114 @@ export const api = {
       statuses: Array<{ code: string; name: string }>;
       priorities?: Array<{ id: string; code: string; name: string }>;
       locations?: LocationRef[];
+      resolutionCodes?: Array<{
+        id: string;
+        code: string;
+        name: string;
+        sortOrder: number;
+      }>;
     }>('/tickets/meta');
+  },
+  listSavedViews() {
+    return request<
+      Array<{
+        id: string;
+        name: string;
+        queryJson: Record<string, unknown>;
+        createdAt: string;
+        updatedAt: string;
+      }>
+    >('/tickets/views');
+  },
+  createSavedView(body: { name: string; queryJson: Record<string, unknown> }) {
+    return request<{
+      id: string;
+      name: string;
+      queryJson: Record<string, unknown>;
+    }>('/tickets/views', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  deleteSavedView(id: string) {
+    return request<{ ok: boolean }>(`/tickets/views/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  },
+  listImIncidents() {
+    return request<
+      Array<{
+        id: string;
+        number: string;
+        title: string;
+        summary: string | null;
+        severity: string;
+        status: string;
+        startedAt: string;
+        resolvedAt: string | null;
+        commander?: PersonRef | null;
+        ticket?: { id: string; number: string; title: string } | null;
+        _count?: { updates: number };
+      }>
+    >('/im');
+  },
+  getImIncident(idOrNumber: string) {
+    return request<{
+      id: string;
+      number: string;
+      title: string;
+      summary: string | null;
+      severity: string;
+      status: string;
+      startedAt: string;
+      resolvedAt: string | null;
+      commander?: PersonRef | null;
+      ticket?: { id: string; number: string; title: string } | null;
+      roles: Array<{ role: string; user: PersonRef }>;
+      updates: Array<{
+        id: string;
+        body: string;
+        isInternal: boolean;
+        createdAt: string;
+        author: PersonRef;
+      }>;
+    }>(`/im/${encodeURIComponent(idOrNumber)}`);
+  },
+  createImIncident(body: {
+    title: string;
+    summary?: string;
+    severity: string;
+    ticketId?: string;
+  }) {
+    return request<{ id: string; number: string }>('/im', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  addImUpdate(
+    idOrNumber: string,
+    body: { body: string; isInternal?: boolean },
+  ) {
+    return request(`/im/${encodeURIComponent(idOrNumber)}/updates`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  reportImsKpis(params: { from?: string; to?: string } = {}) {
+    const qs = new URLSearchParams();
+    if (params.from) qs.set('from', params.from);
+    if (params.to) qs.set('to', params.to);
+    const query = qs.toString();
+    return request<{
+      mttaMinutes: number | null;
+      mttrMinutes: number | null;
+      slaCompliancePercent: number | null;
+      fcrPercent: number | null;
+      reopenRatePercent: number | null;
+      openP1P2: number;
+      breachedOpen: number;
+      generatedAt: string;
+    }>(`/reports/ims-kpis${query ? `?${query}` : ''}`);
   },
   listTeams() {
     return request<TeamWithMembers[]>('/org/teams');

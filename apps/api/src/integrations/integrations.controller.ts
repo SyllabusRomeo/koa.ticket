@@ -254,4 +254,23 @@ export class IntegrationsController {
     this.integrations.verifyEmailInboundSecret(authorization);
     return this.integrations.handleInboundEmail(body ?? {});
   }
+
+  /**
+   * Monitoring / alerting ingest — Bearer MONITORING_INGEST_SECRET.
+   * Creates an incident ticket from { title, description, severity?, source? }.
+   */
+  @Public()
+  @Post('monitoring/alerts')
+  async monitoringAlerts(
+    @Body()
+    body: {
+      title?: string;
+      description?: string;
+      severity?: string;
+      source?: string;
+    },
+    @Headers('authorization') authorization?: string,
+  ) {
+    return this.integrations.createFromMonitoringAlert(authorization, body ?? {});
+  }
 }

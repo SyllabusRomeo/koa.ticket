@@ -160,6 +160,12 @@ export default function TicketDetailPage() {
   >([]);
   const [presenceCollision, setPresenceCollision] = useState(false);
   const [composing, setComposing] = useState(false);
+  const [impact, setImpact] = useState('medium');
+  const [urgency, setUrgency] = useState('medium');
+  const [resolutionCodeId, setResolutionCodeId] = useState('');
+  const [resolutionCodes, setResolutionCodes] = useState<
+    Array<{ id: string; code: string; name: string }>
+  >([]);
 
   const load = useCallback(async () => {
     const t = await api.getTicket(idOrNumber);
@@ -168,6 +174,9 @@ export default function TicketDetailPage() {
     setAssigneeId(t.assignee?.id ?? '');
     setLocationId(t.location?.id ?? t.locationId ?? '');
     setWatching(!!t.watching);
+    setImpact(t.impact ?? 'medium');
+    setUrgency(t.urgency ?? 'medium');
+    setResolutionCodeId(t.resolutionCode?.id ?? t.resolutionCodeId ?? '');
     if (t.location) {
       const loc = t.location;
       setLocations((prev) => {
@@ -229,6 +238,9 @@ export default function TicketDetailPage() {
               }
               return [...byId.values()];
             });
+          }
+          if (!cancelled && meta.resolutionCodes?.length) {
+            setResolutionCodes(meta.resolutionCodes);
           }
         } catch {
           /* optional */
@@ -322,11 +334,45 @@ export default function TicketDetailPage() {
       const updated = await api.updateTicket(ticket.number, {
         version: ticket.version,
         statusCode,
+        ...(statusCode === 'resolved' && resolutionCodeId
+          ? { resolutionCodeId }
+          : {}),
       });
       setTicket(updated);
+      setResolutionCodeId(
+        updated.resolutionCode?.id ?? updated.resolutionCodeId ?? '',
+      );
       setMessage(`Status updated to ${updated.status.name}.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Status update failed');
+      try {
+        await load();
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveImpactUrgency(e: FormEvent) {
+    e.preventDefault();
+    if (!ticket) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const updated = await api.updateTicket(ticket.number, {
+        version: ticket.version,
+        impact,
+        urgency,
+      });
+      setTicket(updated);
+      setImpact(updated.impact ?? impact);
+      setUrgency(updated.urgency ?? urgency);
+      setMessage('Impact / urgency updated.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Update failed');
       try {
         await load();
       } catch {
@@ -1307,6 +1353,66 @@ export default function TicketDetailPage() {
               </p>
             ) : null}
             {message ? <p className={styles.ok}>{message}</p> : null}
+
+            {showAgentWorkspace(user) && (
+              <form
+                className={styles.assignForm}
+                onSubmit={saveImpactUrgency}
+                style={{ marginBottom: '1rem' }}
+              >
+                <label>
+                  Impact
+                  <select
+                    value={impact}
+                    onChange={(e) => setImpact(e.target.value)}
+                    disabled={busy}
+                  >
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </label>
+                <label>
+                  Urgency
+                  <select
+                    value={urgency}
+                    onChange={(e) => setUrgency(e.target.value)}
+                    disabled={busy}
+                  >
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </label>
+                <button
+                  type="submit"
+                  className={styles.btnSecondary}
+                  disabled={busy}
+                >
+                  Save priority inputs
+                </button>
+              </form>
+            )}
+
+            {showAgentWorkspace(user) &&
+            transitions.some((t) => t.code === 'resolved') &&
+            resolutionCodes.length ? (
+              <label style={{ display: 'block', marginBottom: '0.75rem' }}>
+                Resolution code (required when resolving)
+                <select
+                  value={resolutionCodeId}
+                  onChange={(e) => setResolutionCodeId(e.target.value)}
+                  disabled={busy}
+                >
+                  <option value="">Select…</option>
+                  {resolutionCodes.map((rc) => (
+                    <option key={rc.id} value={rc.id}>
+                      {rc.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
 
             {transitions.length === 0 ? (
               <p className={styles.hint}>

@@ -73,6 +73,11 @@ export class CreateTicketDto {
   @IsBoolean()
   majorIncident?: boolean;
 
+  /** Mark sensitive / restricted visibility (staff; auto for SEC when omitted). */
+  @IsOptional()
+  @IsBoolean()
+  restricted?: boolean;
+
   /**
    * Intake channel. Defaults to `web` for portal / API creates.
    * Integrations set email | slack | teams | chat.
@@ -163,6 +168,16 @@ export class UpdateTicketDto {
   @IsBoolean()
   majorIncident?: boolean;
 
+  /** Sensitive / restricted visibility — staff with tickets:write. */
+  @IsOptional()
+  @IsBoolean()
+  restricted?: boolean;
+
+  /** Resolution classification when resolving / after resolve. */
+  @IsOptional()
+  @IsString()
+  resolutionCodeId?: string | null;
+
   /** Problem RCA — staff only. */
   @IsOptional()
   @IsString()
@@ -224,4 +239,26 @@ export class AddWorkLogDto {
   @IsString()
   @MaxLength(2000)
   note?: string;
+}
+
+export class CreateSavedViewDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  name!: string;
+
+  @IsObject()
+  queryJson!: Record<string, unknown>;
+}
+
+export class UpdateSavedViewDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  name?: string;
+
+  @IsOptional()
+  @IsObject()
+  queryJson?: Record<string, unknown>;
 }

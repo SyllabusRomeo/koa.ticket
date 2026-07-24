@@ -6,10 +6,12 @@ import { AssetsModule } from './assets/assets.module';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { AutomationModule } from './automation/automation.module';
 import { BrandingModule } from './branding/branding.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { EmailModule } from './email/email.module';
 import { HealthModule } from './health/health.module';
+import { ImModule } from './im/im.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { KnowledgeModule } from './knowledge/knowledge.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -49,6 +51,8 @@ import { AiModule } from './ai/ai.module';
     BrandingModule,
     WebhooksModule,
     AiModule,
+    AutomationModule,
+    ImModule,
   ],
 })
 export class AppModule {}

@@ -5,13 +5,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PERMISSIONS } from '@logit/shared';
+import { PERMISSIONS, ROLES } from '@logit/shared';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUserView } from '../auth/auth.service';
 import { AssignmentService } from '../assignment/assignment.service';
 import { ApprovalsService } from '../approvals/approvals.service';
 import { AuditService } from '../audit/audit.service';
+import { AutomationService } from '../automation/automation.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
   statusChangeEventType,
@@ -23,7 +24,9 @@ import { WebhooksService } from '../webhooks/webhooks.service';
 import {
   AddCommentDto,
   AddWorkLogDto,
+  CreateSavedViewDto,
   CreateTicketDto,
+  UpdateSavedViewDto,
   UpdateTicketDto,
 } from './dto/ticket.dto';
 
@@ -34,6 +37,7 @@ export class TicketsService {
     private readonly assignment: AssignmentService,
     private readonly approvals: ApprovalsService,
     private readonly audit: AuditService,
+    private readonly automation: AutomationService,
     private readonly notifications: NotificationsService,
     private readonly sla: SlaService,
     private readonly presence: PresenceService,
@@ -89,6 +93,16 @@ export class TicketsService {
     return user.permissions.includes(PERMISSIONS.TICKETS_INTERNAL_NOTE);
   }
 
+  /** Privileged for restricted/sensitive tickets. */
+  private canSeeRestricted(user: AuthUserView) {
+    return (
+      user.permissions.includes(PERMISSIONS.TICKETS_READ_ALL) ||
+      user.permissions.includes(PERMISSIONS.SETTINGS_MANAGE) ||
+      user.roles.includes(ROLES.IT_MANAGER) ||
+      user.roles.includes(ROLES.SYSADMIN)
+    );
+  }
+
   private personalTicketWhere(userId: string): Prisma.TicketWhereInput {
     return {
       OR: [
@@ -99,17 +113,32 @@ export class TicketsService {
     };
   }
 
+  /** Extra filter: restricted tickets only for privileged / parties. */
+  private restrictedVisibilityClause(
+    user: AuthUserView,
+  ): Prisma.TicketWhereInput {
+    if (this.canSeeRestricted(user)) return {};
+    return {
+      OR: [
+        { restricted: false },
+        { requesterId: user.id },
+        { assigneeId: user.id },
+      ],
+    };
+  }
+
   /** Prisma filter for ticket lists / exports based on role. */
   private visibilityWhere(user: AuthUserView): Prisma.TicketWhereInput {
+    const restricted = this.restrictedVisibilityClause(user);
     if (this.canReadOrgTickets(user)) {
-      return {};
+      return restricted;
     }
     // Agents: only tickets assigned to them.
     if (this.canReadAssignedQueue(user)) {
-      return { assigneeId: user.id };
+      return { AND: [{ assigneeId: user.id }, restricted] };
     }
-    // End users: requested, assigned, or watching.
-    return this.personalTicketWhere(user.id);
+    // End users: requested, assigned, or watching (watchers blocked on restricted).
+    return { AND: [this.personalTicketWhere(user.id), restricted] };
   }
 
   private async assertTicketVisible(
@@ -118,20 +147,31 @@ export class TicketsService {
       id: string;
       requesterId: string;
       assigneeId: string | null;
+      restricted?: boolean;
     },
   ) {
+    if (ticket.restricted) {
+      const party =
+        ticket.requesterId === user.id || ticket.assigneeId === user.id;
+      if (!party && !this.canSeeRestricted(user)) {
+        throw new ForbiddenException('Ticket not found');
+      }
+    }
+
     if (this.canReadOrgTickets(user)) return;
 
     // Agents may open assigned work; also their own requests / watches.
     if (this.canReadAssignedQueue(user)) {
       if (ticket.assigneeId === user.id) return;
       if (ticket.requesterId === user.id) return;
-      const watching = await this.prisma.ticketWatcher.findUnique({
-        where: {
-          ticketId_userId: { ticketId: ticket.id, userId: user.id },
-        },
-      });
-      if (watching) return;
+      if (!ticket.restricted) {
+        const watching = await this.prisma.ticketWatcher.findUnique({
+          where: {
+            ticketId_userId: { ticketId: ticket.id, userId: user.id },
+          },
+        });
+        if (watching) return;
+      }
       throw new ForbiddenException('Ticket not found');
     }
 
@@ -139,12 +179,14 @@ export class TicketsService {
       return;
     }
 
-    const watching = await this.prisma.ticketWatcher.findUnique({
-      where: {
-        ticketId_userId: { ticketId: ticket.id, userId: user.id },
-      },
-    });
-    if (watching) return;
+    if (!ticket.restricted) {
+      const watching = await this.prisma.ticketWatcher.findUnique({
+        where: {
+          ticketId_userId: { ticketId: ticket.id, userId: user.id },
+        },
+      });
+      if (watching) return;
+    }
 
     throw new ForbiddenException('Ticket not found');
   }
@@ -283,6 +325,12 @@ export class TicketsService {
       (type.code === 'incident' || type.code === 'security_incident') &&
       this.canStaffTickets(user);
 
+    const restricted =
+      dto.restricted !== undefined
+        ? !!dto.restricted &&
+          user.permissions.includes(PERMISSIONS.TICKETS_WRITE)
+        : type.code === 'security_incident';
+
     const channel = dto.channel ?? 'web';
     const channelMeta = dto.channelMeta
       ? (dto.channelMeta as Prisma.InputJsonValue)
@@ -307,6 +355,7 @@ export class TicketsService {
         assigneeId: assigneeId ?? undefined,
         parentId,
         majorIncident,
+        restricted,
         channel,
         channelMeta,
         cabRequired: type.code === 'change',
@@ -358,6 +407,15 @@ export class TicketsService {
                   },
                 ]
               : []),
+            ...(restricted
+              ? [
+                  {
+                    actorId: user.id,
+                    field: 'restricted',
+                    newValue: 'true',
+                  },
+                ]
+              : []),
           ],
         },
       },
@@ -376,6 +434,18 @@ export class TicketsService {
     if (needsApproval) {
       await this.approvals.createForTicket(ticket.id, ticket.title, number);
     }
+
+    await this.automation.evaluateOnCreate({
+      id: ticket.id,
+      number: ticket.number,
+      title: ticket.title,
+      majorIncident: ticket.majorIncident,
+      locationId: ticket.locationId,
+      teamId: ticket.teamId,
+      category: ticket.category,
+      priority: ticket.priority,
+      type: ticket.type,
+    });
 
     const notified = new Set<string>();
     if (assigneeId) {
@@ -1118,6 +1188,46 @@ export class TicketsService {
           newValue: String(dto.majorIncident),
         });
       }
+    }
+
+    if (dto.restricted !== undefined) {
+      if (!user.permissions.includes(PERMISSIONS.TICKETS_WRITE)) {
+        throw new ForbiddenException('Cannot set restricted flag');
+      }
+      if (dto.restricted !== existing.restricted) {
+        data.restricted = dto.restricted;
+        history.push({
+          actorId: user.id,
+          field: 'restricted',
+          oldValue: String(existing.restricted),
+          newValue: String(dto.restricted),
+        });
+      }
+    }
+
+    if (dto.resolutionCodeId !== undefined) {
+      if (!this.canStaffTickets(user)) {
+        throw new ForbiddenException('Cannot set resolution code');
+      }
+      const nextId =
+        dto.resolutionCodeId === null || dto.resolutionCodeId === ''
+          ? null
+          : dto.resolutionCodeId;
+      if (nextId) {
+        const code = await this.prisma.resolutionCode.findFirst({
+          where: { id: nextId, isActive: true },
+        });
+        if (!code) throw new BadRequestException('Invalid resolution code');
+        data.resolutionCode = { connect: { id: code.id } };
+      } else {
+        data.resolutionCode = { disconnect: true };
+      }
+      history.push({
+        actorId: user.id,
+        field: 'resolution_code',
+        oldValue: existing.resolutionCodeId,
+        newValue: nextId,
+      });
     }
 
     if (dto.rootCause !== undefined || dto.workaround !== undefined) {
@@ -2176,44 +2286,109 @@ export class TicketsService {
     return this.get(user, primary.id);
   }
 
-  async meta() {
-    const [types, statuses, categories, priorities, matrix, locations] =
-      await Promise.all([
-        this.prisma.ticketType.findMany({
-          where: { isActive: true },
-          orderBy: { name: 'asc' },
-        }),
-        this.prisma.ticketStatus.findMany({ orderBy: { sortOrder: 'asc' } }),
-        this.prisma.category.findMany({
-          where: { deletedAt: null, isActive: true },
-          include: {
-            subcategories: {
-              where: { deletedAt: null, isActive: true },
-              orderBy: { name: 'asc' },
-            },
-          },
-          orderBy: { name: 'asc' },
-        }),
-        this.prisma.priority.findMany({ orderBy: { rank: 'asc' } }),
-        this.prisma.priorityMatrix.findMany({
-          include: { priority: true },
-        }),
-        this.prisma.location.findMany({
-          where: { deletedAt: null, isActive: true },
-          select: {
-            id: true,
-            code: true,
-            name: true,
-            site: true,
-            country: true,
-            timezone: true,
-            isActive: true,
-          },
-          orderBy: { name: 'asc' },
-        }),
-      ]);
+  listSavedViews(user: AuthUserView) {
+    return this.prisma.ticketSavedView.findMany({
+      where: { userId: user.id },
+      orderBy: { name: 'asc' },
+    });
+  }
 
-    return { types, statuses, categories, priorities, matrix, locations };
+  createSavedView(user: AuthUserView, dto: CreateSavedViewDto) {
+    return this.prisma.ticketSavedView.create({
+      data: {
+        userId: user.id,
+        name: dto.name.trim(),
+        queryJson: dto.queryJson as Prisma.InputJsonValue,
+      },
+    });
+  }
+
+  async updateSavedView(
+    user: AuthUserView,
+    id: string,
+    dto: UpdateSavedViewDto,
+  ) {
+    const existing = await this.prisma.ticketSavedView.findFirst({
+      where: { id, userId: user.id },
+    });
+    if (!existing) throw new NotFoundException('Saved view not found');
+    return this.prisma.ticketSavedView.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.queryJson !== undefined
+          ? { queryJson: dto.queryJson as Prisma.InputJsonValue }
+          : {}),
+      },
+    });
+  }
+
+  async deleteSavedView(user: AuthUserView, id: string) {
+    const existing = await this.prisma.ticketSavedView.findFirst({
+      where: { id, userId: user.id },
+    });
+    if (!existing) throw new NotFoundException('Saved view not found');
+    await this.prisma.ticketSavedView.delete({ where: { id } });
+    return { ok: true };
+  }
+
+  async meta() {
+    const [
+      types,
+      statuses,
+      categories,
+      priorities,
+      matrix,
+      locations,
+      resolutionCodes,
+    ] = await Promise.all([
+      this.prisma.ticketType.findMany({
+        where: { isActive: true },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.ticketStatus.findMany({ orderBy: { sortOrder: 'asc' } }),
+      this.prisma.category.findMany({
+        where: { deletedAt: null, isActive: true },
+        include: {
+          subcategories: {
+            where: { deletedAt: null, isActive: true },
+            orderBy: { name: 'asc' },
+          },
+        },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.priority.findMany({ orderBy: { rank: 'asc' } }),
+      this.prisma.priorityMatrix.findMany({
+        include: { priority: true },
+      }),
+      this.prisma.location.findMany({
+        where: { deletedAt: null, isActive: true },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          site: true,
+          country: true,
+          timezone: true,
+          isActive: true,
+        },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.resolutionCode.findMany({
+        where: { isActive: true },
+        orderBy: { sortOrder: 'asc' },
+      }),
+    ]);
+
+    return {
+      types,
+      statuses,
+      categories,
+      priorities,
+      matrix,
+      locations,
+      resolutionCodes,
+    };
   }
 
   private async findAccessible(
@@ -2242,6 +2417,7 @@ export class TicketsService {
       priority: true,
       category: true,
       subcategory: true,
+      resolutionCode: true,
       requester: {
         select: { id: true, firstName: true, lastName: true, email: true },
       },

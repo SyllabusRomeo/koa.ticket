@@ -169,6 +169,15 @@ export default function ReportsPage() {
       deflected: number;
     }>;
   } | null>(null);
+  const [imsKpis, setImsKpis] = useState<{
+    mttaMinutes: number | null;
+    mttrMinutes: number | null;
+    slaCompliancePercent: number | null;
+    fcrPercent: number | null;
+    reopenRatePercent: number | null;
+    openP1P2: number;
+    breachedOpen: number;
+  } | null>(null);
 
   const cellMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -187,12 +196,13 @@ export default function ReportsPage() {
     range: { from?: string; to?: string } = {},
     metric: 'created' | 'resolved' = heatmapMetric,
   ) {
-    const [summaryData, stagesData, heatmapData, deflectionData] =
+    const [summaryData, stagesData, heatmapData, deflectionData, imsData] =
       await Promise.all([
         api.reportSummary(range),
         api.reportStages(range),
         api.reportHeatmap({ ...range, metric }),
         api.knowledgeDeflectionAnalytics(30).catch(() => null),
+        api.reportImsKpis(range).catch(() => null),
       ]);
     setSummary(summaryData);
     setStages(stagesData);
@@ -205,6 +215,7 @@ export default function ReportsPage() {
         topArticles: deflectionData.topArticles,
       });
     }
+    setImsKpis(imsData);
   }
 
   useEffect(() => {
@@ -442,6 +453,62 @@ export default function ReportsPage() {
                 <span>In range</span>
               </div>
             </div>
+
+            {imsKpis ? (
+              <section className={styles.breakdown} style={{ marginTop: '1.25rem' }}>
+                <h2 className={styles.breakdownTitle}>IMS / ops KPIs</h2>
+                <div className={appStyles.stats}>
+                  <div>
+                    <strong>
+                      {imsKpis.mttaMinutes != null
+                        ? `${imsKpis.mttaMinutes}m`
+                        : '—'}
+                    </strong>
+                    <span>MTTA</span>
+                  </div>
+                  <div>
+                    <strong>
+                      {imsKpis.mttrMinutes != null
+                        ? `${imsKpis.mttrMinutes}m`
+                        : '—'}
+                    </strong>
+                    <span>MTTR</span>
+                  </div>
+                  <div>
+                    <strong>
+                      {imsKpis.slaCompliancePercent != null
+                        ? `${imsKpis.slaCompliancePercent}%`
+                        : '—'}
+                    </strong>
+                    <span>SLA compliance</span>
+                  </div>
+                  <div>
+                    <strong>
+                      {imsKpis.fcrPercent != null
+                        ? `${imsKpis.fcrPercent}%`
+                        : '—'}
+                    </strong>
+                    <span>FCR (coded)</span>
+                  </div>
+                  <div>
+                    <strong>
+                      {imsKpis.reopenRatePercent != null
+                        ? `${imsKpis.reopenRatePercent}%`
+                        : '—'}
+                    </strong>
+                    <span>Reopen rate</span>
+                  </div>
+                  <div>
+                    <strong>{imsKpis.openP1P2}</strong>
+                    <span>Open P1/P2</span>
+                  </div>
+                  <div>
+                    <strong>{imsKpis.breachedOpen}</strong>
+                    <span>Breached open</span>
+                  </div>
+                </div>
+              </section>
+            ) : null}
 
             {heatmap ? (
               <section className={styles.heatmapPanel}>

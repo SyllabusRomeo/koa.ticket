@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { addBusinessMinutes } from './business-hours';
 
 @Injectable()
 export class SlaService {
@@ -20,11 +21,21 @@ export class SlaService {
     if (!policy) return [];
 
     const now = new Date();
-    const firstDue = new Date(
-      now.getTime() + policy.firstResponseMinutes * 60_000,
+    const [hours, holidays] = await Promise.all([
+      this.prisma.businessHours.findMany({ where: { isActive: true } }),
+      this.prisma.holiday.findMany(),
+    ]);
+    const firstDue = addBusinessMinutes(
+      now,
+      policy.firstResponseMinutes,
+      hours,
+      holidays,
     );
-    const resolveDue = new Date(
-      now.getTime() + policy.resolveMinutes * 60_000,
+    const resolveDue = addBusinessMinutes(
+      now,
+      policy.resolveMinutes,
+      hours,
+      holidays,
     );
 
     const [first, resolution] = await this.prisma.$transaction([
@@ -48,7 +59,6 @@ export class SlaService {
       }),
     ]);
 
-    // Denormalize resolution target onto the ticket for queue/list timers.
     await this.prisma.ticket.update({
       where: { id: ticketId },
       data: { dueAt: resolveDue },
@@ -72,10 +82,10 @@ export class SlaService {
     });
   }
 
-  /** Worker tick: update consumption & escalate */
+  /** Worker / poller: update consumption, breach, escalate (notify + optional team). */
   async processDue() {
     const open = await this.prisma.slaInstance.findMany({
-      where: { completedAt: null, breachedAt: null },
+      where: { completedAt: null },
       include: {
         ticket: { include: { status: true, assignee: true, requester: true } },
         policy: { include: { escalations: true } },
@@ -100,10 +110,7 @@ export class SlaService {
         const newDue = new Date(inst.dueAt.getTime() + pausedMs);
         await this.prisma.slaInstance.update({
           where: { id: inst.id },
-          data: {
-            pausedAt: null,
-            dueAt: newDue,
-          },
+          data: { pausedAt: null, dueAt: newDue },
         });
         if (inst.metric === 'resolution') {
           await this.prisma.ticket.update({
@@ -114,25 +121,28 @@ export class SlaService {
         continue;
       }
 
-      if (
-        inst.metric === 'first_response' &&
-        inst.ticket.firstResponseAt
-      ) {
+      if (inst.metric === 'first_response' && inst.ticket.firstResponseAt) {
         await this.prisma.slaInstance.update({
           where: { id: inst.id },
-          data: { completedAt: inst.ticket.firstResponseAt, percentConsumed: 100 },
+          data: {
+            completedAt: inst.ticket.firstResponseAt,
+            percentConsumed: 100,
+          },
         });
         continue;
       }
       if (inst.metric === 'resolution' && inst.ticket.resolvedAt) {
         await this.prisma.slaInstance.update({
           where: { id: inst.id },
-          data: { completedAt: inst.ticket.resolvedAt, percentConsumed: 100 },
+          data: {
+            completedAt: inst.ticket.resolvedAt,
+            percentConsumed: 100,
+          },
         });
         continue;
       }
 
-      const total = inst.dueAt.getTime() - inst.startedAt.getTime();
+      const total = Math.max(1, inst.dueAt.getTime() - inst.startedAt.getTime());
       const used = now - inst.startedAt.getTime();
       const percent = Math.max(0, Math.min(200, (used / total) * 100));
 
@@ -156,7 +166,7 @@ export class SlaService {
           (e) => e.thresholdPercent === hit,
         );
         if (rule) {
-          await this.escalate(inst.ticket, hit, rule.notifyRoleCodes);
+          await this.escalate(inst.ticket, hit, rule);
         }
       }
 
@@ -176,11 +186,34 @@ export class SlaService {
       title: string;
       assigneeId: string | null;
       requesterId: string;
+      teamId?: string | null;
     },
     percent: number,
-    roleCodesCsv: string,
+    rule: {
+      notifyRoleCodes: string;
+      assignTeamId?: string | null;
+    },
   ) {
-    const roles = roleCodesCsv.split(',').map((s) => s.trim()).filter(Boolean);
+    if (rule.assignTeamId && rule.assignTeamId !== ticket.teamId) {
+      await this.prisma.ticket.update({
+        where: { id: ticket.id },
+        data: { teamId: rule.assignTeamId, assigneeId: null },
+      });
+      await this.prisma.ticketHistory.create({
+        data: {
+          ticketId: ticket.id,
+          actorId: ticket.requesterId,
+          field: 'teamId',
+          oldValue: ticket.teamId ?? null,
+          newValue: rule.assignTeamId,
+        },
+      });
+    }
+
+    const roles = rule.notifyRoleCodes
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     const users = await this.prisma.user.findMany({
       where: {
         deletedAt: null,
@@ -200,7 +233,7 @@ export class SlaService {
         eventType: 'sla.warning',
         title: `SLA ${percent}% — ${ticket.number}`,
         body: ticket.title,
-        link: `/app/tickets`,
+        link: `/app/tickets/${encodeURIComponent(ticket.number)}`,
       });
     }
   }

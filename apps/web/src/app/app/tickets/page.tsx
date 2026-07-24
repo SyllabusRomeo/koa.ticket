@@ -63,6 +63,12 @@ function TicketsPageInner() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [impact, setImpact] = useState('medium');
+  const [urgency, setUrgency] = useState('medium');
+  const [savedViews, setSavedViews] = useState<
+    Array<{ id: string; name: string; queryJson: Record<string, unknown> }>
+  >([]);
+  const [viewName, setViewName] = useState('');
   const [queueFilter, setQueueFilterState] = useState<QueueFilter>(() =>
     parseQueue(searchParams.get('queue')),
   );
@@ -133,6 +139,12 @@ function TicketsPageInner() {
         setUser(user);
         setLocationId(user.locationId ?? '');
         await load();
+        try {
+          const views = await api.listSavedViews();
+          if (!cancelled) setSavedViews(views);
+        } catch {
+          /* optional */
+        }
         if (!cancelled && can(user, 'org:read')) {
           try {
             const locs = await api.listLocations();
@@ -177,8 +189,8 @@ function TicketsPageInner() {
         typeCode,
         categoryCode: categoryCode || undefined,
         locationId: locationId || undefined,
-        impact: 'medium',
-        urgency: 'medium',
+        impact,
+        urgency,
       });
       if (pendingFiles.length) {
         for (const file of pendingFiles) {
@@ -187,6 +199,8 @@ function TicketsPageInner() {
       }
       setTitle('');
       setDescription('');
+      setImpact('medium');
+      setUrgency('medium');
       setLocationId(user?.locationId ?? '');
       setPendingFiles([]);
       await load();
@@ -362,6 +376,30 @@ function TicketsPageInner() {
               />
             </label>
             <label>
+              Impact
+              <select
+                value={impact}
+                onChange={(e) => setImpact(e.target.value)}
+                aria-label="Impact"
+              >
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </label>
+            <label>
+              Urgency
+              <select
+                value={urgency}
+                onChange={(e) => setUrgency(e.target.value)}
+                aria-label="Urgency"
+              >
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </label>
+            <label>
               Description
               <textarea
                 value={description}
@@ -500,6 +538,94 @@ function TicketsPageInner() {
               </Button>
             ) : null}
           </form>
+          <div className={styles.searchBar} style={{ marginTop: '0.5rem' }}>
+            <label className={styles.searchField} htmlFor="save-view-name">
+              Save view
+              <input
+                id="save-view-name"
+                value={viewName}
+                onChange={(e) => setViewName(e.target.value)}
+                placeholder="Name for current filters…"
+                aria-label="Saved view name"
+              />
+            </label>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={!viewName.trim() || loading}
+              onClick={async () => {
+                try {
+                  const created = await api.createSavedView({
+                    name: viewName.trim(),
+                    queryJson: {
+                      q: searchQ || undefined,
+                      locationId: filterLocation || undefined,
+                      channel: filterChannel || undefined,
+                      queue: queueFilter !== 'all' ? queueFilter : undefined,
+                    },
+                  });
+                  setSavedViews((prev) =>
+                    [...prev.filter((v) => v.id !== created.id), created].sort(
+                      (a, b) => a.name.localeCompare(b.name),
+                    ),
+                  );
+                  setViewName('');
+                } catch (err) {
+                  setError(
+                    err instanceof Error ? err.message : 'Could not save view',
+                  );
+                }
+              }}
+            >
+              Save
+            </Button>
+            {savedViews.length ? (
+              <label className={styles.searchField} htmlFor="load-view">
+                Load view
+                <select
+                  id="load-view"
+                  defaultValue=""
+                  aria-label="Load saved view"
+                  onChange={async (e) => {
+                    const id = e.target.value;
+                    e.target.value = '';
+                    const view = savedViews.find((v) => v.id === id);
+                    if (!view) return;
+                    const qj = view.queryJson ?? {};
+                    const nextQ = typeof qj.q === 'string' ? qj.q : '';
+                    const nextLoc =
+                      typeof qj.locationId === 'string' ? qj.locationId : '';
+                    const nextCh =
+                      typeof qj.channel === 'string' ? qj.channel : '';
+                    setSearchInput(nextQ);
+                    setSearchQ(nextQ);
+                    setFilterLocation(nextLoc);
+                    setFilterChannel(nextCh);
+                    if (
+                      qj.queue === 'unassigned' ||
+                      qj.queue === 'mine' ||
+                      qj.queue === 'major'
+                    ) {
+                      setQueueFilter(qj.queue);
+                    }
+                    setLoading(true);
+                    try {
+                      await load(nextLoc, nextCh, nextQ);
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                >
+                  <option value="">Select…</option>
+                  {savedViews.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+          </div>
           {searchQ ? (
             <p className={styles.hint} style={{ marginTop: 0 }}>
               Results for “{searchQ}” ({filteredTickets.length}

@@ -293,6 +293,146 @@ export class ReportsService {
     return `${sign}00:${String(minutes).padStart(2, '0')}`;
   }
 
+  /**
+   * IMS / ITSM ops KPIs: MTTA, MTTR, SLA compliance, FCR, reopen rate,
+   * open P1/P2, breached open.
+   */
+  async imsKpis(range: ReportDateRange = {}) {
+    const where = this.ticketWhere(range);
+    const now = new Date();
+
+    const [
+      withResponse,
+      resolved,
+      slaTotal,
+      slaBreachedDone,
+      closedWithCode,
+      reopenHistory,
+      openP1P2,
+      breachedOpen,
+    ] = await Promise.all([
+      this.prisma.ticket.findMany({
+        where: { ...where, firstResponseAt: { not: null } },
+        select: { createdAt: true, firstResponseAt: true },
+        take: 2000,
+      }),
+      this.prisma.ticket.findMany({
+        where: { ...where, resolvedAt: { not: null } },
+        select: { createdAt: true, resolvedAt: true },
+        take: 2000,
+      }),
+      this.prisma.slaInstance.count({
+        where: {
+          completedAt: { not: null },
+          ticket: where,
+        },
+      }),
+      this.prisma.slaInstance.count({
+        where: {
+          completedAt: { not: null },
+          breachedAt: { not: null },
+          ticket: where,
+        },
+      }),
+      this.prisma.ticket.count({
+        where: {
+          ...where,
+          status: { code: { in: ['resolved', 'closed'] } },
+          resolutionCodeId: { not: null },
+        },
+      }),
+      this.prisma.ticketHistory.count({
+        where: {
+          field: 'status',
+          oldValue: 'resolved',
+          newValue: { in: ['open', 'in_progress', 'assigned'] },
+          ticket: where,
+        },
+      }),
+      this.prisma.ticket.count({
+        where: {
+          deletedAt: null,
+          status: { isTerminal: false },
+          priority: { code: { in: ['p1_critical', 'p2_high'] } },
+        },
+      }),
+      this.prisma.ticket.count({
+        where: {
+          deletedAt: null,
+          status: { isTerminal: false },
+          OR: [
+            { dueAt: { lt: now } },
+            {
+              slaInstances: {
+                some: {
+                  completedAt: null,
+                  OR: [
+                    { breachedAt: { not: null } },
+                    { dueAt: { lt: now } },
+                  ],
+                },
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    const avgMinutes = (
+      rows: Array<{ start: Date; end: Date | null }>,
+    ): number | null => {
+      const vals = rows
+        .filter((r) => r.end)
+        .map((r) => (r.end!.getTime() - r.start.getTime()) / 60_000);
+      if (!vals.length) return null;
+      return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+    };
+
+    const mttaMinutes = avgMinutes(
+      withResponse.map((t) => ({
+        start: t.createdAt,
+        end: t.firstResponseAt,
+      })),
+    );
+    const mttrMinutes = avgMinutes(
+      resolved.map((t) => ({ start: t.createdAt, end: t.resolvedAt })),
+    );
+
+    const slaCompliancePercent =
+      slaTotal > 0
+        ? Math.round(((slaTotal - slaBreachedDone) / slaTotal) * 1000) / 10
+        : null;
+
+    const resolvedClosed = await this.prisma.ticket.count({
+      where: {
+        ...where,
+        status: { code: { in: ['resolved', 'closed'] } },
+      },
+    });
+    const fcrPercent =
+      resolvedClosed > 0
+        ? Math.round((closedWithCode / resolvedClosed) * 1000) / 10
+        : null;
+
+    const reopenRatePercent =
+      resolvedClosed > 0
+        ? Math.round((reopenHistory / resolvedClosed) * 1000) / 10
+        : null;
+
+    return {
+      mttaMinutes,
+      mttrMinutes,
+      slaCompliancePercent,
+      fcrPercent,
+      reopenRatePercent,
+      openP1P2,
+      breachedOpen,
+      generatedAt: now.toISOString(),
+      from: range.from ?? null,
+      to: range.to ?? null,
+    };
+  }
+
   async summary(range: ReportDateRange = {}) {
     const where = this.ticketWhere(range);
     const startOfDay = new Date();

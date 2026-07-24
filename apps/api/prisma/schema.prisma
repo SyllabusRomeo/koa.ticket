@@ -76,6 +76,10 @@ model User {
   reportSchedules  ReportSchedule[]
   auditExportSchedules AuditExportSchedule[]
   auditExportRuns  AuditExportRun[]
+  ticketSavedViews TicketSavedView[]
+  imIncidentsCommanded ImIncident[] @relation("ImIncidentCommander")
+  imIncidentUpdates ImIncidentUpdate[]
+  imIncidentRoles  ImIncidentRole[]
 
   @@index([email])
   @@index([deletedAt])
@@ -265,6 +269,7 @@ model Team {
   department Department?  @relation(fields: [departmentId], references: [id])
   members    TeamMember[]
   tickets    Ticket[]
+  slaEscalations SlaEscalationRule[]
 
   @@map("teams")
 }
@@ -419,6 +424,10 @@ model Ticket {
   mergedIntoId    String?   @map("merged_into_id")
   /** Major incident flag for P1 / business-critical outages. */
   majorIncident   Boolean   @default(false) @map("major_incident")
+  /** Sensitive / restricted visibility (e.g. SEC tickets). */
+  restricted      Boolean   @default(false)
+  /** Structured resolution classification when resolving. */
+  resolutionCodeId String?  @map("resolution_code_id")
   /** Problem management — root cause analysis. */
   rootCause       String?   @map("root_cause")
   /** Problem management — temporary workaround for known errors. */
@@ -476,6 +485,8 @@ model Ticket {
   watchers    TicketWatcher[]
   workLogs    TicketWorkLog[]
   emailMessages EmailMessage[]
+  resolutionCode ResolutionCode? @relation(fields: [resolutionCodeId], references: [id])
+  imIncident  ImIncident?
 
   @@index([requesterId])
   @@index([assigneeId])
@@ -484,6 +495,8 @@ model Ticket {
   @@index([parentId])
   @@index([mergedIntoId])
   @@index([majorIncident])
+  @@index([restricted])
+  @@index([resolutionCodeId])
   @@index([channel])
   @@index([catalogItemId])
   @@index([createdAt])
@@ -680,15 +693,117 @@ model SlaInstance {
 }
 
 model SlaEscalationRule {
-  id               String @id @default(cuid())
-  policyId         String @map("policy_id")
-  thresholdPercent Int    @map("threshold_percent")
-  notifyRoleCodes  String @map("notify_role_codes")
+  id               String  @id @default(cuid())
+  policyId         String  @map("policy_id")
+  thresholdPercent Int     @map("threshold_percent")
+  notifyRoleCodes  String  @map("notify_role_codes")
+  /** Optional team reassignment on escalation. */
+  assignTeamId     String? @map("assign_team_id")
 
-  policy SlaPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  policy     SlaPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  assignTeam Team?     @relation(fields: [assignTeamId], references: [id])
 
   @@unique([policyId, thresholdPercent])
   @@map("sla_escalation_rules")
+}
+
+/** Structured ticket resolution codes (close classification). */
+model ResolutionCode {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tickets Ticket[]
+
+  @@map("resolution_codes")
+}
+
+/** Per-user saved ticket list filters / search. */
+model TicketSavedView {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  name      String
+  queryJson Json     @map("query_json")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("ticket_saved_views")
+}
+
+/** Lightweight automation rules evaluated on ticket create. */
+model AutomationRule {
+  id         String   @id @default(cuid())
+  name       String
+  isActive   Boolean  @default(true) @map("is_active")
+  sortOrder  Int      @default(100) @map("sort_order")
+  conditions Json
+  actions    Json
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive, sortOrder])
+  @@map("automation_rules")
+}
+
+/** Dedicated Incident Management (IMS) — ops command module. */
+model ImIncident {
+  id          String    @id @default(cuid())
+  number      String    @unique
+  title       String
+  summary     String?
+  severity    String
+  status      String    @default("declared")
+  commanderId String?   @map("commander_id")
+  startedAt   DateTime  @map("started_at")
+  resolvedAt  DateTime? @map("resolved_at")
+  ticketId    String?   @unique @map("ticket_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  commander User?              @relation("ImIncidentCommander", fields: [commanderId], references: [id])
+  ticket    Ticket?            @relation(fields: [ticketId], references: [id])
+  updates   ImIncidentUpdate[]
+  roles     ImIncidentRole[]
+
+  @@index([status])
+  @@index([severity])
+  @@index([startedAt])
+  @@map("im_incidents")
+}
+
+model ImIncidentUpdate {
+  id         String   @id @default(cuid())
+  incidentId String   @map("incident_id")
+  authorId   String   @map("author_id")
+  body       String
+  isInternal Boolean  @default(false) @map("is_internal")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  incident ImIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  author   User       @relation(fields: [authorId], references: [id])
+
+  @@index([incidentId, createdAt])
+  @@map("im_incident_updates")
+}
+
+model ImIncidentRole {
+  incidentId String @map("incident_id")
+  userId     String @map("user_id")
+  role       String
+
+  incident ImIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([incidentId, userId, role])
+  @@map("im_incident_roles")
 }
 
 // Phase 6 — Assignment & notifications

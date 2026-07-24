@@ -3,6 +3,7 @@ import { ApprovalsModule } from '../approvals/approvals.module';
 import { AssignmentModule } from '../assignment/assignment.module';
 import { AuditModule } from '../audit/audit.module';
 import { AuthModule } from '../auth/auth.module';
+import { AutomationModule } from '../automation/automation.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PresenceModule } from '../presence/presence.module';
 import { SlaModule } from '../sla/sla.module';
@@ -15,6 +16,7 @@ import { TicketsService } from './tickets.service';
     AuthModule,
     AssignmentModule,
     AuditModule,
+    AutomationModule,
     NotificationsModule,
     SlaModule,
     ApprovalsModule,

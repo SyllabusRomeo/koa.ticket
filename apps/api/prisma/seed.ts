@@ -72,6 +72,10 @@ const ROLE_DEFS: Array<{
       PERMISSIONS.ASSETS_WRITE,
       PERMISSIONS.APPROVALS_READ,
       PERMISSIONS.APPROVALS_DECIDE,
+      PERMISSIONS.IM_READ,
+      PERMISSIONS.IM_WRITE,
+      PERMISSIONS.IM_COMMAND,
+      PERMISSIONS.IM_POSTMORTEM,
     ],
   },
   {
@@ -585,6 +589,22 @@ async function main() {
         urgency,
         priorityId: pByCode[priorityCode],
       },
+    });
+  }
+
+  const resolutionCodes = [
+    { code: 'fixed', name: 'Fixed', sortOrder: 10 },
+    { code: 'workaround', name: 'Workaround applied', sortOrder: 20 },
+    { code: 'duplicate', name: 'Duplicate', sortOrder: 30 },
+    { code: 'user_error', name: 'User error', sortOrder: 40 },
+    { code: 'cannot_reproduce', name: 'Cannot reproduce', sortOrder: 50 },
+    { code: 'other', name: 'Other', sortOrder: 90 },
+  ];
+  for (const rc of resolutionCodes) {
+    await prisma.resolutionCode.upsert({
+      where: { code: rc.code },
+      update: { name: rc.name, sortOrder: rc.sortOrder, isActive: true },
+      create: rc,
     });
   }
 

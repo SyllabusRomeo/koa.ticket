@@ -4,7 +4,7 @@ Honest path from today’s modular-monolith platform toward ServiceNow-class / Z
 
 **Related:** [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md) · [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) · [DEVELOPMENT_TODO.md](./DEVELOPMENT_TODO.md) · [USER_AND_DEVELOPER_GUIDE.md](./USER_AND_DEVELOPER_GUIDE.md) · [INTEGRATIONS_SLACK_TEAMS.md](./INTEGRATIONS_SLACK_TEAMS.md) · [INTEGRATIONS_EMAIL.md](./INTEGRATIONS_EMAIL.md)
 
-**Last updated:** 2026-07-23 (L1–L5 shipped · **IMS module** queued for next build)
+**Last updated:** 2026-07-24 (IMS MVP partial ship · L1–L5 complete)
 
 ---
 
@@ -16,7 +16,7 @@ Inspired by common service-desk product pillars (omnichannel, ticket management,
 | --- | --- | --- | --- |
 | **Omnichannel intake** | Web + Slack/Teams (+ simulate) + email webhook/IMAP + channel metadata (`web`/`email`/`slack`/`teams`/`chat`/`api`) + Bot Framework JWT / Slack HMAC | Channel endorsements / outbound bot replies | Voice/portal widgets |
 | **Ticket management** | Lifecycle, assign, comments, attachments, soft-delete, SLA TTR, parent/child, merge, stage duration, origin location, **watchers/worklogs UI**, **MI badge + dashboard**, Problem/Change/CAB | Parent-resolve child actions, bulk actions | Deeper problem/change records |
-| **Incident Management System (IMS)** | ITSM tickets + Major incidents ops dashboard (shared ticket engine) | **Dedicated IMS module** on same site URL — separate product surface, own nav/routes/permissions (see [Phase IMS](#phase-ims--dedicated-incident-management-module)) | Cross-module bridges (ITSM ↔ IMS), war-room, external status pages |
+| **Incident Management System (IMS)** | ITSM tickets + MI ops + **MVP `/app/im` board/timeline** + IM permissions | War-room chrome, PIR export, deeper bridges | External status pages |
 | **Agent workspace** | Home KPI dashboard + `/app/queue` Kanban + workload + presence collision | Saved board presets, WebSocket push | Personalized dashboards, saved widgets |
 | **Automation / workflows** | Assignment rules (skills + least-open), SLA worker, Routing & SLA admin, email notifications, digests, multi-step approvals, signed outbound webhooks | Webhook retry worker | Visual workflow designer |
 | **Routing / tagging** | Category + location + skill rules → team + auto-assign | Dynamic auto-tagging | Marketplace rule packs |
@@ -124,16 +124,16 @@ https://logit.koaimpact.app/
 
 | # | Item | Status | Notes |
 | --- | --- | --- | --- |
-| IMS-0 | Architecture spike: routes, module boundary, link-to-ticket strategy | `[ ]` | Document in IMPLEMENTATION_PLAN / guide |
-| IMS-1 | Prisma `ImIncident` (+ severity, status, commander, started/resolved) | `[ ]` | Migration + seed severities |
-| IMS-2 | Nest `im` module + `/api/v1/im` CRUD + permissions | `[ ]` | Session guards; audit events |
-| IMS-3 | Web shell: product switcher + `/im` layout (own nav) | `[ ]` | Same URL/app; separate chrome |
-| IMS-4 | Active incidents board + create/declare flow | `[ ]` | Severity, impact summary, channels |
-| IMS-5 | Incident timeline + stakeholder updates | `[ ]` | Chronological log; public vs internal |
-| IMS-6 | Roles on incident (commander, scribe, comms) | `[ ]` | Distinct from ITSM assignee |
-| IMS-7 | Optional bridge: link ITSM ticket / MI / assets | `[ ]` | Deep-link both ways |
+| IMS-0 | Architecture spike: routes, module boundary, link-to-ticket strategy | `[x]` | `/app/im` + optional ticket link |
+| IMS-1 | Prisma `ImIncident` (+ severity, status, commander, started/resolved) | `[x]` | Migration + seed IM permissions |
+| IMS-2 | Nest `im` module + `/api/v1/im` CRUD + permissions | `[x]` | list/create/get/updates/roles |
+| IMS-3 | Web shell: product switcher + `/im` layout (own nav) | `[~]` | Nav item + board/detail; chrome polish later |
+| IMS-4 | Active incidents board + create/declare flow | `[x]` | Severity + summary |
+| IMS-5 | Incident timeline + stakeholder updates | `[x]` | Public vs internal |
+| IMS-6 | Roles on incident (commander, scribe, comms) | `[~]` | Assign API; richer UI later |
+| IMS-7 | Optional bridge: link ITSM ticket / MI / assets | `[~]` | `ticketId` on create/get |
 | IMS-8 | Post-incident review (PIR) draft from timeline | `[ ]` | Export + knowledge promote later |
-| IMS-9 | Docs: SOP + USER guide chapter for IMS | `[ ]` | Mark current vs extension clearly |
+| IMS-9 | Docs: SOP + USER guide chapter for IMS | `[~]` | Roadmap/TODO marked partial |
 
 #### Explicit non-goals (v1)
 

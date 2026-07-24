@@ -32,6 +32,7 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   '/app': Home,
   '/app/tickets': Ticket,
   '/app/queue': Columns3,
+  '/app/im': Siren,
   '/app/major-incidents': Siren,
   '/app/problems': GitBranchPlus,
   '/app/changes': CalendarClock,

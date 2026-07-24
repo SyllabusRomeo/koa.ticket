@@ -286,10 +286,14 @@ export function navForUser(user: AuthUser): NavItem[] {
       ticketsIdx + 1,
       0,
       { href: '/app/queue', label: 'Queue' },
+      ...(can(user, 'im:read') ? [{ href: '/app/im', label: 'IM' }] : []),
       { href: '/app/major-incidents', label: 'Major' },
       { href: '/app/problems', label: 'Problems' },
       { href: '/app/changes', label: 'Changes' },
     );
+  } else if (can(user, 'im:read')) {
+    const ticketsIdx = items.findIndex((i) => i.href === '/app/tickets');
+    items.splice(ticketsIdx + 1, 0, { href: '/app/im', label: 'IM' });
   }
 
   if (can(user, 'approvals:read')) {
@@ -351,10 +355,14 @@ export function navGroupsForUser(user: AuthUser): {
       ticketsIdx + 1,
       0,
       { href: '/app/queue', label: 'Queue' },
+      ...(can(user, 'im:read') ? [{ href: '/app/im', label: 'IM' }] : []),
       { href: '/app/major-incidents', label: 'Major' },
       { href: '/app/problems', label: 'Problems' },
       { href: '/app/changes', label: 'Changes' },
     );
+  } else if (can(user, 'im:read')) {
+    const ticketsIdx = primary.findIndex((i) => i.href === '/app/tickets');
+    primary.splice(ticketsIdx + 1, 0, { href: '/app/im', label: 'IM' });
   }
   const primaryHrefs = new Set(primary.map((item) => item.href));
   return {

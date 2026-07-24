@@ -20,9 +20,11 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import {
   AddCommentDto,
   AddWorkLogDto,
+  CreateSavedViewDto,
   CreateTicketDto,
   LinkChildDto,
   MergeTicketsDto,
+  UpdateSavedViewDto,
   UpdateTicketDto,
 } from './dto/ticket.dto';
 import { TicketPresenceDto } from './dto/presence.dto';
@@ -36,6 +38,33 @@ export class TicketsController {
   @Get('meta')
   meta() {
     return this.tickets.meta();
+  }
+
+  @Get('views')
+  listViews(@CurrentUser() user: AuthUserView) {
+    return this.tickets.listSavedViews(user);
+  }
+
+  @Post('views')
+  createView(
+    @CurrentUser() user: AuthUserView,
+    @Body() dto: CreateSavedViewDto,
+  ) {
+    return this.tickets.createSavedView(user, dto);
+  }
+
+  @Patch('views/:id')
+  updateView(
+    @CurrentUser() user: AuthUserView,
+    @Param('id') id: string,
+    @Body() dto: UpdateSavedViewDto,
+  ) {
+    return this.tickets.updateSavedView(user, id, dto);
+  }
+
+  @Delete('views/:id')
+  deleteView(@CurrentUser() user: AuthUserView, @Param('id') id: string) {
+    return this.tickets.deleteSavedView(user, id);
   }
 
   @Get('board')

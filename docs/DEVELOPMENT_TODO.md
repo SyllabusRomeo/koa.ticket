@@ -76,7 +76,7 @@ Update statuses here as work lands. Principle: **capture data → workflows → 
 
 **Shipped:** Near-term N1–N5 · High H1–H7 · Medium M1–M10 · **L1–L5** (CMDB, AI, KB deflection, portal themes, immutable audit exports).
 
-**Next product slice:** **Incident Management System (IMS)** — dedicated module on the same URL; see [ENTERPRISE_ROADMAP.md — Phase IMS](./ENTERPRISE_ROADMAP.md#phase-ims--dedicated-incident-management-module).
+**Next product slice:** **Incident Management System (IMS)** — MVP partially shipped 2026-07-24; see [ENTERPRISE_ROADMAP.md — Phase IMS](./ENTERPRISE_ROADMAP.md#phase-ims--dedicated-incident-management-module).
 
 **Optional polish:** outbound webhook retry worker, bot outbound replies, board presets, SAML / more IdPs.
 
@@ -84,15 +84,17 @@ Update statuses here as work lands. Principle: **capture data → workflows → 
 
 ## Next build — Incident Management System (IMS)
 
-Queued from roadmap (2026-07-23). Same host/login as LogIt; **separate module** (`/im` or `/app/im/*`, `/api/v1/im/*`). Full intent: [ENTERPRISE_ROADMAP.md](./ENTERPRISE_ROADMAP.md#phase-ims--dedicated-incident-management-module).
+MVP vertical slice landed 2026-07-24 (schema + API + `/app/im` board/detail + capability gaps). Same host/login as LogIt; module at `/app/im/*`, `/api/v1/im/*`. Full intent: [ENTERPRISE_ROADMAP.md](./ENTERPRISE_ROADMAP.md#phase-ims--dedicated-incident-management-module).
 
 | # | Item | Status | Notes |
 | --- | --- | --- | --- |
-| IMS-0 | Architecture spike (routes, boundaries, ticket link) | `[ ]` | Tomorrow’s build — start here |
-| IMS-1 | Prisma `ImIncident` + severities | `[ ]` | |
-| IMS-2 | Nest `im` API + permissions | `[ ]` | `im:read` / `im:write` / … |
-| IMS-3 | Web `/im` shell + product switcher | `[ ]` | Same URL, different chrome |
-| IMS-4+ | Board, timeline, roles, PIR, bridges | `[ ]` | Follow-on slices |
+| IMS-0 | Architecture spike (routes, boundaries, ticket link) | `[x]` | `/app/im` + optional `ticketId` bridge |
+| IMS-1 | Prisma `ImIncident` + severities | `[x]` | Migration `20260724160000_ims_capability_gaps` |
+| IMS-2 | Nest `im` API + permissions | `[x]` | `im:read` / `im:write` / `im:command` / `im:postmortem` |
+| IMS-3 | Web `/app/im` board + detail | `[~]` | Nav for `im:read`; full product chrome later |
+| IMS-4+ | War-room, PIR export, status page | `[ ]` | Follow-on slices |
+
+**Also shipped with this slice:** business-hours SLA + escalation assign team, resolution codes + auto-close, restricted SEC visibility, saved ticket views, automation rules (create), monitoring ingest, IMS KPI report strip.
 
 ---
 

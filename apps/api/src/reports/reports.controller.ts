@@ -104,6 +104,12 @@ export class ReportsController {
     return this.reports.summary({ from, to });
   }
 
+  @Get('ims-kpis')
+  @RequirePermissions(PERMISSIONS.REPORTS_READ)
+  imsKpis(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.reports.imsKpis({ from, to });
+  }
+
   @Get('stages')
   @RequirePermissions(PERMISSIONS.REPORTS_READ)
   stages(@Query('from') from?: string, @Query('to') to?: string) {
