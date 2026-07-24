@@ -66,11 +66,13 @@ Everything below is **current product** unless marked otherwise.
 
 | Capability | Where |
 | --- | --- |
-| Queue / Kanban + workload | `/app/queue` |
+| Queue / Kanban + workload | `/app/queue` — open from **Home** agent cards (not top nav) |
 | Presence (viewing/composing) | Ticket detail |
 | Major-incident badge + ops dashboard | Detail + `/app/major-incidents` |
+| **Incident Management (IMS)** | `/app/im` — declare, timeline, status, PIR export |
 | Problem management + Raise problem | `/app/problems` |
 | Change + Submit to CAB | `/app/changes` → Approvals |
+| IMS / ops KPI strip | Reports |
 
 ### Service delivery extras
 
@@ -82,6 +84,10 @@ Everything below is **current product** unless marked otherwise.
 | Multi-step approval policies | Approvals + Admin → Approval policies |
 | SLA policies, instances, escalations | Worker + Routing & SLA |
 | Skills + least-open auto-assign | Routing & SLA |
+| Saved ticket filter views | Tickets list |
+| Restricted SEC ticket visibility | Ticket ACL |
+| Ticket automation rules (API) | `settings:manage` — **no Admin UI yet** |
+| Monitoring alert ingest | `POST /integrations/monitoring/alerts` — **env secret; no Admin UI yet** |
 | Notifications bell, inbox, digests, quiet hours | Bell + Profile + `/app/notifications` |
 | Reports: summary, heatmap, stages, CSV/PDF, schedules | `/app/reports` |
 | Audit trail + CSV + immutable export schedules (SHA-256) | `/app/audit` |
@@ -127,7 +133,7 @@ There is **no separate admin app** — elevation is role-based inside the same U
 | `employee` | Employee | Own tickets, KB read, catalog |
 | `agent` | IT Support Agent | Queue, assign, internal notes, assets read |
 | `senior_agent` | Senior IT Agent | Agent + stronger KB/asset write |
-| `it_manager` | IT Manager | Broad tickets, reports, audit, org |
+| `it_manager` | IT Manager | Broad tickets, **IMS**, reports, audit, org |
 | `approver` | Approver | Approvals queue |
 | `sysadmin` | Administrator | All permissions |
 | `auditor` | Auditor | Audit/reports/read style |
@@ -141,7 +147,9 @@ There is **no separate admin app** — elevation is role-based inside the same U
 
 Key codes (from `@logit/shared`):
 
-`users:read|write|manage` · `roles:manage` · `tickets:read_own|read_queue|read_all|write|assign|internal_note` · `org:read|manage` · `audit:read` · `reports:read` · `settings:manage` · `knowledge:read|write` · `assets:read|write` · `approvals:read|decide`
+`users:read|write|manage` · `roles:manage` · `tickets:read_own|read_queue|read_all|write|assign|internal_note` · `org:read|manage` · `audit:read` · `reports:read` · `settings:manage` · `knowledge:read|write` · `assets:read|write` · `approvals:read|decide|manage` · **`im:read|write|command|postmortem`**
+
+IMS permissions are seeded on **`it_manager`** and **`sysadmin`**. Grant `im:*` extras to agents who join command roles.
 
 ### Demo accounts (development only)
 
@@ -210,12 +218,14 @@ Also: notification bell → `/app/notifications`; avatar → Profile (`/app/prof
 
 ### Agent workspace (queue-capable staff)
 
-| Nav | Route |
-| --- | --- |
-| Queue | `/app/queue` |
-| Major | `/app/major-incidents` |
-| Problems | `/app/problems` |
-| Changes | `/app/changes` |
+| Nav | Route | Notes |
+| --- | --- | --- |
+| IM | `/app/im` | Requires `im:read` |
+| Major | `/app/major-incidents` | ITSM major-incident ops |
+| Problems | `/app/problems` | |
+| Changes | `/app/changes` | |
+
+**Queue** (`/app/queue`) is **not** in the top nav. Agents open it from **Home** (Queue board / KPI title cards). That keeps room for IM, Major, Problems, and Changes.
 
 ### Role tools
 
@@ -248,7 +258,9 @@ Also: notification bell → `/app/notifications`; avatar → Profile (`/app/prof
 | Channel | Intake source stamped on the ticket |
 | Deflection | KB view/feedback that avoided a ticket |
 | Extra permission | Additive grant beyond primary role |
-| MI | Major incident |
+| IM / IMS | Incident Management System — command module at `/app/im` |
+| MI | Major incident (ITSM ticket flag + `/app/major-incidents`) |
+| PIR | Post-incident review — markdown draft from IM timeline |
 | Origin site | Ticket `locationId` — where the issue is from |
 | Presence | Who is viewing/composing a ticket |
 | Soft-deactivate | Record kept, `isActive=false` |

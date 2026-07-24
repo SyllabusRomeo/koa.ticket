@@ -40,6 +40,12 @@ export function canSeeOrgTickets(user: AuthUser | null | undefined) {
   return can(user, 'tickets:read_all') || can(user, 'settings:manage');
 }
 
+/** Configure multi-step approval policies (Admin → Approval policies). */
+export function canManageApprovalPolicies(user: AuthUser | null | undefined) {
+  if (!user) return false;
+  return can(user, 'approvals:manage') || can(user, 'settings:manage');
+}
+
 export function roleLabel(roles: string[]) {
   const map: Record<string, string> = {
     employee: 'Employee self-service',
@@ -112,8 +118,14 @@ export function workspaceNextActions(user: AuthUser): WorkspaceAction[] {
     if (can(user, 'settings:manage') || can(user, 'org:manage')) {
       push({ href: '/app/admin/routing', label: 'Routing & SLA' });
     }
-    if (can(user, 'settings:manage')) {
+    if (canManageApprovalPolicies(user)) {
       push({ href: '/app/admin/approvals', label: 'Approval policies' });
+    }
+    if (can(user, 'settings:manage')) {
+      push({ href: '/app/admin/automation', label: 'Automation rules' });
+    }
+    if (can(user, 'im:read')) {
+      push({ href: '/app/im', label: 'Incident command (IMS)' });
     }
     if (can(user, 'tickets:read_all') || can(user, 'tickets:read_queue')) {
       push({ href: '/app/queue', label: 'Open queue board' });
@@ -169,6 +181,12 @@ export function workspaceNextActions(user: AuthUser): WorkspaceAction[] {
     if (can(user, 'approvals:read')) {
       push({ href: '/app/approvals', label: 'Open Approvals' });
     }
+    if (canManageApprovalPolicies(user)) {
+      push({ href: '/app/admin/approvals', label: 'Approval policies' });
+    }
+    if (can(user, 'im:read')) {
+      push({ href: '/app/im', label: 'Incident command (IMS)' });
+    }
     if (can(user, 'assets:read')) {
       push({ href: '/app/assets', label: 'Review assets' });
     }
@@ -188,6 +206,9 @@ export function workspaceNextActions(user: AuthUser): WorkspaceAction[] {
 
   if (hasRole(user, 'senior_agent') || hasRole(user, 'agent')) {
     push({ href: '/app/queue', label: 'Open queue board', primary: true });
+    if (can(user, 'im:read')) {
+      push({ href: '/app/im', label: 'Incident command (IMS)' });
+    }
     push({ href: '/app/major-incidents', label: 'Major incident ops' });
     push({ href: '/app/problems', label: 'Problem queue' });
     push({ href: '/app/changes', label: 'Change queue' });
@@ -273,6 +294,7 @@ const ADMIN_NAV_HREFS = new Set([
   '/app/admin/locations',
   '/app/admin/routing',
   '/app/admin/approvals',
+  '/app/admin/automation',
   '/app/admin/integrations',
   '/app/admin/branding',
 ]);
@@ -285,15 +307,20 @@ export function navForUser(user: AuthUser): NavItem[] {
     items.splice(
       ticketsIdx + 1,
       0,
-      { href: '/app/queue', label: 'Queue' },
-      ...(can(user, 'im:read') ? [{ href: '/app/im', label: 'IM' }] : []),
+      // Queue lives on Home (AgentWorkspace title cards / KPIs) — omit from top nav
+      ...(can(user, 'im:read')
+        ? [{ href: '/app/im', label: 'Incidents' }]
+        : []),
       { href: '/app/major-incidents', label: 'Major' },
       { href: '/app/problems', label: 'Problems' },
       { href: '/app/changes', label: 'Changes' },
     );
   } else if (can(user, 'im:read')) {
     const ticketsIdx = items.findIndex((i) => i.href === '/app/tickets');
-    items.splice(ticketsIdx + 1, 0, { href: '/app/im', label: 'IM' });
+    items.splice(ticketsIdx + 1, 0, {
+      href: '/app/im',
+      label: 'Incidents',
+    });
   }
 
   if (can(user, 'approvals:read')) {
@@ -321,12 +348,18 @@ export function navForUser(user: AuthUser): NavItem[] {
   }
   if (can(user, 'settings:manage') || can(user, 'org:manage')) {
     items.push({ href: '/app/admin/routing', label: 'Routing & SLA' });
-    if (can(user, 'settings:manage')) {
-      items.push({
-        href: '/app/admin/approvals',
-        label: 'Approval policies',
-      });
-    }
+  }
+  if (canManageApprovalPolicies(user)) {
+    items.push({
+      href: '/app/admin/approvals',
+      label: 'Approval policies',
+    });
+  }
+  if (can(user, 'settings:manage')) {
+    items.push({
+      href: '/app/admin/automation',
+      label: 'Automation',
+    });
   }
   if (hasRole(user, 'sysadmin')) {
     items.push({ href: '/app/admin/integrations', label: 'Integrations' });
@@ -338,9 +371,11 @@ export function navForUser(user: AuthUser): NavItem[] {
 
 /**
  * Chrome layout groups:
- * - primary: fixed for everyone (+ Queue for agents)
+ * - primary: fixed for everyone (+ IM / Major / Problems / Changes for agents)
  * - role: permission-gated workspace tools
  * - admin: configuration / sysadmin tools
+ *
+ * Queue is not in top nav — agents open it from Home workspace cards.
  */
 export function navGroupsForUser(user: AuthUser): {
   primary: NavItem[];
@@ -354,15 +389,19 @@ export function navGroupsForUser(user: AuthUser): {
     primary.splice(
       ticketsIdx + 1,
       0,
-      { href: '/app/queue', label: 'Queue' },
-      ...(can(user, 'im:read') ? [{ href: '/app/im', label: 'IM' }] : []),
+      ...(can(user, 'im:read')
+        ? [{ href: '/app/im', label: 'Incidents' }]
+        : []),
       { href: '/app/major-incidents', label: 'Major' },
       { href: '/app/problems', label: 'Problems' },
       { href: '/app/changes', label: 'Changes' },
     );
   } else if (can(user, 'im:read')) {
     const ticketsIdx = primary.findIndex((i) => i.href === '/app/tickets');
-    primary.splice(ticketsIdx + 1, 0, { href: '/app/im', label: 'IM' });
+    primary.splice(ticketsIdx + 1, 0, {
+      href: '/app/im',
+      label: 'Incidents',
+    });
   }
   const primaryHrefs = new Set(primary.map((item) => item.href));
   return {

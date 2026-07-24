@@ -12,6 +12,7 @@ LogIt is an enterprise IT Service Management platform — not a simple ticket CR
 - Assignment, prioritization, and SLA tracking
 - Agent collaboration (public replies vs internal notes, watchers, work logs, presence)
 - Problem / Change / CAB and major-incident operations
+- **Incident Management System (IMS)** — command board at `/app/im`, war-room timeline, PIR export
 - Knowledge articles and a service catalog with dynamic forms
 - Asset register linked to tickets
 - Dashboards, reporting (heatmaps, scheduled exports), and audit trails
@@ -23,7 +24,7 @@ LogIt is an enterprise IT Service Management platform — not a simple ticket CR
 | Employee / Requester | Report issues, request services, track own tickets, read knowledge |
 | IT Agent | Work queue/Kanban, update status, respond, link assets, log time |
 | Senior Agent | Escalations, richer technical work, raise problems |
-| IT Manager | Oversight, SLA performance, reports, MI dashboard, team/config |
+| IT Manager | Oversight, SLA performance, reports, MI dashboard, **IMS command**, team/config |
 | Approver | Approve/reject multi-step approval policies (service/access/change) |
 | Administrator | Users, roles, org, SLA, routing, integrations, branding |
 | Auditor | Read-only audit / historical / compliance views |

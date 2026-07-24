@@ -48,6 +48,8 @@ export const PERMISSIONS = {
   ASSETS_WRITE: 'assets:write',
   APPROVALS_READ: 'approvals:read',
   APPROVALS_DECIDE: 'approvals:decide',
+  /** Create / edit / deactivate multi-step approval policies (Admin → Approval policies). */
+  APPROVALS_MANAGE: 'approvals:manage',
   IM_READ: 'im:read',
   IM_WRITE: 'im:write',
   IM_COMMAND: 'im:command',

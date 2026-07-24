@@ -115,6 +115,27 @@ API: `GET/POST /api/v1/approvals/policies`
 
 Approver queue remains `/app/approvals`.
 
+## Incident Management (IMS)
+
+**Operator UI:** `/app/im` · **SOP:** [21-incident-management.md](./21-incident-management.md)
+
+**Admin setup visible in the product today**
+
+| Setup | Where |
+| --- | --- |
+| Grant `im:read` / `im:write` / `im:command` / `im:postmortem` | **Admin → Roles & Access** (IT Manager / sysadmin already seeded) |
+
+**Built on the API but not shown in Admin screens**
+
+| Capability | How to use today |
+| --- | --- |
+| Assign IM roles (commander, scribe, …) | `POST /api/v1/im/:id/roles` |
+| Declare with linked ticket / commander | `POST /api/v1/im` with `ticketId` / `commanderId` |
+| Ticket automation rules | `GET/POST/PATCH /api/v1/automation/rules` (`settings:manage`) — no `/app/admin/automation` |
+| Monitoring alert ingest | Env `MONITORING_INGEST_SECRET` + `POST /api/v1/integrations/monitoring/alerts` — not on Integrations UI; creates a **ticket**, not an `ImIncident` |
+
+There is no dedicated “IMS Admin” (severities/templates) page yet.
+
 ## SLA policies
 
 **Admin UI:** `/app/admin/routing` · API: `GET/POST /api/v1/sla/policies` (`settings:manage`)

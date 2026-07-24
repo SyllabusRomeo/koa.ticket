@@ -204,7 +204,21 @@ Company → Site (Location) → Department → Team → User
 
 **Admin → Integrations** — email status, Slack/Teams, rotate webhook secrets, delivery log, outbound endpoints.
 
-### H. Reports & audit schedules
+**Not yet on the Integrations page (API / env only):**
+
+- Monitoring alert ingest — set `MONITORING_INGEST_SECRET`, call `POST /api/v1/integrations/monitoring/alerts` (creates an ITSM ticket).
+- Ticket automation rules — `GET/POST/PATCH /api/v1/automation/rules` (`settings:manage`).
+
+### H. Incident Management access
+
+1. Confirm **IT Manager** / **Administrator** users (they already receive `im:*` from seed).
+2. For agents who join war-rooms: **Roles & Access** → grant extras `im:read` and usually `im:write`.
+3. Open **IM** (`/app/im`) after re-login to verify nav.
+4. Optional: exercise declare → timeline → **Export PIR**.
+
+Detail: [guide §11A](./03-operations-use-cases.md#11a-incident-management-system-ims) · [SOP-21](../sops/21-incident-management.md).
+
+### I. Reports & audit schedules
 
 Configure scheduled report emails and immutable audit export schedules after SMTP works.
 

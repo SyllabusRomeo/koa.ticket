@@ -801,3 +801,101 @@
   }
 }
 
+/* IM board + detail (shared with tickets styles) */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) 1fr;
+  gap: 1.25rem;
+}
+
+.meta {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.ticketList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.ticketList a {
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
+}
+
+.ticketList a:hover {
+  text-decoration: underline;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.detailHead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.detailHead h1 {
+  margin: 0.25rem 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
+}
+
+.detailActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.field select {
+  min-width: 10rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(15, 74, 64, 0.2);
+  background: #fff;
+  font: inherit;
+}
+
+.activityList {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
+}
+
+@media (max-width: 960px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+

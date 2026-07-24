@@ -22,6 +22,7 @@ import {
   UserRound,
   Users,
   BookOpen,
+  Workflow,
 } from 'lucide-react';
 
 /** Brand mark when no custom logo is set. */
@@ -50,6 +51,7 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   '/app/admin/locations': MapPin,
   '/app/admin/routing': Route,
   '/app/admin/approvals': ClipboardCheck,
+  '/app/admin/automation': Workflow,
   '/app/admin/integrations': Plug,
   '/app/admin/branding': Paintbrush,
 };

@@ -248,10 +248,6 @@ function LoginForm() {
                 </a>
               </div>
             ) : null}
-
-            <p className={styles.hint}>
-              Dev accounts are seeded after <code>npm run db:seed</code>.
-            </p>
           </>
         )}
       </section>

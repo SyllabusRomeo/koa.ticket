@@ -47,6 +47,15 @@ Concise product summary. Detail lives in [DEVELOPMENT_TODO.md](./docs/DEVELOPMEN
 
 **Users admin shipped:** `/app/admin/users` create / edit / activate-deactivate (`users:manage`).
 
+## Incident Management System (IMS MVP)
+
+- Dedicated module `/app/im` + `/api/v1/im/*` with permissions `im:read|write|command|postmortem`
+- Declare incidents (SEV1–4), war-room timeline (public/internal), status workflow, optional ITSM ticket link
+- **Export PIR** markdown from timeline (`GET /im/:id/pir`)
+- Companion ops: business-hours SLA, resolution codes + auto-close, restricted SEC tickets, saved views, automation rules API, monitoring ingest API, Reports IMS/ops KPI strip
+- Docs: book [§11A](./guide/03-operations-use-cases.md#11a-incident-management-system-ims), [SOP-21](./sops/21-incident-management.md)
+- Nav: **Queue** removed from top bar (still on Home agent cards) to leave room for **IM** / Major / Problems / Changes
+
 ## Documentation
 
 **User & Developer Guide (book):** [USER_AND_DEVELOPER_GUIDE.md](./USER_AND_DEVELOPER_GUIDE.md) — product map, setup, operations flows, developer guide, and extension blueprints (manufacturing + other industries) under [guide/](./guide/).

@@ -861,6 +861,45 @@ export const api = {
       }>
     >('/im');
   },
+  getImDashboard() {
+    return request<{
+      generatedAt: string;
+      kpis: {
+        open: number;
+        openSev1: number;
+        openSev2: number;
+        noCommander: number;
+        linkedItsm: number;
+        resolvedLast7d: number;
+        closedLast30d: number;
+        mttrMinutes: number | null;
+        oldestOpenHours: number | null;
+        total: number;
+      };
+      bySeverity: {
+        sev1: number;
+        sev2: number;
+        sev3: number;
+        sev4: number;
+      };
+      byStatus: {
+        declared: number;
+        active: number;
+        mitigated: number;
+        resolved: number;
+        closed: number;
+      };
+      active: Array<{
+        id: string;
+        number: string;
+        title: string;
+        severity: string;
+        status: string;
+        startedAt: string;
+        ageHours: number;
+      }>;
+    }>('/im/dashboard');
+  },
   getImIncident(idOrNumber: string) {
     return request<{
       id: string;
@@ -900,6 +939,77 @@ export const api = {
   ) {
     return request(`/im/${encodeURIComponent(idOrNumber)}/updates`, {
       method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  updateImStatus(
+    idOrNumber: string,
+    status: 'declared' | 'active' | 'mitigated' | 'resolved' | 'closed',
+  ) {
+    return request(`/im/${encodeURIComponent(idOrNumber)}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  },
+  getImPir(idOrNumber: string) {
+    return request<{
+      number: string;
+      title: string;
+      format: 'markdown';
+      markdown: string;
+      generatedAt: string;
+    }>(`/im/${encodeURIComponent(idOrNumber)}/pir`);
+  },
+  assignImRole(
+    idOrNumber: string,
+    body: {
+      userId: string;
+      role: 'commander' | 'scribe' | 'comms' | 'responder';
+    },
+  ) {
+    return request(`/im/${encodeURIComponent(idOrNumber)}/roles`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  listAutomationRules() {
+    return request<
+      Array<{
+        id: string;
+        name: string;
+        isActive: boolean;
+        sortOrder: number;
+        conditions: Record<string, unknown>;
+        actions: Record<string, unknown>;
+        createdAt?: string;
+        updatedAt?: string;
+      }>
+    >('/automation/rules');
+  },
+  createAutomationRule(body: {
+    name: string;
+    isActive?: boolean;
+    sortOrder?: number;
+    conditions: Record<string, unknown>;
+    actions: Record<string, unknown>;
+  }) {
+    return request('/automation/rules', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  updateAutomationRule(
+    id: string,
+    body: {
+      name?: string;
+      isActive?: boolean;
+      sortOrder?: number;
+      conditions?: Record<string, unknown>;
+      actions?: Record<string, unknown>;
+    },
+  ) {
+    return request(`/automation/rules/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
       body: JSON.stringify(body),
     });
   },
@@ -1869,8 +1979,9 @@ export const api = {
       body: JSON.stringify({ decision, comment }),
     });
   },
-  approvalPolicies() {
-    return request<ApprovalPolicy[]>('/approvals/policies');
+  approvalPolicies(includeInactive = false) {
+    const q = includeInactive ? '?includeInactive=1' : '';
+    return request<ApprovalPolicy[]>(`/approvals/policies${q}`);
   },
   createApprovalPolicy(body: {
     name: string;
@@ -1889,6 +2000,31 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     });
+  },
+  updateApprovalPolicy(
+    id: string,
+    body: {
+      name?: string;
+      ticketTypeId?: string | null;
+      categoryId?: string | null;
+      changeRisk?: string | null;
+      priority?: number;
+      isActive?: boolean;
+      steps?: Array<{
+        name: string;
+        approverRoleCode: string;
+        mode?: 'any' | 'all';
+        stepOrder?: number;
+      }>;
+    },
+  ) {
+    return request<ApprovalPolicy>(
+      `/approvals/policies/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      },
+    );
   },
   listUsers() {
     return request<

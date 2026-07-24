@@ -2,7 +2,7 @@
 
 **Product:** LogIt — Enterprise IT Service Management  
 **Audience:** End users, IT agents, managers, system administrators, auditors, developers  
-**Version:** 1.2 (aligned with phases 0–11 + N1–N5 / H1–H7 / M1–M10)
+**Version:** 1.3 (aligned with phases 0–11 + N1–N5 / H1–H7 / M1–M10 / L1–L5 / IMS MVP)
 
 Use this index to find the right procedure. Each SOP is written so a new user can follow it without prior LogIt experience.
 
@@ -35,6 +35,7 @@ For the **full book** (product map, setup, flows, developer guide, manufacturing
 | [18](./18-troubleshooting.md) | Troubleshooting | Admins, developers |
 | [19](./19-api-reference-quick.md) | API quick reference | Developers, integrators |
 | [20](./20-change-and-release.md) | Change, release & seed data | Admins, developers |
+| [21](./21-incident-management.md) | Incident Management System (IMS) | Managers, commanders, admins |
 
 Also see product docs:
 

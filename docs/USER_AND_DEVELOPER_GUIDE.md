@@ -2,10 +2,10 @@
 
 **Product:** LogIt — Enterprise IT Service Management  
 **Audience:** Requesters, agents, managers, approvers, auditors, administrators, and developers  
-**Edition:** 2026-07-24 (aligned with N1–N5 · H1–H7 · M1–M10 · L1–L5)  
+**Edition:** 2026-07-24 (aligned with N1–N5 · H1–H7 · M1–M10 · L1–L5 · **IMS MVP**)  
 **Production URL:** https://logit.koaimpact.app
 
-This is the **book-style master guide** for LogIt. It explains what the system is, how to set it up, how to run day-to-day work, how developers extend it, and how the same patterns can grow beyond ITSM (including manufacturing).
+This is the **book-style master guide** for LogIt. It explains what the system is, how to set it up, how to run day-to-day work (including the **Incident Management System**), how developers extend it, and how the same patterns can grow beyond ITSM (including manufacturing).
 
 Deep step-by-step operator procedures also live in [sops/](./sops/README.md). This guide is the narrative map; SOPs are the field manuals.
 
@@ -41,6 +41,7 @@ Deep step-by-step operator procedures also live in [sops/](./sops/README.md). Th
 
 ### Part III — Operations playbook
 11. [Tickets, queue & major incidents](./guide/03-operations-use-cases.md#11-tickets-queue--major-incidents)
+11A. [Incident Management System (IMS)](./guide/03-operations-use-cases.md#11a-incident-management-system-ims)
 12. [Service catalog & requests](./guide/03-operations-use-cases.md#12-service-catalog--requests)
 13. [Knowledge base & deflection](./guide/03-operations-use-cases.md#13-knowledge-base--deflection)
 14. [Assets / CMDB](./guide/03-operations-use-cases.md#14-assets--cmdb)
@@ -74,7 +75,7 @@ Deep step-by-step operator procedures also live in [sops/](./sops/README.md). Th
 
 | Label in this book | Meaning |
 | --- | --- |
-| **Current product** | Built and usable in this repo today (through L5) |
+| **Current product** | Built and usable in this repo today (through L5 + **IMS MVP**) |
 | **Extension opportunity** | Design pattern for growing LogIt — **not** shipped features |
 
 Do not treat Part V manufacturing/HR/fleet modules as existing screens unless this guide explicitly says they are current product.

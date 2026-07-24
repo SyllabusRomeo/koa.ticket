@@ -7,10 +7,11 @@ import {
   type ApprovalPolicy,
   type AuthUser,
 } from '@/lib/api';
-import { can } from '@/lib/access';
+import { canManageApprovalPolicies } from '@/lib/access';
 import { AppShell } from '@/components/AppShell';
 import { EmptyState } from '@/components/EmptyState';
 import { SectionHeading } from '@/components/SectionHeading';
+import { Button } from '@/components/Button';
 import { ClipboardCheck, Plus } from 'lucide-react';
 import appStyles from '../../app.module.css';
 import styles from './approvals-admin.module.css';
@@ -32,6 +33,7 @@ export default function ApprovalsAdminPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [name, setName] = useState('');
   const [ticketTypeId, setTicketTypeId] = useState('');
@@ -44,18 +46,22 @@ export default function ApprovalsAdminPage() {
   const [step2Role, setStep2Role] = useState('it_manager');
   const [step2Mode, setStep2Mode] = useState<'any' | 'all'>('any');
 
+  async function refreshPolicies() {
+    setPolicies(await api.approvalPolicies(true));
+  }
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const { user } = await api.me();
-        if (!can(user, 'settings:manage')) {
+        if (!canManageApprovalPolicies(user)) {
           router.replace('/app');
           return;
         }
         if (!cancelled) setUser(user);
         const [p, meta] = await Promise.all([
-          api.approvalPolicies(),
+          api.approvalPolicies(true),
           api.ticketMeta(),
         ]);
         if (!cancelled) {
@@ -82,39 +88,111 @@ export default function ApprovalsAdminPage() {
     router.replace('/login');
   }
 
-  async function onCreate(e: FormEvent) {
+  function buildSteps() {
+    const steps = [
+      {
+        name: step1Name.trim(),
+        approverRoleCode: step1Role,
+        mode: step1Mode,
+        stepOrder: 1,
+      },
+    ];
+    if (step2Enabled) {
+      steps.push({
+        name: step2Name.trim(),
+        approverRoleCode: step2Role,
+        mode: step2Mode,
+        stepOrder: 2,
+      });
+    }
+    return steps;
+  }
+
+  function loadPolicyIntoForm(p: ApprovalPolicy) {
+    setEditingId(p.id);
+    setName(p.name);
+    setTicketTypeId(p.ticketTypeId ?? '');
+    setPriority(p.priority);
+    const s1 = p.steps[0];
+    const s2 = p.steps[1];
+    setStep1Name(s1?.name ?? 'Business approver');
+    setStep1Role(s1?.approverRoleCode ?? 'approver');
+    setStep1Mode(s1?.mode === 'all' ? 'all' : 'any');
+    setStep2Enabled(!!s2);
+    setStep2Name(s2?.name ?? 'CAB / second approver');
+    setStep2Role(s2?.approverRoleCode ?? 'it_manager');
+    setStep2Mode(s2?.mode === 'all' ? 'all' : 'any');
+    setMessage(`Editing “${p.name}”. Save to update, or Cancel edit.`);
+    setError(null);
+  }
+
+  function clearForm() {
+    setEditingId(null);
+    setName('');
+    setTicketTypeId('');
+    setPriority(100);
+    setStep1Name('Business approver');
+    setStep1Role('approver');
+    setStep1Mode('any');
+    setStep2Enabled(false);
+    setStep2Name('CAB / second approver');
+    setStep2Role('it_manager');
+    setStep2Mode('any');
+  }
+
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
     setMessage(null);
     try {
-      const steps = [
-        {
-          name: step1Name.trim(),
-          approverRoleCode: step1Role,
-          mode: step1Mode,
-          stepOrder: 1,
-        },
-      ];
-      if (step2Enabled) {
-        steps.push({
-          name: step2Name.trim(),
-          approverRoleCode: step2Role,
-          mode: step2Mode,
-          stepOrder: 2,
+      const steps = buildSteps();
+      if (editingId) {
+        await api.updateApprovalPolicy(editingId, {
+          name: name.trim(),
+          ticketTypeId: ticketTypeId || null,
+          priority,
+          steps,
         });
+        setMessage('Approval policy updated.');
+      } else {
+        await api.createApprovalPolicy({
+          name: name.trim(),
+          ticketTypeId: ticketTypeId || undefined,
+          priority,
+          steps,
+        });
+        setMessage('Approval policy created.');
       }
-      await api.createApprovalPolicy({
-        name: name.trim(),
-        ticketTypeId: ticketTypeId || undefined,
-        priority,
-        steps,
-      });
-      setName('');
-      setMessage('Approval policy created.');
-      setPolicies(await api.approvalPolicies());
+      clearForm();
+      await refreshPolicies();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create policy');
+      setError(
+        err instanceof Error
+          ? err.message
+          : editingId
+            ? 'Failed to update policy'
+            : 'Failed to create policy',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleActive(p: ApprovalPolicy) {
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await api.updateApprovalPolicy(p.id, { isActive: !p.isActive });
+      setMessage(
+        p.isActive
+          ? `Deactivated “${p.name}”.`
+          : `Reactivated “${p.name}”.`,
+      );
+      await refreshPolicies();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Update failed');
     } finally {
       setBusy(false);
     }
@@ -131,9 +209,10 @@ export default function ApprovalsAdminPage() {
   return (
     <AppShell user={user} onLogout={logout} title="Approval policies">
       <p className={appStyles.mission}>
-        Configure multi-step approval chains by ticket type. Step 1 must finish
-        before step 2 is created. Mode <strong>any</strong> = first approval
-        wins; <strong>all</strong> = every user with that role must approve.
+        Configure multi-step approval chains by ticket type. Admins with{' '}
+        <code>approvals:manage</code> can create, edit, and activate/deactivate
+        policies. Mode <strong>any</strong> = first approval wins;{' '}
+        <strong>all</strong> = every user with that role must approve.
       </p>
       {error ? (
         <p className={appStyles.error} role="alert">
@@ -144,7 +223,7 @@ export default function ApprovalsAdminPage() {
 
       <div className={styles.grid}>
         <section className={styles.panel}>
-          <SectionHeading icon={ClipboardCheck}>Active policies</SectionHeading>
+          <SectionHeading icon={ClipboardCheck}>Policies</SectionHeading>
           {policies.length === 0 ? (
             <EmptyState icon={ClipboardCheck}>
               No policies yet — fallback is all Approver-role users (legacy).
@@ -154,7 +233,8 @@ export default function ApprovalsAdminPage() {
               {policies.map((p) => (
                 <li key={p.id}>
                   <strong>
-                    #{p.priority} {p.name}
+                    #{p.priority} {p.name}{' '}
+                    <em>{p.isActive ? 'active' : 'inactive'}</em>
                   </strong>
                   <em>
                     {p.steps
@@ -164,6 +244,24 @@ export default function ApprovalsAdminPage() {
                       )
                       .join(' → ')}
                   </em>
+                  <div className={styles.rowActions}>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => loadPolicyIntoForm(p)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="tertiary"
+                      disabled={busy}
+                      onClick={() => void toggleActive(p)}
+                    >
+                      {p.isActive ? 'Deactivate' : 'Activate'}
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -171,8 +269,10 @@ export default function ApprovalsAdminPage() {
         </section>
 
         <section className={styles.panel}>
-          <SectionHeading icon={Plus}>Add policy</SectionHeading>
-          <form className={styles.form} onSubmit={onCreate}>
+          <SectionHeading icon={Plus}>
+            {editingId ? 'Edit policy' : 'Add policy'}
+          </SectionHeading>
+          <form className={styles.form} onSubmit={onSubmit}>
             <label>
               Name
               <input
@@ -291,9 +391,28 @@ export default function ApprovalsAdminPage() {
               </fieldset>
             ) : null}
 
-            <button type="submit" className={appStyles.btn} disabled={busy}>
-              Create policy
-            </button>
+            <div className={styles.rowActions}>
+              <Button type="submit" disabled={busy}>
+                {busy
+                  ? 'Saving…'
+                  : editingId
+                    ? 'Save changes'
+                    : 'Create policy'}
+              </Button>
+              {editingId ? (
+                <Button
+                  type="button"
+                  variant="tertiary"
+                  disabled={busy}
+                  onClick={() => {
+                    clearForm();
+                    setMessage(null);
+                  }}
+                >
+                  Cancel edit
+                </Button>
+              ) : null}
+            </div>
           </form>
         </section>
       </div>

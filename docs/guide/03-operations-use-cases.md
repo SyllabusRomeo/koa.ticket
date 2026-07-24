@@ -32,7 +32,7 @@ Employee SOP: [SOP-08](../sops/08-employee-self-service.md).
 
 ### Agent — work a ticket
 
-1. Open **Queue** or **Tickets**; check notification bell.
+1. Open **Home** → **Queue board** / KPI cards, or go directly to `/app/queue`; check notification bell.
 2. On **Tickets**, use **Search** for ticket number (e.g. `INC-2026-…`), title keywords, or requester name/email (`GET /tickets?q=`).
 3. Claim / assign / change status from detail or Kanban.
 4. Triage: type, category, origin site, priority, assignment.
@@ -67,16 +67,128 @@ flowchart TD
   E --> M[Cancelled]
 ```
 
-### Major incidents
+### Major incidents (ITSM flag)
 
 1. Toggle **Major incident** on ticket detail (badge + list/queue filter).
 2. Ops view: `/app/major-incidents` — KPIs + related work cards.
 3. Link related tickets; watch closely; prefer clear public status updates.
 
+Use **Major** when a normal ITSM ticket needs heightened visibility. Use **IMS** (`/app/im`) when you need a dedicated command record, war-room timeline, named roles, and a PIR draft — see [§11A](#11a-incident-management-system-ims).
+
 ### Merge & relationships
 
 - **Merge into this ticket** — sources become merged; comments/attachments copied with attribution.
 - Parent/child links for related work without merge.
+
+---
+
+## 11A. Incident Management System (IMS)
+
+### Why LogIt has IMS
+
+Day-to-day ITSM tickets are optimized for **service desk volume**: many parallel cases, SLA clocks, assignment queues, and requester conversations.
+
+**Major outages and business-critical events** need a different rhythm:
+
+| ITSM ticket / Major flag | IMS command module |
+| --- | --- |
+| One case among many in the queue | Dedicated **command record** (`IM-YYYY-…`) |
+| Agent triage + resolve | War-room **timeline**, severities SEV1–SEV4 |
+| Optional “major” badge | Explicit **status workflow** (declared → closed) |
+| Comments for requester | Stakeholder vs **internal** updates |
+| Resolve notes | **PIR markdown export** from the timeline |
+| `/app/major-incidents` aggregates tickets | `/app/im` is the command board |
+
+LogIt keeps both: **Major** stays for ITSM escalation; **IMS** is the command & control surface when leadership needs a single source of truth for “what is happening right now” and “what we will write in the post-incident review.”
+
+### Who can use it
+
+| Permission | Typical use |
+| --- | --- |
+| `im:read` | See board + detail; export PIR |
+| `im:write` | Declare incidents, post updates, change status |
+| `im:command` | Assign command roles (API; with `im:write`) |
+| `im:postmortem` | PIR access (also allowed via `im:read` today) |
+
+**Seeded:** `sysadmin` (all) and `it_manager` (all four `im:*`). Agents do **not** see **IM** in nav until an admin grants `im:read` (and usually `im:write`) under **Roles & Access**.
+
+Field SOP: [SOP-21 Incident Management](../sops/21-incident-management.md).
+
+### What ships today (UI)
+
+| Surface | What you can do |
+| --- | --- |
+| `/app/im` board | List recent IM incidents; **Declare** (title, severity, summary) |
+| `/app/im/[number]` detail | Status dropdown, timeline, post public/internal updates, **Export PIR** (.md), linked ITSM ticket if any |
+| Top nav **IM** | Shown when session has `im:read` |
+| Reports | “IMS / ops KPIs” strip — **ticket/SLA-derived** ops metrics (not `ImIncident` counts) |
+
+### How it works (workflow)
+
+```mermaid
+flowchart TD
+  A[Trigger: outage / Sev event / executive call] --> B{Need command record?}
+  B -->|No — heighten ITSM only| M[Toggle Major on ticket + Major dashboard]
+  B -->|Yes| C[Declare on /app/im]
+  C --> D[Status: declared]
+  D --> E[Activate war-room]
+  E --> F[Status: active]
+  F --> G[Post timeline updates]
+  G --> H{Mitigated?}
+  H -->|No| G
+  H -->|Yes| I[Status: mitigated]
+  I --> J[Status: resolved]
+  J --> K[Export PIR markdown]
+  K --> L[Status: closed]
+  L --> N[Corrective actions / KB / Problem tickets]
+```
+
+**Status meanings**
+
+| Status | Intent |
+| --- | --- |
+| `declared` | Command record opened; assembling people |
+| `active` | Incident under active response |
+| `mitigated` | Customer impact reduced; cleanup / RCA in progress |
+| `resolved` | Service restored; PIR drafting |
+| `closed` | Command closed; follow-ups live elsewhere |
+
+Changing status (writers) also appends a timeline line (`Status → …`) and sets `resolvedAt` when moving to resolved/closed.
+
+### Declare an incident
+
+1. Sign in as a user with `im:write` (e.g. manager / admin).
+2. Open **IM** → fill **Title**, **Severity** (SEV1–SEV4), optional **Summary**.
+3. **Declare** → you land on the detail page (`IM-…` number).
+4. Optionally link an existing ITSM ticket via API (`ticketId` on create) — UI declare form does not yet expose ticket/commander pickers.
+
+### Run the war-room
+
+1. Keep **Status** current (declared → active → mitigated → resolved → closed).
+2. Post **updates** on the timeline; check **Internal only** for scribe notes that should not appear in the public PIR section.
+3. Roles (`commander`, `scribe`, `comms`, `responder`) can be assigned via `POST /api/v1/im/:id/roles` — listed read-only on the detail page today (assignment UI pending).
+4. When ready, **Export PIR** downloads a markdown draft with summary placeholders, roles, public + internal timelines, and PIR section stubs (impact, root cause, actions, lessons).
+
+### IMS vs monitoring ingest vs automation
+
+These companion capabilities support incident ops but are **not** full Admin screens yet:
+
+| Capability | Built? | Visible in Admin UI? | Notes |
+| --- | --- | --- | --- |
+| IM permissions | Yes | **Yes** — Roles & Access extras / IT Manager role | Grant `im:*` here |
+| Declare / timeline / PIR | Yes | **Yes** — `/app/im` | Primary IMS UI |
+| Assign IM roles | API yes | **No** detail form yet | `POST /im/:id/roles` |
+| Link ticket / commander on create | API yes | **No** on declare form | Use API or follow-up UI |
+| Automation rules (ticket on-create) | API yes | **No** Admin page | `GET/POST/PATCH /automation/rules` needs `settings:manage` |
+| Monitoring alert ingest | API yes | **No** Integrations page | `MONITORING_INGEST_SECRET` + `POST /integrations/monitoring/alerts` creates an **ITSM ticket**, not an `ImIncident` |
+| Dedicated IMS admin (severities, templates) | No | — | Roadmap |
+
+### Tips
+
+- Start IMS early for SEV1/SEV2 — do not wait until the ticket thread is unreadable.
+- Keep public timeline updates short and stakeholder-friendly; put speculation in internal notes.
+- After PIR export, create Problem / Change tickets for lasting fixes; closing IM does not auto-close linked ITSM work.
+- Re-login after granting `im:*` so the session nav picks up **IM**.
 
 ---
 
@@ -320,9 +432,10 @@ Admin hub: `/app/admin/integrations`. Docs: email / Slack-Teams / webhooks under
 
 | Task | Where |
 | --- | --- |
-| Board + workload | Queue |
+| Board + workload | **Home** → Queue cards / `/app/queue` |
 | Triage list | Tickets |
-| P1 ops | Major |
+| Command / Sev incident | **IM** (`/app/im`) — needs `im:*` |
+| P1 ops (ITSM) | Major |
 | Known errors | Problems |
 | Planned work | Changes |
 | Hardware context | Assets |
@@ -338,9 +451,10 @@ Admin hub: `/app/admin/integrations`. Docs: email / Slack-Teams / webhooks under
 
 | Task | Where |
 | --- | --- |
-| People | Users, Roles & Access |
+| People | Users, Roles & Access (grant `im:*` here) |
 | Org | Locations, Departments, Teams |
 | Policy | Routing & SLA, Approval policies |
+| Incident command | **IM** |
 | Look & feel | Branding |
 | Channels | Integrations |
 | Compliance | Audit, Reports |

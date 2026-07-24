@@ -130,10 +130,10 @@ https://logit.koaimpact.app/
 | IMS-3 | Web shell: product switcher + `/im` layout (own nav) | `[~]` | Nav item + board/detail; chrome polish later |
 | IMS-4 | Active incidents board + create/declare flow | `[x]` | Severity + summary |
 | IMS-5 | Incident timeline + stakeholder updates | `[x]` | Public vs internal |
-| IMS-6 | Roles on incident (commander, scribe, comms) | `[~]` | Assign API; richer UI later |
-| IMS-7 | Optional bridge: link ITSM ticket / MI / assets | `[~]` | `ticketId` on create/get |
-| IMS-8 | Post-incident review (PIR) draft from timeline | `[ ]` | Export + knowledge promote later |
-| IMS-9 | Docs: SOP + USER guide chapter for IMS | `[~]` | Roadmap/TODO marked partial |
+| IMS-6 | Roles on incident (commander, scribe, comms) | `[x]` | Assign UI on detail + API |
+| IMS-7 | Optional bridge: link ITSM ticket / MI / assets | `[x]` | Ticket number on declare + detail link |
+| IMS-8 | Post-incident review (PIR) draft from timeline | `[x]` | `GET /im/:id/pir` + Export PIR (.md) |
+| IMS-9 | Docs: SOP + USER guide chapter for IMS | `[x]` | SOP-21 + book §11A + glossary/API |
 
 #### Explicit non-goals (v1)
 
@@ -174,4 +174,4 @@ AI draft-reply depth · multi-tenant · marketplace · advanced reporting · IMS
 
 ## Mapping to gaps
 
-See [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md) and [DEVELOPMENT_TODO.md](./DEVELOPMENT_TODO.md). Update these docs when a phase item lands. IMS is **roadmap-next**, not yet a GAP “shipped” row.
+See [GAP_ASSESSMENT.md](./GAP_ASSESSMENT.md) and [DEVELOPMENT_TODO.md](./DEVELOPMENT_TODO.md). Update these docs when a phase item lands. IMS MVP is **shipped** (board/detail/PIR); remaining polish is product switcher, richer role UI, and external status page.

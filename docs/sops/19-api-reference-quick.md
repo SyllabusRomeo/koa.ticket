@@ -119,8 +119,28 @@ Give developers/integrators a map of MVP HTTP APIs.
 | GET | `/reports/stages?from=&to=` (stage bottlenecks) |
 | GET | `/reports/export.csv?from=&to=` · `/reports/export.pdf?from=&to=` (`reports:read`) |
 | GET/POST | `/reports/schedules` · `PATCH/DELETE /reports/schedules/:id` · `POST …/:id/run` (`reports:read` or `settings:manage`) |
+| GET | `/reports/ims-kpis?from=&to=` (`reports:read`) — ops KPI strip (ticket/SLA derived) |
 | GET | `/tickets/export.csv` (same visibility as ticket list) |
 | GET | `/audit/export.csv?…` (same filters as `/audit`, `audit:read`) |
+
+## Incident Management (`im:*`)
+
+| Method | Path | Permission |
+| --- | --- | --- |
+| GET | `/im` | `im:read` |
+| POST | `/im` | `im:write` — optional `ticketId`, `commanderId` |
+| GET | `/im/:id` | `im:read` |
+| GET | `/im/:id/pir` | `im:read` / `im:postmortem` — markdown draft |
+| PATCH | `/im/:id/status` | `im:write` |
+| POST | `/im/:id/updates` | `im:write` |
+| POST | `/im/:id/roles` | `im:write` or `im:command` |
+
+## Automation & monitoring (no Admin UI yet)
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET/POST/PATCH | `/automation/rules` | `settings:manage` |
+| POST | `/integrations/monitoring/alerts` | Bearer `MONITORING_INGEST_SECRET` → creates ticket |
 
 ## Health (no `/api/v1` prefix)
 
@@ -140,3 +160,4 @@ Give developers/integrators a map of MVP HTTP APIs.
 
 - [02 Architecture](./02-system-architecture.md)
 - [03 Local setup](./03-technical-setup-local.md)
+- [21 Incident Management](./21-incident-management.md)

@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  Activity,
   Copy,
   History,
   Inbox,
@@ -821,6 +822,44 @@ export default function IntegrationsAdminPage() {
               links.
             </li>
           </ol>
+        </section>
+
+        <section className={styles.panel}>
+          <PanelHeading icon={Activity}>Monitoring ingest</PanelHeading>
+          <p className={styles.hint}>
+            External monitors (Prometheus Alertmanager, Datadog, custom) can POST
+            alerts to create an <strong>ITSM incident ticket</strong>. This is
+            separate from the <a href="/app/im">Incident command (IMS)</a> board —
+            promote to IMS manually when you need a war-room / PIR.
+          </p>
+          <ol className={styles.steps}>
+            <li>
+              Set <code>MONITORING_INGEST_SECRET</code> in the API environment
+              (a long random string).
+            </li>
+            <li>
+              POST JSON to{' '}
+              <code>
+                {typeof window !== 'undefined'
+                  ? `${window.location.origin.replace(/:\d+$/, ':4100')}/api/v1/integrations/monitoring/alerts`
+                  : '/api/v1/integrations/monitoring/alerts'}
+              </code>{' '}
+              with header{' '}
+              <code>Authorization: Bearer &lt;MONITORING_INGEST_SECRET&gt;</code>
+              .
+            </li>
+            <li>
+              Body fields: <code>title</code>, <code>description</code>, optional{' '}
+              <code>severity</code> (<code>sev1</code>–<code>sev4</code> /{' '}
+              <code>critical</code>), optional <code>source</code>.
+            </li>
+          </ol>
+          <pre className={styles.hint} style={{ whiteSpace: 'pre-wrap' }}>
+            {`curl -X POST "$API/integrations/monitoring/alerts" \\
+  -H "Authorization: Bearer $MONITORING_INGEST_SECRET" \\
+  -H "Content-Type: application/json" \\
+  -d '{"title":"API 5xx spike","description":"p99 latency","severity":"sev2","source":"alertmanager"}'`}
+          </pre>
         </section>
 
         <section className={styles.panel}>

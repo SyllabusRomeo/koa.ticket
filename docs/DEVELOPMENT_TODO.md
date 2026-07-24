@@ -91,10 +91,12 @@ MVP vertical slice landed 2026-07-24 (schema + API + `/app/im` board/detail + ca
 | IMS-0 | Architecture spike (routes, boundaries, ticket link) | `[x]` | `/app/im` + optional `ticketId` bridge |
 | IMS-1 | Prisma `ImIncident` + severities | `[x]` | Migration `20260724160000_ims_capability_gaps` |
 | IMS-2 | Nest `im` API + permissions | `[x]` | `im:read` / `im:write` / `im:command` / `im:postmortem` |
-| IMS-3 | Web `/app/im` board + detail | `[~]` | Nav for `im:read`; full product chrome later |
-| IMS-4+ | War-room, PIR export, status page | `[ ]` | Follow-on slices |
+| IMS-3 | Web `/app/im` board + detail | `[x]` | Nav + **KPI dashboard** + declare/list |
+| IMS-4+ | War-room, PIR export, status page | `[~]` | Status + PIR + role assign; external status page later |
+| IMS-8 | Post-incident review (PIR) draft from timeline | `[x]` | `GET /im/:id/pir` + Export PIR on detail |
+| IMS-9 | Docs: SOP + USER guide chapter for IMS | `[x]` | SOP-21 + book §11A + roles/API/admin notes |
 
-**Also shipped with this slice:** business-hours SLA + escalation assign team, resolution codes + auto-close, restricted SEC visibility, saved ticket views, automation rules (create), monitoring ingest, IMS KPI report strip.
+**Also shipped with this slice:** business-hours SLA + escalation assign team, resolution codes + auto-close, restricted SEC visibility (+ detail toggle), saved ticket views, **Automation admin** (`/app/admin/automation`), monitoring ingest (Integrations docs), IMS KPI report strip.
 
 ---
 

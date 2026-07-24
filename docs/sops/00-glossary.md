@@ -31,7 +31,9 @@ Define common LogIt terms so users share one vocabulary.
 | **Audit log** | Immutable record of who did what, when |
 | **Watcher** | User subscribed to ticket updates (comment + status) without owning it |
 | **Work log** | Time entry (minutes + note) recorded on a ticket |
-| **Major incident (MI)** | High-impact incident flagged for ops dashboards and priority handling |
+| **Major incident (MI)** | High-impact **ITSM ticket** flagged for ops dashboards (`/app/major-incidents`) |
+| **IMS / IM** | Incident Management System — command module at `/app/im` (`IM-…` records) |
+| **PIR** | Post-incident review — markdown draft exported from an IM timeline |
 | **Channel** | Intake source stamped on the ticket: `web`, `email`, `slack`, `teams`, `chat`, `api` |
 | **Presence** | Signal that another agent is viewing or composing on a ticket |
 | **CAB** | Change Advisory Board path — approvals before a change is scheduled |

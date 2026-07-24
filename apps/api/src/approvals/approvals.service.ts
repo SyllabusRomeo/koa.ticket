@@ -18,14 +18,25 @@ export class ApprovalsService {
     private readonly audit: AuditService,
   ) {}
 
-  listPolicies() {
+  listPolicies(includeInactive = false) {
     return this.prisma.approvalPolicy.findMany({
-      where: { isActive: true },
+      where: includeInactive ? undefined : { isActive: true },
       include: {
         steps: { orderBy: { stepOrder: 'asc' } },
       },
-      orderBy: { priority: 'asc' },
+      orderBy: [{ isActive: 'desc' }, { priority: 'asc' }],
     });
+  }
+
+  assertCanManagePolicies(user: AuthUserView) {
+    if (
+      !user.permissions.includes(PERMISSIONS.APPROVALS_MANAGE) &&
+      !user.permissions.includes(PERMISSIONS.SETTINGS_MANAGE)
+    ) {
+      throw new ForbiddenException(
+        'approvals:manage or settings:manage required',
+      );
+    }
   }
 
   async createPolicy(data: {
@@ -61,6 +72,78 @@ export class ApprovalsService {
         },
       },
       include: { steps: { orderBy: { stepOrder: 'asc' } } },
+    });
+  }
+
+  async updatePolicy(
+    id: string,
+    data: {
+      name?: string;
+      ticketTypeId?: string | null;
+      categoryId?: string | null;
+      changeRisk?: string | null;
+      priority?: number;
+      isActive?: boolean;
+      steps?: Array<{
+        name: string;
+        approverRoleCode: string;
+        mode?: 'any' | 'all';
+        stepOrder?: number;
+      }>;
+    },
+  ) {
+    const existing = await this.prisma.approvalPolicy.findUnique({
+      where: { id },
+      include: { steps: true },
+    });
+    if (!existing) throw new NotFoundException('Policy not found');
+
+    if (data.steps !== undefined) {
+      if (!data.steps.length) {
+        throw new BadRequestException('At least one approval step is required');
+      }
+      const pendingOnPolicy = await this.prisma.approval.count({
+        where: { policyId: id, status: 'pending' },
+      });
+      if (pendingOnPolicy > 0) {
+        throw new BadRequestException(
+          'Cannot replace steps while this policy has pending approvals — deactivate instead or wait until they complete',
+        );
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      if (data.steps) {
+        await tx.approvalStep.deleteMany({ where: { policyId: id } });
+        await tx.approvalStep.createMany({
+          data: data.steps.map((s, i) => ({
+            policyId: id,
+            name: s.name.trim(),
+            approverRoleCode: s.approverRoleCode.trim(),
+            mode: s.mode === 'all' ? 'all' : 'any',
+            stepOrder: s.stepOrder ?? i + 1,
+          })),
+        });
+      }
+
+      return tx.approvalPolicy.update({
+        where: { id },
+        data: {
+          ...(data.name !== undefined ? { name: data.name.trim() } : {}),
+          ...(data.ticketTypeId !== undefined
+            ? { ticketTypeId: data.ticketTypeId || null }
+            : {}),
+          ...(data.categoryId !== undefined
+            ? { categoryId: data.categoryId || null }
+            : {}),
+          ...(data.changeRisk !== undefined
+            ? { changeRisk: data.changeRisk || null }
+            : {}),
+          ...(data.priority !== undefined ? { priority: data.priority } : {}),
+          ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
+        },
+        include: { steps: { orderBy: { stepOrder: 'asc' } } },
+      });
     });
   }
 

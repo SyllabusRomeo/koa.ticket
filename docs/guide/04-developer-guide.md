@@ -57,6 +57,8 @@ Shared package name: `@logit/shared` — **import permission/role constants from
 | `email` | SMTP + IMAP poller |
 | `webhooks` | Outbound HMAC |
 | `branding` | Logo/themes |
+| `im` | Incident Management — declare, updates, roles, status, PIR |
+| `automation` | Ticket on-create rules (`settings:manage`) |
 | `ai` | Assists (heuristic + optional OpenAI) |
 | `health` | `/health`, `/live`, `/ready` |
 | `prisma` | DB client |
@@ -89,6 +91,8 @@ Authoritative schema: `apps/api/prisma/schema.prisma`.
 | Approvals | `ApprovalPolicy`, `ApprovalStep`, `Approval` |
 | Comms / integration | `Notification`, `NotificationPreference`, `WebhookEndpoint`, `WebhookDelivery` |
 | Reporting / compliance | `ReportSchedule`, `AuditLog`, `AuditExportSchedule`, `AuditExportRun` |
+| Incident Management | `ImIncident`, `ImIncidentUpdate`, `ImIncidentRole` |
+| Automation | `AutomationRule` (and related action/condition fields per schema) |
 | Settings | `SystemSetting` (branding/themes etc.) |
 
 ### Design habits

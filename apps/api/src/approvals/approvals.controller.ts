@@ -3,12 +3,14 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -82,21 +84,73 @@ class CreatePolicyDto {
   steps!: StepDto[];
 }
 
+class UpdatePolicyDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  ticketTypeId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  categoryId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  changeRisk?: string | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  priority?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => StepDto)
+  steps?: StepDto[];
+}
+
 @Controller('approvals')
 @UseGuards(SessionAuthGuard, RolesGuard)
 export class ApprovalsController {
   constructor(private readonly approvals: ApprovalsService) {}
 
   @Get('policies')
-  @RequirePermissions(PERMISSIONS.SETTINGS_MANAGE)
-  listPolicies() {
-    return this.approvals.listPolicies();
+  listPolicies(
+    @CurrentUser() user: AuthUserView,
+    @Query('includeInactive') includeInactive?: string,
+  ) {
+    this.approvals.assertCanManagePolicies(user);
+    return this.approvals.listPolicies(
+      includeInactive === '1' || includeInactive === 'true',
+    );
   }
 
   @Post('policies')
-  @RequirePermissions(PERMISSIONS.SETTINGS_MANAGE)
-  createPolicy(@Body() dto: CreatePolicyDto) {
+  createPolicy(
+    @CurrentUser() user: AuthUserView,
+    @Body() dto: CreatePolicyDto,
+  ) {
+    this.approvals.assertCanManagePolicies(user);
     return this.approvals.createPolicy(dto);
+  }
+
+  @Patch('policies/:id')
+  updatePolicy(
+    @CurrentUser() user: AuthUserView,
+    @Param('id') id: string,
+    @Body() dto: UpdatePolicyDto,
+  ) {
+    this.approvals.assertCanManagePolicies(user);
+    return this.approvals.updatePolicy(id, dto);
   }
 
   @Get()

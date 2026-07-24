@@ -31,6 +31,7 @@ import {
   MessageSquare,
   Save,
   Send,
+  Shield,
   Timer,
   Trash2,
   UserRound,
@@ -799,6 +800,35 @@ export default function TicketDetailPage() {
     }
   }
 
+  async function toggleRestricted() {
+    if (!ticket) return;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const updated = await api.updateTicket(ticket.number, {
+        version: ticket.version,
+        restricted: !ticket.restricted,
+      });
+      setTicket(updated);
+      setWatching(!!updated.watching);
+      setMessage(
+        updated.restricted
+          ? 'Marked restricted — tighter visibility.'
+          : 'Restricted flag cleared.',
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Update failed');
+      try {
+        await load();
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onAddWorkLog(e: FormEvent) {
     e.preventDefault();
     if (!ticket) return;
@@ -975,6 +1005,12 @@ export default function TicketDetailPage() {
                   Major incident
                 </span>
               ) : null}
+              {ticket.restricted ? (
+                <span className={styles.miBadge}>
+                  <Icon icon={Shield} size="sm" />
+                  Restricted
+                </span>
+              ) : null}
               <span className={styles.channelBadge} title="Intake channel">
                 {channelLabel(ticket.channel)}
               </span>
@@ -1012,6 +1048,17 @@ export default function TicketDetailPage() {
                   {ticket.majorIncident
                     ? 'Clear major incident'
                     : 'Mark major incident'}
+                </Button>
+              ) : null}
+              {can(user, 'tickets:write') ? (
+                <Button
+                  type="button"
+                  variant={ticket.restricted ? 'dangerOutline' : 'tertiary'}
+                  disabled={busy}
+                  onClick={toggleRestricted}
+                >
+                  <Icon icon={Shield} size="sm" />
+                  {ticket.restricted ? 'Clear restricted' : 'Mark restricted'}
                 </Button>
               ) : null}
             </div>

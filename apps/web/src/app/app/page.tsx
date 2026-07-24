@@ -146,6 +146,7 @@ export default function AppHomePage() {
           pendingApprovals={pendingApprovals}
           canWrite={can(user, 'tickets:write')}
           canApprovals={can(user, 'approvals:read')}
+          canIm={can(user, 'im:read')}
           isSysadmin={hasRole(user, 'sysadmin')}
         />
         {notes.length > 0 ? (

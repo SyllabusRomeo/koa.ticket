@@ -26,7 +26,7 @@ Existing users that previously had multiple `user_roles` rows keep their first l
 | `employee` | Employee | Own tickets, create tickets, read knowledge |
 | `agent` | IT Support Agent | Queue tickets, assign, internal notes, org read, assets read |
 | `senior_agent` | Senior IT Agent | Agent + broader knowledge/asset write |
-| `it_manager` | IT Manager | All tickets, reports, audit read, org manage |
+| `it_manager` | IT Manager | All tickets, reports, audit read, org manage, **IMS (`im:*`)**, **Approval policies (`approvals:manage`)** |
 | `approver` | Approver | Approvals queue — decide on multi-step policy steps (service/access/change CAB) |
 | `sysadmin` | Administrator | All permissions |
 | `auditor` | Auditor | Audit/reports/assets/tickets read-only style access |
@@ -58,6 +58,8 @@ Examples from `@logit/shared`:
 - `users:read` / `users:manage`
 - `org:read` / `org:manage`
 - `audit:read` / `reports:read` / `settings:manage`
+- `approvals:read` / `approvals:decide` / **`approvals:manage`** (create/edit/deactivate Approval policies)
+- `im:read` / `im:write` / `im:command` / `im:postmortem` — Incident Management (`/app/im`)
 - `knowledge:read` / `knowledge:write`
 - `assets:read` / `assets:write`
 

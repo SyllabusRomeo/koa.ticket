@@ -11,6 +11,7 @@ import {
   PauseCircle,
   Plus,
   Plug,
+  Siren,
   Ticket,
   UserRound,
   UserX,
@@ -60,6 +61,7 @@ type Props = {
   pendingApprovals: number;
   canWrite: boolean;
   canApprovals: boolean;
+  canIm?: boolean;
   isSysadmin?: boolean;
 };
 
@@ -99,6 +101,7 @@ export function AgentWorkspace({
   pendingApprovals,
   canWrite,
   canApprovals,
+  canIm = false,
   isSysadmin,
 }: Props) {
   const { kpis } = metrics;
@@ -130,6 +133,12 @@ export function AgentWorkspace({
             <Icon icon={Columns3} size="sm" />
             Queue board
           </a>
+          {canIm ? (
+            <a href="/app/im" className={styles.ctaSecondary}>
+              <Icon icon={Siren} size="sm" />
+              Incident command
+            </a>
+          ) : null}
           <a href="/app/major-incidents" className={styles.ctaSecondary}>
             <Icon icon={AlertTriangle} size="sm" />
             Major ops

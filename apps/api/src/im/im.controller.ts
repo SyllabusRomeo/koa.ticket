@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { PERMISSIONS } from '@logit/shared';
 import { CurrentUser, RequirePermissions } from '../auth/decorators';
 import type { AuthUserView } from '../auth/auth.service';
@@ -9,6 +17,7 @@ import {
   AssignImRoleDto,
   CreateImIncidentDto,
   ImService,
+  UpdateImStatusDto,
 } from './im.service';
 
 @Controller('im')
@@ -22,6 +31,12 @@ export class ImController {
     return this.im.list(user);
   }
 
+  @Get('dashboard')
+  @RequirePermissions(PERMISSIONS.IM_READ)
+  dashboard(@CurrentUser() user: AuthUserView) {
+    return this.im.dashboard(user);
+  }
+
   @Post()
   @RequirePermissions(PERMISSIONS.IM_WRITE)
   create(
@@ -31,10 +46,26 @@ export class ImController {
     return this.im.create(user, dto);
   }
 
+  @Get(':id/pir')
+  @RequirePermissions(PERMISSIONS.IM_READ)
+  pir(@CurrentUser() user: AuthUserView, @Param('id') id: string) {
+    return this.im.pirDraft(user, id);
+  }
+
   @Get(':id')
   @RequirePermissions(PERMISSIONS.IM_READ)
   get(@CurrentUser() user: AuthUserView, @Param('id') id: string) {
     return this.im.get(user, id);
+  }
+
+  @Patch(':id/status')
+  @RequirePermissions(PERMISSIONS.IM_WRITE)
+  updateStatus(
+    @CurrentUser() user: AuthUserView,
+    @Param('id') id: string,
+    @Body() dto: UpdateImStatusDto,
+  ) {
+    return this.im.updateStatus(user, id, dto);
   }
 
   @Post(':id/updates')

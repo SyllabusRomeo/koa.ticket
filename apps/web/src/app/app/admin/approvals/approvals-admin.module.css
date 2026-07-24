@@ -48,6 +48,13 @@
   color: color-mix(in srgb, var(--color-primary, #0f4a40) 70%, #666);
 }
 
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+}
+
 .form {
   display: grid;
   gap: 0.65rem;
