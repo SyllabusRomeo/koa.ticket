@@ -22,7 +22,7 @@ Tickets are stamped `channel=slack` or `channel=teams` (simulate → `chat`) plu
 | `TEAMS_ALLOW_EMULATOR` | `true` to accept Bot Framework Emulator JWTs (dev only) |
 | `INTEGRATIONS_REQUIRE_AUTH` | `true`/`false` to force/disable auth. Default: on when `NODE_ENV=production` |
 | `INTEGRATION_SERVICE_USER_EMAIL` | Fallback requester (default: seed admin) |
-| `APP_PUBLIC_URL` | Base URL for ticket links in chat replies |
+| `APP_PUBLIC_URL` | Base URL for ticket links in chat replies (prod: `https://logit.koaimpact.app`) |
 | `API_PUBLIC_URL` | Optional public API base for webhook URL display |
 
 ### Auth modes
