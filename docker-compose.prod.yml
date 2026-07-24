@@ -12,7 +12,8 @@ services:
       NODE_ENV: production
       COOKIE_SECURE: 'true'
       TRUST_PROXY: '1'
-      PORT: 4000
+      PORT: "4000"
+      API_PORT: "4000"
 
   worker:
     restart: unless-stopped

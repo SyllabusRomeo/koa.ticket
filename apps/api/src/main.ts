@@ -57,7 +57,16 @@ async function bootstrap() {
     }),
   );
 
-  const port = Number(process.env.PORT ?? process.env.API_PORT ?? 4100);
+  // Prefer API_PORT. Ignore PORT when it is clearly a DB/redis port leaked from env.
+  const candidates = [process.env.API_PORT, process.env.PORT, '4000'];
+  let port = 4000;
+  for (const c of candidates) {
+    const n = Number(c);
+    if (Number.isFinite(n) && n > 0 && n !== 5432 && n !== 6379) {
+      port = n;
+      break;
+    }
+  }
   await app.listen(port, '0.0.0.0');
   console.log(`LogIt API listening on 0.0.0.0:${port}`);
 }
