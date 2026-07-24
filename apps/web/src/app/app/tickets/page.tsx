@@ -133,19 +133,22 @@ function TicketsPageInner() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      let sessionUser: AuthUser | null = null;
       try {
         const { user } = await api.me();
         if (cancelled) return;
+        sessionUser = user;
         setUser(user);
         setLocationId(user.locationId ?? '');
+      } catch {
+        if (!cancelled) router.replace('/login');
+        return;
+      }
+      try {
         await load();
-        try {
-          const views = await api.listSavedViews();
-          if (!cancelled) setSavedViews(views);
-        } catch {
-          /* optional */
-        }
-        if (!cancelled && can(user, 'org:read')) {
+        const views = await api.listSavedViews().catch(() => []);
+        if (!cancelled) setSavedViews(views);
+        if (!cancelled && sessionUser && can(sessionUser, 'org:read')) {
           try {
             const locs = await api.listLocations();
             if (!cancelled) setLocations(locs);
@@ -153,8 +156,12 @@ function TicketsPageInner() {
             /* meta locations already loaded */
           }
         }
-      } catch {
-        if (!cancelled) router.replace('/login');
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : 'Could not load tickets',
+          );
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }

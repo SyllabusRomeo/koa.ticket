@@ -79,14 +79,21 @@ function QueueBoardInner() {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      let me: AuthUser;
       try {
-        const { user: me } = await api.me();
+        const session = await api.me();
         if (cancelled) return;
+        me = session.user;
         if (!showAgentWorkspace(me)) {
           router.replace('/app/tickets');
           return;
         }
         setUser(me);
+      } catch {
+        if (!cancelled) router.replace('/login');
+        return;
+      }
+      try {
         const nextScope = parseScope(
           searchParams.get('scope'),
           canSeeOrgTickets(me),
@@ -95,8 +102,10 @@ function QueueBoardInner() {
           router.replace('/app/queue?scope=mine');
         }
         await load(nextScope);
-      } catch {
-        if (!cancelled) router.replace('/login');
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Could not load queue');
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }

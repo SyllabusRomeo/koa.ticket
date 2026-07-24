@@ -446,20 +446,46 @@ export function formatBytes(n: number) {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** HTTP error from the LogIt API (preserves status for auth redirects). */
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+export function isUnauthorized(err: unknown) {
+  return err instanceof ApiError && err.status === 401;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init?.headers ?? {}),
+      },
+    });
+  } catch {
+    throw new ApiError(
+      'Cannot reach the API. Is it running on port 4100?',
+      0,
+    );
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const message =
       (data as { message?: string | string[] }).message ?? 'Request failed';
-    throw new Error(Array.isArray(message) ? message.join(', ') : message);
+    throw new ApiError(
+      Array.isArray(message) ? message.join(', ') : String(message),
+      res.status,
+    );
   }
   return data as T;
 }

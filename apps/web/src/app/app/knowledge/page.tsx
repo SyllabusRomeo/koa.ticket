@@ -26,10 +26,14 @@ export default function KnowledgePage() {
           return;
         }
         setUser(user);
+      } catch {
+        router.replace('/login');
+        return;
+      }
+      try {
         setItems(await api.knowledge());
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed');
-        router.replace('/login');
+        setError(e instanceof Error ? e.message : 'Failed to load knowledge');
       }
     })();
   }, [router]);

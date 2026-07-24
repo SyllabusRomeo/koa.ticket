@@ -42,6 +42,7 @@ export default function ImDetailPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      let sessionUser: AuthUser;
       try {
         const { user } = await api.me();
         if (cancelled) return;
@@ -49,12 +50,18 @@ export default function ImDetailPage() {
           router.replace('/app');
           return;
         }
+        sessionUser = user;
         setUser(user);
+      } catch {
+        if (!cancelled) router.replace('/login');
+        return;
+      }
+      try {
         await load();
         if (
-          can(user, 'im:write') ||
-          can(user, 'im:command') ||
-          can(user, 'users:read')
+          can(sessionUser, 'im:write') ||
+          can(sessionUser, 'im:command') ||
+          can(sessionUser, 'users:read')
         ) {
           try {
             const users = await api.listUsers();
@@ -65,8 +72,12 @@ export default function ImDetailPage() {
             /* optional for role assign */
           }
         }
-      } catch {
-        if (!cancelled) router.replace('/login');
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : 'Could not load incident',
+          );
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }

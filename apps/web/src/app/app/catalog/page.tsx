@@ -181,6 +181,11 @@ export default function CatalogPage() {
       try {
         const { user } = await api.me();
         setUser(user);
+      } catch {
+        router.replace('/login');
+        return;
+      }
+      try {
         await load();
         try {
           const meta = await api.ticketMeta();
@@ -189,8 +194,10 @@ export default function CatalogPage() {
         } catch {
           /* optional */
         }
-      } catch {
-        router.replace('/login');
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : 'Could not load catalog',
+        );
       }
     })();
   }, [router]);

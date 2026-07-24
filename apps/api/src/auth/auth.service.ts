@@ -183,13 +183,14 @@ export class AuthService {
     code: string,
     meta: { ipAddress?: string; userAgent?: string },
   ) {
-    const challenge = await this.challenges.consume(mfaToken, 'mfa_login');
-    if (!challenge?.userId) {
+    // Peek first so a wrong code does not burn the challenge (user can retry).
+    const pending = await this.challenges.peek(mfaToken, 'mfa_login');
+    if (!pending?.userId) {
       throw new UnauthorizedException('Invalid or expired MFA challenge');
     }
 
     const user = await this.prisma.user.findFirst({
-      where: { id: challenge.userId, deletedAt: null, isActive: true },
+      where: { id: pending.userId, deletedAt: null, isActive: true },
       include: {
         roles: {
           include: {
@@ -208,6 +209,11 @@ export class AuthService {
 
     if (!this.mfa.verifyCode(user.mfaSecret, code, user.email)) {
       throw new UnauthorizedException('Invalid authenticator code');
+    }
+
+    const challenge = await this.challenges.consume(mfaToken, 'mfa_login');
+    if (!challenge?.userId) {
+      throw new UnauthorizedException('Invalid or expired MFA challenge');
     }
 
     const session = await this.sessions.create({

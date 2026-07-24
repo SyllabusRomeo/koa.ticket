@@ -66,9 +66,18 @@ export default function ImBoardPage() {
           return;
         }
         setUser(user);
-        await load();
       } catch {
         if (!cancelled) router.replace('/login');
+        return;
+      }
+      try {
+        await load();
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : 'Could not load dashboard',
+          );
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }

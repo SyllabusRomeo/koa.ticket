@@ -32,11 +32,15 @@ export default function ApprovalsPage() {
           return;
         }
         if (!cancelled) setUser(user);
+      } catch {
+        if (!cancelled) router.replace('/login');
+        return;
+      }
+      try {
         await load();
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Failed');
-          router.replace('/login');
+          setError(e instanceof Error ? e.message : 'Failed to load approvals');
         }
       } finally {
         if (!cancelled) setLoading(false);

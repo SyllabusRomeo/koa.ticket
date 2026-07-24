@@ -141,14 +141,20 @@ export default function AssetsPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      let me: AuthUser;
       try {
-        const { user: me } = await api.me();
+        const session = await api.me();
+        me = session.user;
         if (!can(me, 'assets:read')) {
           router.replace('/app');
           return;
         }
         if (!cancelled) setUser(me);
-
+      } catch {
+        if (!cancelled) router.replace('/login');
+        return;
+      }
+      try {
         const [typeList, statusList, list, relTypeList] = await Promise.all([
           api.assetTypes(),
           api.assetStatuses(),
@@ -178,8 +184,12 @@ export default function AssetsPage() {
           const people = await api.assetAssignees();
           if (!cancelled) setAssignees(people);
         }
-      } catch {
-        if (!cancelled) router.replace('/login');
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : 'Could not load assets',
+          );
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }

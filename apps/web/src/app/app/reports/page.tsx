@@ -228,10 +228,14 @@ export default function ReportsPage() {
         }
         setUser(user);
         setSchedEmail(user.email);
+      } catch {
+        router.replace('/login');
+        return;
+      }
+      try {
         await Promise.all([load(), loadSchedules()]);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed');
-        router.replace('/login');
+        setError(e instanceof Error ? e.message : 'Failed to load reports');
       } finally {
         setLoading(false);
       }
