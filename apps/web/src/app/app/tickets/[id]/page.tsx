@@ -169,16 +169,17 @@ export default function TicketDetailPage() {
     setLocationId(t.location?.id ?? t.locationId ?? '');
     setWatching(!!t.watching);
     if (t.location) {
+      const loc = t.location;
       setLocations((prev) => {
-        if (prev.some((l) => l.id === t.location!.id)) return prev;
+        if (prev.some((l) => l.id === loc.id)) return prev;
         return [
           {
-            id: t.location.id,
-            code: t.location.code,
-            name: t.location.name,
-            site: t.location.site,
-            country: t.location.country,
-            timezone: t.location.timezone,
+            id: loc.id,
+            code: loc.code,
+            name: loc.name,
+            site: loc.site,
+            country: loc.country,
+            timezone: loc.timezone,
             isActive: true,
           },
           ...prev,
