@@ -316,10 +316,10 @@ Optional later: disable root SSH (`PermitRootLogin no`) after confirming `romeo`
 - Fine-scoped **PAT** over HTTPS (store outside the repo; prefer SSH deploy key)
 
 ```bash
-# As deploy user
-ssh-keygen -t ed25519 -C "logit-hetzner-deploy" -f ~/.ssh/logit_deploy -N ""
+# As romeo (or deploy) user on the server
+ssh-keygen -t ed25519 -C "logit-hetzner-github" -f ~/.ssh/logit_deploy -N ""
 cat ~/.ssh/logit_deploy.pub
-# Paste into GitHub Deploy keys (read-only)
+# Paste into GitHub → Settings → Deploy keys (read-only)
 ```
 
 `~/.ssh/config` example:
