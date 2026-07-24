@@ -35,11 +35,11 @@ Employee SOP: [SOP-08](../sops/08-employee-self-service.md).
 1. Open **Queue** or **Tickets**; check notification bell.
 2. On **Tickets**, use **Search** for ticket number (e.g. `INC-2026-…`), title keywords, or requester name/email (`GET /tickets?q=`).
 3. Claim / assign / change status from detail or Kanban.
-2. Triage: type, category, origin site, priority, assignment.
-3. Public reply vs **internal note**; **Watch** if needed; **Work logs** for time.
-4. Link assets; set pending_* when waiting (may pause SLA).
-5. Resolve with a clear public summary → Close after confirmation/policy.
-6. On conflict (“modified by someone else”), reload and re-apply (`version` lock).
+4. Triage: type, category, origin site, priority, assignment.
+5. Public reply vs **internal note**; **Watch** if needed; **Work logs** for time.
+6. Link assets; set pending_* when waiting (may pause SLA).
+7. Resolve with a clear public summary → Close after confirmation/policy.
+8. On conflict (“modified by someone else”), reload and re-apply (`version` lock).
 
 Agent SOP: [SOP-09](../sops/09-agent-ticket-handling.md).
 
