@@ -52,7 +52,9 @@ Also see product docs:
 
 ---
 
-## Quick links (local MVP)
+## Quick links
+
+### Local MVP
 
 | Item | Value |
 | --- | --- |
@@ -62,6 +64,15 @@ Also see product docs:
 | Health | http://localhost:4100/health/ready |
 | Compose UI (Nginx) | http://localhost:8180 |
 | Demo users | [SOP-03](./03-technical-setup-local.md#seed-accounts-development-only) / [SOP-06](./06-roles-and-permissions.md#demo-accounts-development-only) |
+
+### Production (this project)
+
+| Item | Value |
+| --- | --- |
+| Public URL | https://logit.koaimpact.app |
+| Login | https://logit.koaimpact.app/login |
+| Health | https://logit.koaimpact.app/health/ready |
+| Deploy guide | [DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md](../DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md) |
 
 ---
 

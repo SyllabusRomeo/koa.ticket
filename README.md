@@ -35,6 +35,8 @@ On **16GB Windows** laptops, also cap Docker/WSL RAM — see [SOP-03 Low-memory 
 
 Open http://localhost:3100/login
 
+**Production hostname:** https://logit.koaimpact.app — see [docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md](docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md).
+
 ### Dev accounts (seed)
 
 Full table: [docs/sops/03-technical-setup-local.md](docs/sops/03-technical-setup-local.md#seed-accounts-development-only)

@@ -16,8 +16,8 @@ LogIt sends ticket event emails over SMTP (nodemailer), accepts inbound parse we
 | `SMTP_USER` | SMTP auth user (optional if relay allows anonymous) |
 | `SMTP_PASS` | SMTP password (`SMTP_PASSWORD` alias accepted) |
 | `EMAIL_FROM` | From address (`SMTP_FROM` alias accepted) |
-| `APP_PUBLIC_URL` | Base URL for ticket deep links in emails |
-| `API_PUBLIC_URL` | Public API base for inbound webhook URL display |
+| `APP_PUBLIC_URL` | Base URL for ticket deep links in emails (prod: `https://logit.koaimpact.app`) |
+| `API_PUBLIC_URL` | Public API base for inbound webhook URL display (prod: `https://logit.koaimpact.app/api/v1`) |
 | `EMAIL_INBOUND_SECRET` | Optional Bearer secret for inbound webhook |
 | `INTEGRATION_SERVICE_USER_EMAIL` | Fallback requester when From email is unknown |
 | `IMAP_HOST` | IMAP server (enables poller when set with user/pass) |

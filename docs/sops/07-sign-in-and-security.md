@@ -6,7 +6,7 @@ Guide users through authentication and explain security controls.
 
 ## How to sign in (UI)
 
-1. Open the LogIt login page (local: http://localhost:3100/login).
+1. Open the LogIt login page (local: http://localhost:3100/login · production: https://logit.koaimpact.app/login).
 2. Enter **email** and **password**.
 3. Submit **Sign in**.
 4. On success you land in `/app` workspace.

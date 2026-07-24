@@ -64,8 +64,8 @@ API_PUBLIC_URL=https://logit.koaimpact.app/api/v1
 
 ```bash
 chmod +x scripts/init-letsencrypt.sh
-./scripts/init-letsencrypt.sh logit.koaimpact.app you@example.com
-# Prefer a real mailbox you control, e.g. ops@koaimpact.app
+./scripts/init-letsencrypt.sh logit.koaimpact.app ops@koaimpact.app
+# Use any reachable mailbox you control for Let's Encrypt notices
 
 # Optional dry-run CA: STAGING=1 ./scripts/init-letsencrypt.sh ...
 ```

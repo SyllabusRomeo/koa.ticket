@@ -160,10 +160,11 @@ When adding a page:
 
 | Concern | Guidance |
 | --- | --- |
+| Production host | `https://logit.koaimpact.app` — [DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md](../DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md) |
 | Port bind | `0.0.0.0` + `$PORT` / `API_PORT` |
 | Filesystem | Ephemeral — persist uploads on a volume or object store |
 | Cookies | HTTPS → `COOKIE_SECURE=true`, `TRUST_PROXY=1` |
-| CORS | `WEB_ORIGIN` must list real web origins |
+| CORS | `WEB_ORIGIN=https://logit.koaimpact.app` |
 | Worker | Run separately for SLA ticks in prod |
 | Pollers | IMAP/digests/schedules run in API process — size the instance accordingly |
 

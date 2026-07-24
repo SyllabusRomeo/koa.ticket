@@ -81,7 +81,7 @@ LogIt verifies `X-Slack-Signature` = `v0=` + HMAC-SHA256 of `v0:{timestamp}:{raw
 
 ```text
 Created INC-2026-000123: laptop broken
-https://your-app/app/tickets/INC-2026-000123
+https://logit.koaimpact.app/app/tickets/INC-2026-000123
 ```
 
 ---

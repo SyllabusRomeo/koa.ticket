@@ -2,7 +2,8 @@
 
 **Product:** LogIt — Enterprise IT Service Management  
 **Audience:** Requesters, agents, managers, approvers, auditors, administrators, and developers  
-**Edition:** 2026-07-23 (aligned with N1–N5 · H1–H7 · M1–M10 · L1–L5)
+**Edition:** 2026-07-24 (aligned with N1–N5 · H1–H7 · M1–M10 · L1–L5)  
+**Production URL:** https://logit.koaimpact.app
 
 This is the **book-style master guide** for LogIt. It explains what the system is, how to set it up, how to run day-to-day work, how developers extend it, and how the same patterns can grow beyond ITSM (including manufacturing).
 

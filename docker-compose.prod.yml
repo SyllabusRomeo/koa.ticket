@@ -1,9 +1,9 @@
 # Production overrides for LogIt on Hetzner / single-server Docker.
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-# TLS bootstrap (after DNS points here):
-#   ./scripts/init-letsencrypt.sh your.domain.example you@example.com
-# See docs/PRODUCTION.md
+# TLS bootstrap (after DNS A for logit.koaimpact.app points here, grey-cloud first):
+#   ./scripts/init-letsencrypt.sh logit.koaimpact.app ops@koaimpact.app
+# See docs/PRODUCTION.md and docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md
 
 services:
   api:

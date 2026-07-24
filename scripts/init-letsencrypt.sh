@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Issue (or renew) Let's Encrypt certs for LogIt Nginx TLS.
-# Usage:
-#   ./scripts/init-letsencrypt.sh app.example.com you@example.com
+# Usage (this project):
+#   ./scripts/init-letsencrypt.sh logit.koaimpact.app ops@koaimpact.app
 #
 # Requires: Docker, DNS A/AAAA already pointing at this host, ports 80/443 open.
 set -euo pipefail

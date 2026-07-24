@@ -585,7 +585,7 @@ If you refuse to move NS to Cloudflare: create the subdomain **A** at NameSilo p
 | 525 / 526 in browser | Cloudflare Full strict but origin cert invalid | Grey-cloud → fix LE/Origin CA → Full strict → orange |
 | 521 / 522 | Origin down or Hetzner firewall blocking 80/443 | `compose ps`, UFW, Hetzner firewall |
 | ACME / Let’s Encrypt fails | Orange cloud or port 80 closed | Grey cloud + open 80; re-run init script |
-| Login works then cookie lost | `COOKIE_SECURE` / not HTTPS / wrong `WEB_ORIGIN` | Set URLs to `https://logit…`, Full strict, `TRUST_PROXY=1` |
+| Login works then cookie lost | `COOKIE_SECURE` / not HTTPS / wrong `WEB_ORIGIN` | Set URLs to `https://logit.koaimpact.app`, Full strict, `TRUST_PROXY=1` |
 | CORS errors | `WEB_ORIGIN` mismatch | Exact public origin, no trailing slash mismatch |
 | Slack/Teams webhooks 403 | Cloudflare WAF/Bot challenge | WAF exception for integration paths |
 | DB connection errors after reboot | Compose not up / volume issue | `compose up -d`; check `postgres` health |

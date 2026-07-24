@@ -52,3 +52,5 @@ Concise product summary. Detail lives in [DEVELOPMENT_TODO.md](./docs/DEVELOPMEN
 **User & Developer Guide (book):** [USER_AND_DEVELOPER_GUIDE.md](./USER_AND_DEVELOPER_GUIDE.md) — product map, setup, operations flows, developer guide, and extension blueprints (manufacturing + other industries) under [guide/](./guide/).
 
 **Brand name:** product display name is **LogIt** (“log it”) — not LogIT.
+
+**Production hostname:** https://logit.koaimpact.app

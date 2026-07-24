@@ -27,7 +27,7 @@ npm run dev:web            # :3100
 # optional: npm run dev:worker   # SLA ticks
 ```
 
-Open http://localhost:3100/login
+Open http://localhost:3100/login (local). Production: https://logit.koaimpact.app/login — see [DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md](../DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md).
 
 Web client typically needs:
 

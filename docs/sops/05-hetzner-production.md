@@ -69,6 +69,7 @@ COOKIE_SECURE=true
 TRUST_PROXY=1
 SESSION_SECRET=<long-random>
 POSTGRES_PASSWORD=<strong>
+APP_URL=https://logit.koaimpact.app
 WEB_ORIGIN=https://logit.koaimpact.app
 APP_PUBLIC_URL=https://logit.koaimpact.app
 API_PUBLIC_URL=https://logit.koaimpact.app/api/v1
@@ -91,7 +92,7 @@ Use the production Nginx TLS config (Let's Encrypt):
 
 ```bash
 chmod +x scripts/init-letsencrypt.sh
-./scripts/init-letsencrypt.sh your-domain.example you@example.com
+./scripts/init-letsencrypt.sh logit.koaimpact.app you@koaimpact.app
 ```
 
 - Config: `infra/nginx/tls.conf` (HTTP → HTTPS redirect + ACME webroot)
@@ -101,7 +102,7 @@ chmod +x scripts/init-letsencrypt.sh
 Prod overlay also sets `COOKIE_SECURE=true` and `TRUST_PROXY=1` on the API.
 ### 5. Post-deploy verification
 
-- [ ] `https://your-domain/health/ready` returns ok
+- [ ] `https://logit.koaimpact.app/health/ready` returns ok
 - [ ] Login works over HTTPS; cookie Secure flag set
 - [ ] Create a test ticket as employee
 - [ ] Agent can see queue ticket

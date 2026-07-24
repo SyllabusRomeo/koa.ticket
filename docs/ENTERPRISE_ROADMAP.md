@@ -110,7 +110,7 @@ The **Incident Management System (IMS)** is a first-class ops product for struct
 | Brand | Same LogIt visual system; IMS-specific labels and layouts |
 
 ```text
-https://<same-host>/
+https://logit.koaimpact.app/
 ├── /login                    shared identity
 ├── /app/*                    Service Desk (ITSM) — current product
 └── /im/*  (or /app/im/*)     Incident Management System — new module
