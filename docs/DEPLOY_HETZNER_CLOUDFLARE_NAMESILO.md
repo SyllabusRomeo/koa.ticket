@@ -2,9 +2,11 @@
 
 **Audience:** you are going live on a Hetzner VPS, with the domain at **NameSilo**, DNS/WAF at **Cloudflare**, and app code from **GitHub** (`SyllabusRomeo/koa.ticket`).
 
-**Goal:** `https://<subdomain>.<your-domain>` serves LogIt (Nginx → web/api/worker) with TLS, secure cookies, and a repeatable `git pull` + Compose deploy.
+**Goal:** `https://logit.koaimpact.app` serves LogIt (Nginx → web/api/worker) with TLS, secure cookies, and a repeatable `git pull` + Compose deploy.
 
 **Complements:** [PRODUCTION.md](./PRODUCTION.md) · [SOP-05](./sops/05-hetzner-production.md) · [infra/hetzner/README.md](../infra/hetzner/README.md)
+
+**Production hostname (this project):** `logit.koaimpact.app` (subdomain of `koaimpact.app`).
 
 ---
 
@@ -34,14 +36,14 @@ GitHub            →  source of truth; server pulls main/master (or CI deploys 
 | **Hetzner** | VPS, firewall, Docker, `.env`, Compose, certs, backups | Domain registrar UI |
 | **GitHub** | Repo access (deploy key / PAT); pushes to `main`/`master` | Cloudflare DNS |
 
-**Example throughout:** replace with your values.
+**Example throughout:** this project’s production values (replace only if you fork the hostname).
 
-| Placeholder | Example |
+| Placeholder | This deployment |
 | --- | --- |
-| Apex domain | `example.com` |
-| Subdomain host | `logit` → public URL `https://logit.example.com` |
-| Hetzner public IPv4 | `203.0.113.10` |
-| Admin email (Let’s Encrypt) | `ops@example.com` |
+| Apex domain | `koaimpact.app` |
+| Subdomain host | `logit` → public URL **`https://logit.koaimpact.app`** |
+| Hetzner public IPv4 | *(keep in private ops notes — do not commit)* |
+| Admin email (Let’s Encrypt) | your ops mailbox on `koaimpact.app` (or any reachable inbox) |
 | SSH user | `romeo` (or `deploy`) — not root day-to-day |
 
 ---
@@ -52,7 +54,7 @@ You said the domain is at NameSilo and “has a firewall on Cloudflare.” That 
 
 ### Option A — Cloudflare is authoritative DNS (recommended)
 
-1. In Cloudflare: add site `example.com` → copy the two Cloudflare **nameservers**.
+1. In Cloudflare: add site `koaimpact.app` → copy the two Cloudflare **nameservers**.
 2. In NameSilo → **Domain Manager** → your domain → **NameServers** → change from NameSilo defaults to those Cloudflare NS.
 3. Wait until Cloudflare shows the zone **Active** (can take minutes–hours).
 4. Manage **all** DNS (including the new subdomain) **only in Cloudflare**.
@@ -72,12 +74,12 @@ In **Cloudflare → DNS → Records → Add record**:
 | Field | Value |
 | --- | --- |
 | Type | `A` |
-| Name | `logit` (or `app`, `helpdesk`, …) |
-| IPv4 | your Hetzner server public IP |
+| Name | `logit` → resolves as **`logit.koaimpact.app`** |
+| IPv4 | your Hetzner server public IP *(private ops notes)* |
 | Proxy status | **DNS only (grey cloud)** for first TLS bootstrap *(see §6)* |
 | TTL | Auto |
 
-Optional IPv6: add `AAAA` to the Hetzner IPv6 if the VPS has one and you want dual-stack.
+Optional IPv6: add `AAAA` for `logit` pointing at the VPS IPv6 if Hetzner assigned one and you want dual-stack.
 
 **Do not** create a conflicting `A` for the same name at NameSilo if Cloudflare owns the zone.
 
@@ -85,8 +87,8 @@ Verify from your laptop (after DNS propagates):
 
 ```bash
 # Should eventually show Cloudflare IPs if orange-cloud, or Hetzner IP if grey-cloud
-nslookup logit.example.com
-dig +short logit.example.com
+nslookup logit.koaimpact.app
+dig +short logit.koaimpact.app
 ```
 
 ---
@@ -99,7 +101,7 @@ dig +short logit.example.com
 
 | Mode | When to use |
 | --- | --- |
-| **Full (strict)** | **Recommended** once the origin has a valid cert (Let’s Encrypt or Cloudflare Origin CA) covering `logit.example.com` |
+| **Full (strict)** | **Recommended** once the origin has a valid cert (Let’s Encrypt or Cloudflare Origin CA) covering `logit.koaimpact.app` |
 | Full | Temporary only (origin self-signed) — not for long-term |
 | Flexible | **Avoid** — HTTPS to Cloudflare, HTTP to origin (breaks secure cookies / `COOKIE_SECURE`) |
 
@@ -192,9 +194,9 @@ The laptop → Hetzner key (§4.1) is **not** the same as the server → GitHub 
 
 ### 4.2 Create the VPS
 
-- Ubuntu 22.04/24.04 LTS (or Debian stable)
-- Size: start ≥ 2 vCPU / 4 GB RAM for Compose (Postgres + Redis + api + web + worker + Nginx)
-- Attach IPv4 (and IPv6 if you use AAAA)
+- Ubuntu **22.04 / 24.04 / 26.04 LTS** (Hetzner Cloud images; verified on **Ubuntu 26.04 LTS** / codename `resolute` in FSN1)
+- Size: start ≥ **4 GB RAM** / 2 vCPU for Compose (example host shape: `ubuntu-4gb-fsn1-*`) — Postgres + Redis + api + web + worker + Nginx
+- Attach IPv4 (and IPv6 if you use AAAA — Hetzner often assigns both)
 - In the create wizard, under **SSH keys**, select the key you added in §4.1 (and/or rely on “default key”)
 - Prefer SSH key auth only; disable password root login after first setup
 
@@ -276,31 +278,85 @@ systemctl status docker --no-pager
 
 ### 4.6 Tie the user to Docker + LogIt files
 
+After Docker install succeeds (`docker.service` **active (running)**):
+
 ```bash
 usermod -aG docker romeo
 usermod -aG sudo romeo   # idempotent if already done
-id romeo                 # should list sudo and docker
+id romeo
+# Expect groups to include at least: romeo, sudo, docker
+# Example: uid=1000(romeo) gid=1000(romeo) groups=1000(romeo),27(sudo),100(users),983(docker)
+
+mkdir -p /home/romeo/.ssh
+cp /root/.ssh/authorized_keys /home/romeo/.ssh/
+chown -R romeo:romeo /home/romeo/.ssh
+chmod 700 /home/romeo/.ssh
+chmod 600 /home/romeo/.ssh/authorized_keys
+
+mkdir -p /opt/logit
 chown -R romeo:romeo /opt/logit
 ```
 
+If you already created `/home/romeo/.ssh` earlier, the `cp` / `chmod` steps are still safe to re-run.
+
 ### 4.7 Log in as the operator (required after group changes)
 
-Group membership applies only on a **new** login. From Windows:
+Group membership applies only on a **new** login. Exit root, then from Windows:
 
 ```powershell
+ssh romeo@YOUR_SERVER_IP
+# or explicitly:
 ssh -i $env:USERPROFILE\.ssh\id_ed25519 romeo@YOUR_SERVER_IP
 ```
 
-On the server:
+On the server, verify:
 
 ```bash
-docker ps
-# must work without sudo — if "permission denied", disconnect and SSH again
+whoami          # romeo
+docker ps       # empty table is OK (no containers yet) — must NOT say permission denied
+ls -la /opt/logit
+# expect: owner romeo romeo, empty dir until you clone
+```
+
+Success looks like:
+
+```text
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+total 8
+drwxr-xr-x 2 romeo romeo 4096 ... .
+drwxr-xr-x ... root  root  ... ..
 ```
 
 From here on: clone, `.env`, and `docker compose` as **`romeo`** under `/opt/logit`. Use `sudo` only for OS packages / UFW. Linux user `romeo` is **not** the same as LogIt login `admin@logit.local`.
 
 Optional later: disable root SSH (`PermitRootLogin no`) after confirming `romeo` + sudo works.
+
+### 4.8 Field-verified notes (Hetzner Cloud, 2026-07-24)
+
+Validated end-to-end on a fresh Hetzner VPS (FSN1, ~4 GB, Ubuntu 26.04 LTS):
+
+| Check | Result |
+| --- | --- |
+| `adduser romeo` + password + GECOS | OK |
+| `usermod -aG docker romeo` **before** Docker | Fails: `group 'docker' does not exist` — expected |
+| Official Docker apt repo for `$VERSION_CODENAME` (`resolute`) | OK |
+| Packages | `docker-ce` **29.6.2**, Compose plugin **v5.3.1**, `containerd.io` 2.2.x |
+| `systemctl status docker` | `active (running)`, enabled on boot |
+| `usermod -aG docker romeo` **after** install | OK — `id` shows `sudo` + `docker` |
+| Copy root `authorized_keys` → `/home/romeo/.ssh` | OK |
+| `/opt/logit` owned by `romeo:romeo` | OK |
+| `ssh romeo@<server-ip>` from Windows | OK (default `id_ed25519` used) |
+| `docker ps` as `romeo` without sudo | OK (empty list) |
+
+**Do not commit** the production server IP, sudo password, or personal GECOS fields into git. Keep them in your private ops notes / password manager.
+
+**Recommended command order** (matches the successful session):
+
+1. `adduser` + `usermod -aG sudo` (skip docker group)  
+2. Install Docker (§4.5) + `systemctl enable --now docker`  
+3. `usermod -aG docker` + SSH key copy + `/opt/logit` (§4.6)  
+4. `exit` root → SSH as `romeo` → `docker ps` (§4.7)  
+5. Continue with GitHub clone (§5)
 
 ---
 
@@ -356,12 +412,12 @@ nano .env   # or vim
 ```env
 NODE_ENV=production
 APP_NAME=LogIt
-APP_URL=https://logit.example.com
-APP_PUBLIC_URL=https://logit.example.com
-API_PUBLIC_URL=https://logit.example.com/api/v1
+APP_URL=https://logit.koaimpact.app
+APP_PUBLIC_URL=https://logit.koaimpact.app
+API_PUBLIC_URL=https://logit.koaimpact.app/api/v1
 
 # Compose / public URLs
-WEB_ORIGIN=https://logit.example.com
+WEB_ORIGIN=https://logit.koaimpact.app
 
 SESSION_SECRET=<generate-long-random-min-32-chars>
 COOKIE_SECURE=true
@@ -413,7 +469,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api wget -q
 
 ## 6. TLS on the origin (Let’s Encrypt) **with Cloudflare**
 
-LogIt’s script: `./scripts/init-letsencrypt.sh <domain> <email>` (HTTP-01 via webroot). That needs **port 80** on the origin to answer ACME for `logit.example.com`.
+LogIt’s script: `./scripts/init-letsencrypt.sh <domain> <email>` (HTTP-01 via webroot). That needs **port 80** on the origin to answer ACME for `logit.koaimpact.app`.
 
 ### Recommended bootstrap order (avoids Cloudflare SSL loops)
 
@@ -424,19 +480,19 @@ LogIt’s script: `./scripts/init-letsencrypt.sh <domain> <email>` (HTTP-01 via 
 ```bash
 cd /opt/logit
 chmod +x scripts/init-letsencrypt.sh
-./scripts/init-letsencrypt.sh logit.example.com ops@example.com
+./scripts/init-letsencrypt.sh logit.koaimpact.app ops@koaimpact.app
 ```
 
 4. Confirm:
 
 ```bash
-curl - digI https://logit.example.com/health/ready
+curl -sSI https://logit.koaimpact.app/health/ready
 # Expect JSON with database/redis up
 ```
 
 5. Cloudflare SSL mode → **Full (strict)**.
 6. Turn **Proxy = Proxied (orange cloud)** on the `A` record.
-7. Re-test in a browser: `https://logit.example.com/login`.
+7. Re-test in a browser: `https://logit.koaimpact.app/login`.
 
 ### If HTTP-01 fails behind orange cloud
 
@@ -446,13 +502,13 @@ curl - digI https://logit.example.com/health/ready
 
 ### Renewal
 
-Re-run `./scripts/init-letsencrypt.sh logit.example.com ops@example.com` periodically, or automate `certbot renew` + copy live certs into `infra/certs/` and reload Nginx ([PRODUCTION.md](./PRODUCTION.md)).
+Re-run `./scripts/init-letsencrypt.sh logit.koaimpact.app ops@koaimpact.app` periodically, or automate `certbot renew` + copy live certs into `infra/certs/` and reload Nginx ([PRODUCTION.md](./PRODUCTION.md)).
 
 ---
 
 ## 7. Post-deploy verification checklist
 
-- [ ] `https://logit.example.com/health/ready` → `status: ok`, DB + Redis up  
+- [ ] `https://logit.koaimpact.app/health/ready` → `status: ok`, DB + Redis up  
 - [ ] Login over HTTPS; session cookie has **Secure**  
 - [ ] Create ticket as employee; agent sees queue  
 - [ ] Change seed admin password; enable MFA for privileged accounts  
@@ -483,7 +539,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api npx pri
 # (If migrate runs automatically on API start in your image, the exec step may be redundant — check api logs.)
 
 docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
-curl -sS https://logit.example.com/health/ready
+curl -sS https://logit.koaimpact.app/health/ready
 ```
 
 Keep `main` and `master` aligned if you push both (as in recent releases).

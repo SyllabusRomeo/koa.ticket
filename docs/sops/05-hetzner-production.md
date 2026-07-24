@@ -69,9 +69,9 @@ COOKIE_SECURE=true
 TRUST_PROXY=1
 SESSION_SECRET=<long-random>
 POSTGRES_PASSWORD=<strong>
-WEB_ORIGIN=https://your-domain.example
-APP_PUBLIC_URL=https://your-domain.example
-API_PUBLIC_URL=https://your-domain.example/api/v1
+WEB_ORIGIN=https://logit.koaimpact.app
+APP_PUBLIC_URL=https://logit.koaimpact.app
+API_PUBLIC_URL=https://logit.koaimpact.app/api/v1
 ```
 ### 3. Start with production overrides
 

@@ -54,21 +54,23 @@ COOKIE_SECURE=true
 TRUST_PROXY=1
 SESSION_SECRET=<long-random-min-32>
 POSTGRES_PASSWORD=<strong>
-WEB_ORIGIN=https://your.domain.example
-APP_URL=https://your.domain.example
-APP_PUBLIC_URL=https://your.domain.example
-API_PUBLIC_URL=https://your.domain.example/api/v1
+WEB_ORIGIN=https://logit.koaimpact.app
+APP_URL=https://logit.koaimpact.app
+APP_PUBLIC_URL=https://logit.koaimpact.app
+API_PUBLIC_URL=https://logit.koaimpact.app/api/v1
 ```
 
 3. Bootstrap TLS (creates temporary self-signed, obtains LE cert, reloads Nginx):
 
 ```bash
 chmod +x scripts/init-letsencrypt.sh
-./scripts/init-letsencrypt.sh your.domain.example you@example.com
+./scripts/init-letsencrypt.sh logit.koaimpact.app you@example.com
+# Prefer a real mailbox you control, e.g. ops@koaimpact.app
+
 # Optional dry-run CA: STAGING=1 ./scripts/init-letsencrypt.sh ...
 ```
 
-4. Verify: `https://your.domain.example/health/ready`
+4. Verify: `https://logit.koaimpact.app/health/ready`
 
 ### Secure cookies & proxy trust
 
@@ -76,7 +78,7 @@ chmod +x scripts/init-letsencrypt.sh
 | --- | --- | --- |
 | `COOKIE_SECURE` | `true` | Session cookie only sent over HTTPS |
 | `TRUST_PROXY` | `1` | Trust one hop (Nginx); correct `req.ip` from `X-Forwarded-For` |
-| `WEB_ORIGIN` | `https://your.domain…` | CORS allowlist |
+| `WEB_ORIGIN` | `https://logit.koaimpact.app` | CORS allowlist |
 
 API and web already bind **`0.0.0.0:$PORT`** (Render / Docker friendly).
 

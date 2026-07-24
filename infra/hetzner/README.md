@@ -37,7 +37,7 @@ Scripts: [DEPLOY §4.4–4.7](../../docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md#4
 ## TLS
 
 - Terminate TLS at Nginx (`infra/nginx/tls.conf` via `docker-compose.prod.yml`)
-- Bootstrap: `./scripts/init-letsencrypt.sh your.domain.example you@example.com`
+- Bootstrap: `./scripts/init-letsencrypt.sh logit.koaimpact.app you@koaimpact.app`
 - Prefer Let's Encrypt with automated renewal (re-run script or `certbot renew` + copy + reload)
 - Redirect HTTP → HTTPS; set `COOKIE_SECURE=true` and `TRUST_PROXY=1`
 - Full runbook: [docs/PRODUCTION.md](../../docs/PRODUCTION.md)
@@ -67,11 +67,11 @@ Scripts: [DEPLOY §4.4–4.7](../../docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md#4
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-./scripts/init-letsencrypt.sh your.domain.example you@example.com
+./scripts/init-letsencrypt.sh logit.koaimpact.app you@koaimpact.app
 ```
 
 ## Full triad guide (NameSilo + Cloudflare + GitHub)
 
-Step-by-step production tutorial (subdomain, WAF/SSL, VPS, clone/pull deploys):
+Step-by-step production tutorial (subdomain **`logit.koaimpact.app`**, WAF/SSL, VPS, clone/pull deploys):
 
 [docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md](../../docs/DEPLOY_HETZNER_CLOUDFLARE_NAMESILO.md)
